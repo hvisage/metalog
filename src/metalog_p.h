@@ -2,9 +2,9 @@
 #define __METALOG_P_H__ 1
 
 #ifdef HAVE_KLOGCTL
-# define GETOPT_OPTIONS "aBc:hps"
+# define GETOPT_OPTIONS "aBc:hp:s"
 #else
-# define GETOPT_OPTIONS "aBhps"
+# define GETOPT_OPTIONS "aBhp:s"
 #endif
 
 static struct option long_options[] = {

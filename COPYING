@@ -338,3 +338,11 @@ proprietary programs.  If your program is a subroutine library, you may
 consider it more useful to permit linking proprietary applications with the
 library.  If this is what you want to do, use the GNU Library General
 Public License instead of this License.
+
+
+
+
+
+The bsd-getopt_long.c and bsd-getopt_long.h files are derived from
+OpenBSD, and (C) Todd C. Miller. The original license is enclosed at
+the beginning of these files.

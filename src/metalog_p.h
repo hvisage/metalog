@@ -14,7 +14,6 @@ static struct option long_options[] = {
 #endif
     { "help", 0, NULL, 'h' },
     { "synchronous", 0, NULL, 's' },
-    { "debug", 0, NULL, 'd' },
     { NULL, 0, NULL, 0 }
 };
 

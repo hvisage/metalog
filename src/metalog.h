@@ -136,7 +136,6 @@ typedef struct Output_ {
 
 typedef struct ConfigBlock_ {
     char block_name[BN_LENGHT];
-    int debug;
     int minimum;
     int *facilities;     
     char facility_state; /* ie, are we negating, or or we adding */

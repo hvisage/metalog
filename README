@@ -246,10 +246,6 @@ echo "$3" | mail -s "Password failure (program : $2)" root
 
   Don't forget to properly quote arguments to avoid security problems.
   
-
-* debug : adds debugging output for that block.
-Ie. shows what matched & what didn't matched for that block...
-Mostly a programming debugging tool.
   
          ------------------------ LOG FILES ------------------------
          

@@ -7,8 +7,6 @@
 # include <dmalloc.h>
 #endif
 
-int debug; /*Yes, this global variable could be seen as "bad" */
-
 static int configParser(const char * const file)
 {
     pcre *re_newblock;
@@ -27,7 +25,6 @@ static int configParser(const char * const file)
     FILE *fp;
     ConfigBlock default_block = {
             "",                        /* block_name */
-            0,                         /* debug block */
             DEFAULT_MINIMUM,           /* minimum */
             NULL,                      /* facilities */
             FAC_STATE_NOTSET,          /* facility_state */
@@ -104,7 +101,7 @@ static int configParser(const char * const file)
             }
             block_count++;
             if (stcount > 1) {
-                pcre_get_substring(line,ovector,stcount, 1 ,&value);
+                pcre_get_substring(line, ovector, stcount, 1 ,&value);
                 snprintf(cur_block->block_name,
                          sizeof cur_block->block_name,
                          "B%d-%s", block_count, value);
@@ -122,15 +119,10 @@ static int configParser(const char * const file)
                        sizeof ovector / sizeof ovector[0])) >= 3) {
             pcre_get_substring(line, ovector, stcount, 1, &keyword);
             pcre_get_substring(line, ovector, stcount, 2, &value);
-            if (strcasecmp(keyword, "debug") == 0) {
-                if ((cur_block->debug = atoi(value)) > 0) {
-                    fprintf(stderr,"adding debug info for block :%s:\n",
-                            cur_block->block_name);
-                }               
-            } else if (strcasecmp(keyword, "minimum") == 0) {
+            if (strcasecmp(keyword, "minimum") == 0) {
                 cur_block->minimum = atoi(value);
             } else if ((strcasecmp(keyword, "facility") == 0) 
-                       || (strcasecmp(keyword, "neg-facility") ==0)) {              
+                       || (strcasecmp(keyword, "neg-facility") == 0)) {
                 int n = 0;
                 int *new_facilities;
                 
@@ -165,11 +157,7 @@ static int configParser(const char * const file)
                             retcode = -4;
                             goto rtn;
                         } else {
-                            cur_block->facility_state=FAC_STATE_NEG;    
-                            if ((debug > 2) || (cur_block->debug > 2)) {
-                                fprintf(stderr,"Setting neg-facility %s %s",
-                                        keyword,value);
-                            }
+                            cur_block->facility_state = FAC_STATE_NEG;    
                         }
                     } else if (strcasecmp(keyword, "facility") == 0) {
                         if ((FAC_STATE_NOTSET != cur_block->facility_state)
@@ -180,10 +168,6 @@ static int configParser(const char * const file)
                             goto rtn;
                         } else {
                             cur_block->facility_state = FAC_STATE_ADD;
-                            if ((debug > 2) || (cur_block->debug > 2)) {
-                                fprintf(stderr,"Setting facility %s %s",
-                                        keyword,value);
-                            }
                         }
                     }               
                     /* The facility & neg-facility's haven't been intermingled */
@@ -284,10 +268,6 @@ static int configParser(const char * const file)
                     pcre_info->pcre = new_regex;
                     pcre_info->pcre_extra = pcre_study(new_regex, 0, &errptr);
                 }
-                if ((cur_block->debug > 1) || (debug > 1)){
-                    printf("adding: %s %d %s %d\n",
-                           keyword,cur_block->nb_regexes,regex,state);
-                }
                 cur_block->regex_state[cur_block->nb_regexes]=state;
                 cur_block->nb_regexes++;
 
@@ -351,10 +331,6 @@ static int configParser(const char * const file)
                     pcre_info->pcre = new_prog_regex;
                     pcre_info->pcre_extra = pcre_study(new_prog_regex, 
                                                        0, &errptr);
-                }
-                if ((cur_block->debug > 1) || (debug > 1)){
-                    printf("adding: %s %d %s %d\n",
-                           keyword,cur_block->nb_prog_regexes,prog_regex,state);
                 }
                 cur_block->prog_regex_state[cur_block->nb_prog_regexes] = state;
                 cur_block->nb_prog_regexes++;
@@ -914,25 +890,9 @@ static int processLogLine(const int logcode, const char * const date,
     int ovector[16];
     PCREInfo *pcre_info;
     int logline_out = 0; /* This is for checking if we've printed out the logline */
-    int block_debug = 0;
         
-    if (debug > 4) {
-        fprintf(stderr,"fac: %d\t\tprio: %d\ndate: %s\nprogname: %s\ninfo: %s\n",
-                facility,priority, date, prg, info);
-        logline_out=1;
-    }
-
     info_len = strlen(info);
     while (block != NULL) {
-        block_debug=block->debug;
-        if (block_debug > 3){
-            if (0 == logline_out) {
-                fprintf(stderr,"fac: %d\t\tprio: %d\ndate: %s\nprogname: %s\ninfo: %s\n",
-                        facility,priority, date, prg, info);
-                logline_out=1;
-            }            
-            fprintf(stderr,"%s\n",block->block_name);
-        }
         if (block->facilities != NULL) {
             int nb = block->nb_facilities;
             const int * const facilities = block->facilities;
@@ -940,10 +900,6 @@ static int processLogLine(const int logcode, const char * const date,
             while (nb > 0) {
                 nb--;
                 if (facility == facilities[nb]) {
-                    if (block_debug > 2) {
-                        fprintf(stderr,"facility match facility_state: %d\n",
-                                block->facility_state);
-                    }
                     if (FAC_STATE_ADD == block->facility_state) {
                         goto facility_ok;
                     }else if (FAC_STATE_NEG == block->facility_state) {
@@ -962,18 +918,11 @@ static int processLogLine(const int logcode, const char * const date,
         }        
         if ((nb_regexes = block->nb_regexes) > 0 && info_len > 0) {
             pcre_info = block->regexes;
-            curr=0;
+            curr = 0;
             do {
                 if (pcre_exec(pcre_info->pcre, pcre_info->pcre_extra,
                               info, info_len, 0, 0, ovector,
                               sizeof ovector / sizeof ovector[0]) >= 0) {
-                    if ((block->debug > 3) || (debug > 3)) {
-                        fprintf(stderr,"log line: %s\n",info);
-                        fprintf(stderr,"program: %s\n",prg);
-                        fprintf(stderr,"Regex %d matches with state %d\n",
-                               curr,block->regex_state[curr]);
-                    }
-
                     if (block->regex_state[curr] == 1   ) {
                         goto regex_ok; /*A regex state */
                     } else {
@@ -1217,9 +1166,6 @@ static void parseOptions(int argc, char *argv[])
             help();
         case 's' :
             synchronous = (sig_atomic_t) 1;
-            break;
-        case 'd' :
-            debug++;
             break;
         default :
             fprintf(stderr, "Unknown option\n");

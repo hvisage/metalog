@@ -212,6 +212,25 @@ AC_ARG_WITH(largefile,
     AC_DEFINE(WITH_LARGE_FILES,,[with largefile])
   fi ])
 
+if test "x$sysconfdir" = 'xNONE' || test "x$sysconfdir" = 'x'; then
+  CONFDIR='/etc'
+else
+  if test "x$sysconfdir" = 'x${prefix}/etc'; then
+    if test "x$prefix" = 'xNONE' || test "x$prefix" = 'x/usr'; then
+      CONFDIR='/etc'
+    else
+      CONFDIR="$sysconfdir"
+    fi
+  else
+    CONFDIR="$sysconfdir"
+  fi
+fi  
+
+sysconfdir="$CONFDIR"
+AC_SUBST(sysconfdir)
+
+CPPFLAGS="$CPPFLAGS -DCONFDIR='\"$sysconfdir\"'"
+
 AC_CONFIG_FILES(Makefile src/Makefile man/Makefile metalog.spec metalog.lsm)
 
 AC_OUTPUT

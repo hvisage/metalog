@@ -11,6 +11,7 @@
     program_regex
     program_neg_regex
     better spec file
+    confdir
 
 * Version 0.7-beta :
 

@@ -1176,7 +1176,9 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Bad configuration file - aborting\n");
         return -1;
     }
-    dodaemonize();
+    if (daemonize != 0) {
+        dodaemonize();
+    }
     setsignals();
     (void) update_pid_file(pid_file);
     clearargs(argc, argv);

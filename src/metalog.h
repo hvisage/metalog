@@ -175,6 +175,13 @@ typedef struct ConfigBlock_ {
     Output *output;
     const char *command;
     const char *program;
+    /*                                                                        
+     * If output or command match, and brk is set,                            
+     * do output and/or command then break out of                             
+     * match loop, i.e. don't consider any more                               
+     * sections below this one in the config file.                            
+     */                                                                       
+    int brk;
     RegexWithSign *program_regexeswithsign;
     int program_nb_regexes;
     struct ConfigBlock_ *next_block;

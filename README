@@ -106,6 +106,15 @@ default, maximum is the largest possible level.
 * facility = <facility> : only record a message if the application that issued
 it uses syslog facility <facility> .
 
+* break = 0|1 (default=0) : if set to 1 and a section is matched,             
+perform action, but don't consider any more possible section matches          
+below this one in the config file.  This is useful for creating a config      
+where specific types of log messages are matched and dispatched, while a      
+"catch-all" section at the bottom of the config file handles the default      
+case.  Using break=0 would cause messages to be potentially handled by 
+multiple sections, causing message duplication, while using break=1
+(default) on the sections above the "catch-all" would avoid duplication.        
+
 Facility names are : "auth", "authpriv", "cron", "daemon", "ftp", "kern",
 "lpr", "mail", "news", "security", "syslog", "user", "uucp", "local0",
 "local1" ... "local7" . All kernel messages are logged with facility "kern".

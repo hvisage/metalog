@@ -1,5 +1,17 @@
 
-* Version 0.8 :
+* Version 0.8-rc1 :
+    
+    Mathias Kretschmer bug fix for kernel logging integrated.
+    Added TODO file in tree for those who want to help :)
+    Config file was updated.
+    Log rotation can now be disabled with maxsize or maxtime = 0.
+    A (very little) bit of code cleanup.
+    James Yonan "break" keyword functionnality added for conf file.
+    Clifford Wolf fixes inclusion                                              
+    -> Fixed race condition with spawning of child processes                   
+    -> Log child exist status, etc whenever a child returns                    
+    -> Now log some metalog internal stuff instead of dumping it to stderr     
+    -> Better rotation (e.g. always rotate at 0:00 if doing daily rotation)    
 
 * Version 0.7 :
     Autoconf/automake scripts were modernized.

@@ -6,6 +6,7 @@
 #ifdef WITH_DMALLOC
 # include <dmalloc.h>
 #endif
+#include <string.h>
 
 static int parseLine(char * const line, ConfigBlock **cur_block,
                      const ConfigBlock * const default_block,
@@ -244,7 +245,9 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 perror("Oh no! More memory!");
                 return -3;
             }
-        }
+	} else if (strcasecmp(keyword, "break") == 0) {
+	    (*cur_block)->brk = atoi(value);
+    	}
     }
     return 0;
 }
@@ -272,7 +275,8 @@ static int configParser(const char * const file)
             (time_t) DEFAULT_MAXTIME,  /* maxtime */
             NULL,                      /* output */
             NULL,                      /* command */
-            NULL,                      /* program */            
+            NULL,                      /* program */
+	        0,                         /* break flag */
             NULL,                      /* program_regexes */
             0,                         /* program_nb_regexes */
             NULL                       /* next_block */
@@ -385,6 +389,7 @@ static int getDataSources(int sockets[])
 #ifdef HAVE_KLOGCTL
     int fdpipe[2];
     pid_t pgid;
+    int loop = 1;
 #endif
     
     if ((sockets[0] = socket(PF_UNIX, SOCK_DGRAM, 0)) < 0) {
@@ -406,7 +411,8 @@ static int getDataSources(int sockets[])
     chmod(sa.sun_path, 0666);
     sockets[1] = -1;
 #ifdef HAVE_KLOGCTL
-    if (pipe(fdpipe) < 0) {
+    /* larger buffers compared to a pipe() */
+    if(socketpair(AF_UNIX, SOCK_STREAM, 0, fdpipe) < 0) {
         perror("Unable to create a pipe");
         close(sockets[0]);
         return -3;
@@ -434,32 +440,25 @@ static int getDataSources(int sockets[])
             perror("Unable to control the kernel logging device");
             return -4;
         }
-        for (;;) {
-            while ((s = klogctl(2, line, sizeof line)) < 0 && errno == EINTR);
-            t = 0;
-            u = 0;
-            while (t < s) {
-                if (line[t] == '\n') {
-                    line[t] = 0;
-                    towrite = (size_t) (1U + t - u);
-                    do {
-                        while ((written = write(fdpipe[1], &line[u], towrite))
-                               < (ssize_t) 0 && errno == EINTR);
-                        if (written < 0) {
-                            break;
-                        }
-                        if (written >= (ssize_t) towrite) {
-                            break;
-                        }
-                        u += written;                        
-                        towrite -= written;
-                    } while (towrite > (size_t) 0U);
-                    u = ++t;
-                } else {
-                    t++;
-                }
-            }
-        }        
+
+        while( loop) {
+	  while ((s = klogctl(2, line, sizeof (line))) < 0 && errno == EINTR);
+	    if( s == -1){
+	      loop = 0;
+	      break;
+	    }
+	    /* make sure we write the whole buffer into the pipe
+	       line parsing is done on the other end */
+	    int out = 0, w;
+	    while( out < s){
+	      w = write( fdpipe[1], &line[out], s - out);
+	      if( (w == -1) && (errno != EINTR)){
+		loop = 0;
+		break;
+	      }
+	      out += w;
+	    }
+	}
         klogctl(7, NULL, 0);
         klogctl(0, NULL, 0);
         
@@ -668,6 +667,7 @@ static int writeLogLine(Output * const output, const char * const date,
     if (sizeof_prg > MAX_SIGNIFICANT_LENGTH) {
         sizeof_prg = MAX_SIGNIFICANT_LENGTH;
     }
+    
     if (sizeof_info == output->dt.previous_sizeof_info &&
         sizeof_prg == output->dt.previous_sizeof_prg &&
         memcmp(output->dt.previous_info, info, sizeof_info) == 0 &&
@@ -677,6 +677,7 @@ static int writeLogLine(Output * const output, const char * const date,
         }
         return 0;
     }
+    
     if (sizeof_info > output->dt.sizeof_previous_info) {
         char *pp = output->dt.previous_info;
         
@@ -761,57 +762,59 @@ static int writeLogLine(Output * const output, const char * const date,
             fprintf(stderr, "Unable to close [%s]\n", path);
             return -3;
         }
-        output->creatime = creatime;
+        output->creatime = creatime - (creatime % output->maxtime);
         output->size = (off_t) ftell(fp);
         output->fp = fp;
     }
-    if (output->size >= output->maxsize ||
-        now > (output->creatime + output->maxtime)) {
-        struct tm *time_gm;    
-        char path[MAXPATHLEN];
-        char newpath[MAXPATHLEN];            
-        
-        if (output->fp == NULL) {
-            fprintf(stderr, "Internal inconsistency line [%d]\n", __LINE__);
-            return -6;
-        }
-        if ((time_gm = gmtime(&now)) == NULL) {
-            fprintf(stderr, "Unable to find the current date\n");
-            return -4;
-        }
-        if (snprintf(newpath, sizeof newpath, 
-                     "%s/" OUTPUT_DIR_LOGFILES_PREFIX 
-                     "%d-%02d-%02d-%02d:%02d:%02d",
-                     output->directory, time_gm->tm_year + 1900,
-                     time_gm->tm_mon + 1, time_gm->tm_mday,
-                     time_gm->tm_hour + 1, time_gm->tm_min,
-                     time_gm->tm_sec) < 0) {
-            fprintf(stderr, "Path name too long for new path in [%s]\n", 
+    if ((output->maxsize != 0) && (output->maxtime != 0)) {
+        if (output->size >= output->maxsize ||
+            now > (output->creatime + output->maxtime)) {
+            struct tm *time_gm;    
+            char path[MAXPATHLEN];
+            char newpath[MAXPATHLEN];            
+
+            if (output->fp == NULL) {
+                fprintf(stderr, "Internal inconsistency line [%d]\n", __LINE__);
+                return -6;
+            }
+            if ((time_gm = gmtime(&now)) == NULL) {
+                fprintf(stderr, "Unable to find the current date\n");
+                return -4;
+            }
+            if (snprintf(newpath, sizeof newpath, 
+                        "%s/" OUTPUT_DIR_LOGFILES_PREFIX 
+                        "%d-%02d-%02d-%02d:%02d:%02d",
+                        output->directory, time_gm->tm_year + 1900,
+                        time_gm->tm_mon + 1, time_gm->tm_mday,
+                        time_gm->tm_hour + 1, time_gm->tm_min,
+                        time_gm->tm_sec) < 0) {
+                fprintf(stderr, "Path name too long for new path in [%s]\n", 
                     output->directory);
-            return -2;
-        }
-        if (snprintf(path, sizeof path, "%s/" OUTPUT_DIR_CURRENT,
-                     output->directory) < 0) {
-            fprintf(stderr, "Path name too long for current in [%s]\n", 
+                return -2;
+            }
+            if (snprintf(path, sizeof path, "%s/" OUTPUT_DIR_CURRENT,
+                        output->directory) < 0) {
+                fprintf(stderr, "Path name too long for current in [%s]\n", 
                         output->directory);
-            return -2;
+                return -2;
+            }
+            rotateLogFiles(output->directory, output->maxfiles);
+            fclose(output->fp);
+            output->fp = NULL;
+            if (rename(path, newpath) < 0 && unlink(path) < 0) {
+                fprintf(stderr, "Unable to rename [%s] to [%s]\n",
+                        path, newpath);
+                return -5;
+            }
+            if (snprintf(path, sizeof path, "%s/" OUTPUT_DIR_TIMESTAMP,
+                        output->directory) < 0) {
+                fprintf(stderr, "Path name too long for timestamp in [%s]\n",
+                        output->directory);
+                return -2;
+            }            
+            unlink(path);
+            goto testdir;
         }
-        rotateLogFiles(output->directory, output->maxfiles);
-        fclose(output->fp);
-        output->fp = NULL;
-        if (rename(path, newpath) < 0 && unlink(path) < 0) {
-            fprintf(stderr, "Unable to rename [%s] to [%s]\n",
-                    path, newpath);
-            return -5;
-        }
-        if (snprintf(path, sizeof path, "%s/" OUTPUT_DIR_TIMESTAMP,
-                     output->directory) < 0) {
-            fprintf(stderr, "Path name too long for timestamp in [%s]\n",
-                    output->directory);
-            return -2;
-        }            
-        unlink(path);
-        goto testdir;
     }
     if (output->dt.same_counter > 0U) {
         if (output->dt.same_counter == 1) {
@@ -836,32 +839,58 @@ static int writeLogLine(Output * const output, const char * const date,
     if (synchronous != (sig_atomic_t) 0) {
         fflush(output->fp);
     }
-    
     return 0;
 }
+
+static int processLogLine(const int logcode, const char * const date,
+                          const char * const prg, char * const info);
+
+static int doLog(const char * fmt, ...)                                       
+{                                                                             
+    const char *months[] = {                                                  
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    };
+    const time_t now = time(NULL);
+    struct tm *tm;
+    static char datebuf[100];
+    char infobuf[512];
+    va_list ap;
+
+    if ((tm = localtime(&now)) == NULL) {
+        *datebuf = 0;
+    } else {
+        snprintf(datebuf, sizeof datebuf, "%s %2d %02d:%02d:%02d",
+                 months[tm->tm_mon], tm->tm_mday,
+                 tm->tm_hour, tm->tm_min, tm->tm_sec);
+    }
+    va_start(ap, fmt);
+    vsnprintf (infobuf, sizeof infobuf, fmt, ap);
+    va_end(ap);
+
+    return processLogLine(LOG_SYSLOG, datebuf, "metalog", infobuf);
+}                                                                             
+                                                                               
+static int spawn_recursion = 0;
 
 static int spawnCommand(const char * const command, const char * const date,
                         const char * const prg, const char * const info)
 {
     struct stat st;
-    pid_t command_child;
-    
-    if (command == NULL || *command == 0 ||
-        stat(command, &st) < 0 || !S_ISREG(st.st_mode)) {
-        fprintf(stderr, "Unable to launch [%s]\n",
-                command == NULL ? "null" : command);
-        return -1;
-    }
-    command_child = fork();
-    if (command_child == (pid_t) 0) {
+    pid_t pid;
+
+    if (spawn_recursion) return 1;
+    spawn_recursion++;
+
+    pid = fork();
+    if (pid == (pid_t) 0) {
         execl(command, command, date, prg, info, (char *) NULL);
-        _exit(EXIT_FAILURE);
+        _exit(127);
     }
-    if (command_child == (pid_t) -1) {
-        fprintf(stderr, "Unable to launch [%s] : [%s]\n",
-                command == NULL ? "null" : command, strerror(errno));
-        return -1;
-    }
+
+    doLog("Forked command \"%s \"%s\" \"%s\" \"%s\" [%u].",
+        command, date, prg, info, (unsigned) pid);
+    spawn_recursion--;
     return 0;
 }
 
@@ -927,7 +956,7 @@ static int processLogLine(const int logcode, const char * const date,
                 goto nextblock;
             }
         }       
-        if ((info_len = (int) strlen(info)) < 0) {
+        if ((info_len = (int) strlen(info)) <= 0) {
             goto nextblock;
         }
         if ((nb_regexes = block->nb_regexes) > 0 && *info != 0) {
@@ -961,9 +990,13 @@ static int processLogLine(const int logcode, const char * const date,
         }
         if (block->output != NULL) {
             writeLogLine(block->output, date, prg, info);
+	    if (block->brk)
+		break;
         }
         if (block->command != NULL) {
             spawnCommand(block->command, date, prg, info);
+	    if (block->brk)
+		break;
         }        
         nextblock:
         
@@ -985,21 +1018,66 @@ static void sanitize(char * const line_)
     }
 }
 
+static int log_line( LogLineType loglinetype, char *buf)
+{
+  int logcode;
+  char *date;
+  const char *prg;
+  char *info;
+  
+  sanitize( buf);
+  if (parseLogLine( loglinetype, buf, &logcode, &date, &prg, &info) < 0) {
+    return -1;
+  }
+  processLogLine(logcode, date, prg, info);
+  return 0;
+}
+
+static int log_udp( char *buf, int bsize)
+{
+  buf[bsize] = '\0';
+  write( 1, buf, strlen(buf));
+  return log_line( LOGLINETYPE_SYSLOG, buf);
+}
+
+
+static int log_kernel( char *buf, int bsize)
+{
+  int logcode;
+  char *date;
+  const char *prg;
+  char *info;
+  char *s = buf;
+  int n=0, start=0;
+
+  s = buf;
+  while( n < bsize){
+    if( s[n] == '\n'){
+      s[n] = '\0';
+      log_line( LOGLINETYPE_KLOG, &s[start]);
+      start = n+1;
+    }
+    n++;
+  }
+
+  /* we couldn't find any \n ???
+     => invalidate this buffer */
+  if( start == 0)
+    return 0;
+
+  return bsize - start;
+}
+
 static int process(const int sockets[])
 {
     struct pollfd ufds[2];
-    struct pollfd *ufdspnt;    
     int nbufds = 0;
-    int pollret;
     int event;
-    ssize_t readen;
-    char line[LINE_MAX];
-    int logcode;
-    char *date;
-    const char *prg;
-    char *info;
-    LogLineType loglinetype;
-    
+    ssize_t rd;
+    int ld;
+    char buffer[2][4096];
+    int  bpos;
+
     if (sockets[0] >= 0) {
         ufds[0].fd = sockets[0];
         ufds[0].events = POLLIN | POLLERR | POLLHUP | POLLNVAL;
@@ -1012,45 +1090,56 @@ static int process(const int sockets[])
         ufds[nbufds].revents = 0;
         nbufds++;        
     }
+
+    bpos = 0;
     for (;;) {
-        while ((pollret = poll(ufds, nbufds, -1)) < 0 && errno == EINTR);
-        ufdspnt = ufds;
-        while (pollret > 0) {            
-            if ((event = ufdspnt->revents) == 0) {
-                goto nextpoll;
-            }
-            pollret--;
-            ufdspnt->revents = 0;
-            if (event != POLLIN) {
-                sockerr:
-                fprintf(stderr, "Socket error - aborting\n");
-                close(ufdspnt->fd);
-                return -1;
-            }
-            while ((readen = read(ufdspnt->fd, line, sizeof line - 1U)) < 0
-                   && errno == EINTR);
-            if (readen < 0) {
-                goto sockerr;
-            }
-            if (readen == 0) {
-                goto nextpoll;
-            }
-            line[readen] = 0;
-            /* Kludge - need to be rewritten */
-            if (ufdspnt->fd == sockets[1]) {
-                loglinetype = LOGLINETYPE_KLOG;
-            } else {
-                loglinetype = LOGLINETYPE_SYSLOG;
-            }
-            sanitize(line);
-            if (parseLogLine(loglinetype, line, &logcode,
-                             &date, &prg, &info) < 0) {
-                goto nextpoll;
-            }
-            processLogLine(logcode, date, prg, info);
-            nextpoll:
-            ufdspnt++;
-        }
+      while (poll(ufds, nbufds, -1) < 0 && errno == EINTR);
+      
+      /* UDP socket (syslog) */
+      if( ufds[0].revents != 0){
+	event = ufds[0].revents;
+	ufds[0].revents = 0;
+	if (event != POLLIN) {
+	  fprintf(stderr, "Socket error - aborting\n");
+	  close(ufds[0].fd);
+	  return -1;
+	}
+	
+	/* receive a single log line (UDP) and process it. receive one byte for '\0' */
+	while( ((rd = read(ufds[0].fd, buffer[0], sizeof(buffer[0])-1)) < 0) && (errno == EINTR));
+	if( rd == -1){
+	  return -1;
+	}
+	log_udp( buffer[0], rd);
+      }
+
+      /* STREAM_SOCKET (klog) */
+      if( (nbufds > 1) && (ufds[1].revents != 0)){
+	event = ufds[1].revents;
+	ufds[1].revents = 0;
+	if (event != POLLIN) {
+	  fprintf(stderr, "Socket error - aborting\n");
+	  close(ufds[1].fd);
+	  return -1;
+	}
+
+	/* receive a chunk of kernel log message... */
+	while( (rd = read(ufds[1].fd, &buffer[1][bpos], sizeof(buffer[1]) - bpos)) < 0 && errno == EINTR);
+	if( rd == -1){
+	  return -1;
+	}
+	
+	/* ... and process them line by line */
+	rd += bpos;
+	if( (ld = log_kernel( buffer[1], rd)) > 0){
+	  /* move remainder of a message to the beginning of the buffer
+	   it'll be logged once we can read the whole line into buffer[1] */
+	  memmove( buffer[1], &buffer[1][ld], bpos = rd - ld);
+	}
+	else{
+	  bpos = 0;
+	}
+      }
     }
     return 0;
 }
@@ -1112,7 +1201,7 @@ static void exit_hook(void)
 static RETSIGTYPE sigkchld(int sig) __attribute__ ((noreturn));
 static RETSIGTYPE sigkchld(int sig)
 {
-    fprintf(stderr, "Process [%u] died with signal [%d]\n", 
+    doLog("Process [%u] died with signal [%d]\n", 
             (unsigned int) getpid(), sig);
     exit(EXIT_FAILURE);
 }
@@ -1121,23 +1210,30 @@ static RETSIGTYPE sigchld(int sig)
 {    
     pid_t pid;
     signed char should_exit = 0;
+    int child_status;
     
     (void) sig;
 #ifdef HAVE_WAITPID
-    while ((pid = waitpid((pid_t) -1, NULL, WNOHANG)) > (pid_t) 0) {
+    while ((pid = waitpid((pid_t) -1, &child_status, WNOHANG)) > (pid_t) 0) {
+#else
+    while ((pid = wait3(&child_status, WNOHANG, NULL)) > (pid_t) 0) {
+#endif
         if (pid == child) {
-            fprintf(stderr, "Klog child [%u] died\n", (unsigned) pid);
+            doLog("Klog child [%u] died.", (unsigned) pid);
             should_exit = 1;
+        } else {
+            spawn_recursion++;
+            if ( WIFEXITED(child_status) && WEXITSTATUS(child_status) )
+                doLog("Child [%u] exited with return code %u.",
+                    (unsigned) pid, WEXITSTATUS(child_status));
+            else if ( !WIFEXITED(child_status) )
+                    doLog("Child [%u] caught signal %u.",
+                        (unsigned) pid, WTERMSIG(child_status));
+                else
+                    doLog("Child [%u] exited successfully.", (unsigned) pid);
+            spawn_recursion--;
         }
     }
-#else
-    while ((pid = wait3(NULL, WNOHANG, NULL)) > (pid_t) 0) {
-        if (pid == child) {
-            fprintf(stderr, "Klog child [%u] died\n", (unsigned) pid);
-            should_exit = 1;
-        }
-    }    
-#endif
     if (should_exit != 0) {
         child = (pid_t) 0;
         exit(EXIT_FAILURE);
@@ -1149,6 +1245,7 @@ static RETSIGTYPE sigusr1(int sig)
     (void) sig;
     
     synchronous = (sig_atomic_t) 1;
+    doLog("Got SIGUSR1 - enabling synchronous mode.");
 }
 
 static RETSIGTYPE sigusr2(int sig)
@@ -1156,6 +1253,7 @@ static RETSIGTYPE sigusr2(int sig)
     (void) sig;
     
     synchronous = (sig_atomic_t) 0;
+    doLog("Got SIGUSR2 - disabling synchronous mode.");
 }
 
 static void setsignals(void)

@@ -1,5 +1,11 @@
 
-* Version 0.8
+* Version 0.8-rc1
+ - new keyword: break
+ - config file in package updated (synch with break keyword)
+ - kernel logging problem fix
+ - race condition fix
+ - metalog.conf man page added
+ - log rotation can be disabled with maxsize or maxtime = 0
 
 * Version 0.7
  - Logging is now synchronous by default. Use --async to get back to

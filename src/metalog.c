@@ -166,12 +166,15 @@ static int configParser(const char * const file)
                     }
                     cur_block->regexes = new_regexes;
                 }
-                if ((new_regex = pcre_compile(regex, PCRE_CASELESS, &errptr, &erroffset, NULL)) == NULL) {
+                if ((new_regex = pcre_compile(regex, PCRE_CASELESS, 
+                                              &errptr, &erroffset, NULL)) 
+                    == NULL) {
                     fprintf(stderr, "Invalid regex : [%s]\n", regex);
                     return -5;
                 }
                 {
-                    PCREInfo * const pcre_info = &cur_block->regexes[cur_block->nb_regexes];
+                    PCREInfo * const pcre_info = 
+                        &cur_block->regexes[cur_block->nb_regexes];
                     
                     pcre_info->pcre = new_regex;
                     pcre_info->pcre_extra = pcre_study(new_regex, 0, &errptr);
@@ -866,6 +869,7 @@ static void exit_hook(void)
     }
 }
 
+static RETSIGTYPE sigkchld(int sig) __attribute__ ((noreturn));
 static RETSIGTYPE sigkchld(int sig)
 {
     fprintf(stderr, "Process [%u] died with signal [%d]\n", 
@@ -933,29 +937,30 @@ static void setsignals(void)
 
 static void dodaemonize(void)
 {
-        pid_t child;
-        
-        if (daemonize) {
-                if ((child = fork()) < (pid_t) 0) {
-                        perror("Daemonization failed - fork");
-                        return;
-                } else if (child != (pid_t) 0) {
-                        _exit(EXIT_SUCCESS);
-                } else {
-                        if (setsid() == (pid_t) -1) {
-                           perror("Daemonization failed : setsid");
-                        }
-                        chdir("/");
-                        if (isatty(1)) {
-                                close(1);
-                        }
-                        if (isatty(2)) {
-                                close(2);
-                        }
-                }
-        }       
+    pid_t child;
+    
+    if (daemonize != 0) {
+        if ((child = fork()) < (pid_t) 0) {
+            perror("Daemonization failed - fork");
+            return;
+        } else if (child != (pid_t) 0) {
+            _exit(EXIT_SUCCESS);
+        } else {
+            if (setsid() == (pid_t) -1) {
+                perror("Daemonization failed : setsid");
+            }
+            chdir("/");
+            if (isatty(1)) {
+                close(1);
+            }
+            if (isatty(2)) {
+                close(2);
+            }
+        }
+    }       
 }
 
+static void help(void) __attribute__ ((noreturn));
 static void help(void)
 {
     const struct option *options = long_options;

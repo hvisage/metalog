@@ -284,7 +284,7 @@ static int configParser(const char * const file)
                     pcre_info->pcre = new_regex;
                     pcre_info->pcre_extra = pcre_study(new_regex, 0, &errptr);
                 }
-                if ((cur_block->debug > 1) ||(debug > 1)){
+                if ((cur_block->debug > 1) || (debug > 1)){
                     printf("adding: %s %d %s %d\n",
                            keyword,cur_block->nb_regexes,regex,state);
                 }
@@ -913,10 +913,10 @@ static int processLogLine(const int logcode, const char * const date,
     int info_len;
     int ovector[16];
     PCREInfo *pcre_info;
-    int logline_out=0; /* This is for checking if we've printed out the logline */
-    int block_debug =0;
+    int logline_out = 0; /* This is for checking if we've printed out the logline */
+    int block_debug = 0;
         
-    if (debug>4) {
+    if (debug > 4) {
         fprintf(stderr,"fac: %d\t\tprio: %d\ndate: %s\nprogname: %s\ninfo: %s\n",
                 facility,priority, date, prg, info);
         logline_out=1;
@@ -925,13 +925,12 @@ static int processLogLine(const int logcode, const char * const date,
     info_len = strlen(info);
     while (block != NULL) {
         block_debug=block->debug;
-        if (block_debug >3){
+        if (block_debug > 3){
             if (0 == logline_out) {
                 fprintf(stderr,"fac: %d\t\tprio: %d\ndate: %s\nprogname: %s\ninfo: %s\n",
                         facility,priority, date, prg, info);
                 logline_out=1;
-            }
-            
+            }            
             fprintf(stderr,"%s\n",block->block_name);
         }
         if (block->facilities != NULL) {
@@ -968,7 +967,7 @@ static int processLogLine(const int logcode, const char * const date,
                 if (pcre_exec(pcre_info->pcre, pcre_info->pcre_extra,
                               info, info_len, 0, 0, ovector,
                               sizeof ovector / sizeof ovector[0]) >= 0) {
-                    if ((block->debug>3) || (debug>3)) {
+                    if ((block->debug > 3) || (debug > 3)) {
                         fprintf(stderr,"log line: %s\n",info);
                         fprintf(stderr,"program: %s\n",prg);
                         fprintf(stderr,"Regex %d matches with state %d\n",

@@ -125,7 +125,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 RegexWithSign * const this_regex = 
                     &((*cur_block)->regexeswithsign[(*cur_block)->nb_regexes]);
                 
-                if (strcasecmp(keyword, "neg_regex")) {
+                if (strcasecmp(keyword, "neg_regex") == 0) {
                     this_regex->sign = REGEX_SIGN_NEGATIVE;
                 } else {
                     this_regex->sign = REGEX_SIGN_POSITIVE;
@@ -147,7 +147,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             if ((new_regexeswithsign = 
                  realloc((*cur_block)->program_regexeswithsign,
                          ((*cur_block)->program_nb_regexes + 1) *
-                         sizeof *((*cur_block)->regexeswithsign))) == NULL) {
+                         sizeof *((*cur_block)->program_regexeswithsign))) 
+                == NULL) {
                 perror("Oh no! More memory!");
                 return -3;
             }
@@ -163,7 +164,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                     &((*cur_block)->program_regexeswithsign
                       [(*cur_block)->program_nb_regexes]);
                 
-                if (strcasecmp(keyword, "program_neg_regex")) {
+                if (strcasecmp(keyword, "program_neg_regex") == 0) {
                     this_regex->sign = REGEX_SIGN_NEGATIVE;
                 } else {
                     this_regex->sign = REGEX_SIGN_POSITIVE;

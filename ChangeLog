@@ -1,4 +1,4 @@
-* Version 0.8 :
+* Version 0.7 :
     fakesnprintf
     BSD's getopt_long
     setproctitle update
@@ -7,7 +7,7 @@
     --configfile=...
     Last repeated
 
-* Version 0.7b :
+* Version 0.7-beta :
 
 * Version 0.6 :
     Use strtoq if strtoull isn't available.

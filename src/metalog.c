@@ -270,32 +270,63 @@ static int configParser(const char * const file)
     return retcode;
 }
 
-static void clearargs(char **argv) {
-#if defined(__linux__) && !defined(HAVE_SETPROCTITLE)
-        if (*argv != NULL) {
-                argv++;
+static void clearargs(int argc, char **argv) {
+#ifndef NO_PROCNAME_CHANGE
+# if defined(__linux__) && !defined(HAVE_SETPROCTITLE)
+    int i;
+
+    for (i = 0; environ[i] != NULL; i++);
+    argv0 = argv;
+    if (i > 0) {
+        argv_lth = environ[i-1] + strlen(environ[i-1]) - argv0[0];
+    } else {
+        argv_lth = argv0[argc-1] + strlen(argv0[argc-1]) - argv0[0];
+    }
+    if (environ != NULL) {
+        char **new_environ;
+        unsigned int env_nb = 0U;
+
+        while (environ[env_nb] != NULL) {
+            env_nb++;
         }
-        while (*argv != NULL) {         
-                memset(*argv, 0, strlen(*argv));
-                argv++;
+        if ((new_environ = malloc((1U + env_nb) * sizeof (char *))) == NULL) {
+            abort();
         }
-#else
-        (void) argv;
+        new_environ[env_nb] = NULL;
+        while (env_nb > 0U) {
+            env_nb--;
+            /* Can any bad thing happen if strdup() ever fails? */
+            new_environ[env_nb] = strdup(environ[env_nb]);
+        }
+        environ = new_environ;
+    }
+# else
+    (void) argc;
+    (void) argv;
+# endif
 #endif
 }
 
 static void setprogname(const char * const title)
 {
-#ifdef HAVE_SETPROCTITLE
-        setproctitle("-%s", title);
-#elif defined(__linux__)
-        if (prg_name != NULL) {
-                strncpy(prg_name, title, 31);
-                prg_name[31] = 0;               
-        }
-#else
-        (void) title;
+#ifndef NO_PROCNAME_CHANGE
+# ifdef HAVE_SETPROCTITLE
+    setproctitle("-%s", title);
+# elif defined(__linux__)
+
+    if (argv0 != NULL) {
+        memset(argv0[0], 0, argv_lth);
+        strncpy(argv0[0], title, argv_lth - 2);
+        argv0[1] = NULL;
+    }
+# elif defined(__hpux__)
+    union pstun pst;
+    
+    pst.pst_command = title;
+    pstat(PSTAT_SETCMD, pst, strlen(title), 0, 0);
+# endif
 #endif
+    (void) title;
 }
 
 static int getDataSources(int sockets[])
@@ -1020,9 +1051,6 @@ int main(int argc, char *argv[])
 {
     int sockets[2];
 
-#ifndef HAVE_SETPROCTITLE
-        prg_name = argv[0];
-#endif
     checkRoot();
     parseOptions(argc, argv);
     if (configParser(CONFIG_FILE) < 0) {
@@ -1031,7 +1059,7 @@ int main(int argc, char *argv[])
     }
     dodaemonize();
     setsignals();
-    clearargs(argv);
+    clearargs(argc, argv);
     setprogname(PROGNAME_MASTER);
     if (getDataSources(sockets) < 0) {
         fprintf(stderr, "Unable to bind sockets - aborting\n");

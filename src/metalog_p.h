@@ -17,7 +17,8 @@ static struct option long_options[] = {
     { NULL, 0, NULL, 0 }
 };
 
-static char *prg_name;
+static char **argv0;
+static int argv_lth;
 static ConfigBlock *config_blocks;
 static Output *outputs;
 #ifdef HAVE_KLOGCTL

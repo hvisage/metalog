@@ -1,0 +1,10 @@
+*~
+*.bak
+*.o
+Makefile
+Makefile.in
+.deps
+metalog
+cscope.out
+.libs
+*.s

@@ -1135,6 +1135,12 @@ static void parseOptions(int argc, char *argv[])
             }
             break;
 #endif
+        case 'C' :
+            if ((config_file = strdup(optarg)) == NULL) {
+                perror("You're really running out of memory");
+                exit(EXIT_FAILURE);
+            }
+            break;
         case 'h' :
             help();
         case 'p' :
@@ -1166,7 +1172,7 @@ int main(int argc, char *argv[])
 
     checkRoot();
     parseOptions(argc, argv);
-    if (configParser(CONFIG_FILE) < 0) {
+    if (configParser(config_file) < 0) {
         fprintf(stderr, "Bad configuration file - aborting\n");
         return -1;
     }

@@ -39,7 +39,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         ConfigBlock *previous_block = *cur_block;
         
         if ((*cur_block = malloc(sizeof **cur_block)) == NULL) {
-            perror("Oh no ! More memory !");
+            perror("Oh no! More memory!");
             return -3;
         }
         **cur_block = *default_block;
@@ -81,7 +81,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             if ((*cur_block)->facilities == NULL) {
                 if (((*cur_block)->facilities =
                      malloc(sizeof *((*cur_block)->facilities))) == NULL) {
-                    perror("Oh no ! More memory !");
+                    perror("Oh no! More memory!");
                     return -3;
                 }                    
             } else {
@@ -89,7 +89,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                      realloc((*cur_block)->facilities,
                              ((*cur_block)->nb_facilities + 1) *
                              sizeof *((*cur_block)->facilities))) == NULL) {
-                    perror("Oh no ! More memory !");
+                    perror("Oh no! More memory!");
                     return -3;
                 }                    
             }
@@ -101,13 +101,13 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             PCREInfo *new_regexes;
             
             if ((regex = strdup(value)) == NULL) {
-                perror("Oh no ! More memory !");
+                perror("Oh no! More memory!");
                 return -3;
             }
             if ((*cur_block)->regexes == NULL) {
                 if (((*cur_block)->regexes = 
                      malloc(sizeof *((*cur_block)->regexes))) == NULL) {
-                    perror("Oh no ! More memory !");
+                    perror("Oh no! More memory!");
                     return -3;
                 }                    
             } else {
@@ -115,7 +115,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                      realloc((*cur_block)->regexes, 
                              ((*cur_block)->nb_regexes + 1) *
                              sizeof *((*cur_block)->regexes))) == NULL) {
-                    perror("Oh no ! More memory !");
+                    perror("Oh no! More memory!");
                     return -3;
                 }
                 (*cur_block)->regexes = new_regexes;
@@ -169,7 +169,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 if (new_output != NULL) {
                     free(new_output);
                 }
-                perror("Oh no ! More memory !");
+                perror("Oh no! More memory!");
                 return -3;
             }    
             new_output->directory = logdir;
@@ -189,12 +189,12 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             (void) 0;
         } else if (strcasecmp(keyword, "command") == 0) {
             if (((*cur_block)->command = strdup(value)) == NULL) {
-                perror("Oh no ! More memory !");
+                perror("Oh no! More memory!");
                 return -3;
             }
         } else if (strcasecmp(keyword, "program") == 0) {
             if (((*cur_block)->program = strdup(value)) == NULL) {
-                perror("Oh no ! More memory !");
+                perror("Oh no! More memory!");
                 return -3;
             }
         }
@@ -566,7 +566,7 @@ static int rotateLogFiles(const char * const directory, const int maxfiles)
                (mday < older_mday || (mday == older_mday &&
                (hour < older_hour || (hour == older_hour &&
                (min  < older_min  || (min  == older_min  &&
-               (sec  < older_sec))))))))))) {   /* yeah ! */
+               (sec  < older_sec))))))))))) {   /* yeah! */
                 older_year = year;
                 older_mon = mon;
                 older_mday = mday;

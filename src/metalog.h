@@ -131,6 +131,16 @@ typedef struct PCREInfo_ {
     pcre_extra *pcre_extra;
 } PCREInfo;
 
+typedef struct DuplicateTracker_ {
+    char *previous_prg;
+    char *previous_info;    
+    size_t sizeof_previous_prg;
+    size_t sizeof_previous_info;
+    size_t previous_sizeof_prg;
+    size_t previous_sizeof_info;
+    unsigned int same_counter;    
+} DuplicateTracker;
+
 typedef struct Output_ {
     char *directory;
     FILE *fp;
@@ -139,6 +149,7 @@ typedef struct Output_ {
     int maxfiles;
     time_t maxtime;
     time_t creatime;
+    DuplicateTracker dt;
     struct Output_ *next_output;
 } Output;
 

@@ -217,6 +217,13 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             new_output->maxsize = (*cur_block)->maxsize;
             new_output->maxfiles = (*cur_block)->maxfiles;
             new_output->maxtime = (*cur_block)->maxtime;
+            new_output->dt.previous_prg = NULL;
+            new_output->dt.previous_info = NULL;            
+            new_output->dt.sizeof_previous_prg = (size_t) 0U;
+            new_output->dt.sizeof_previous_info = (size_t) 0U;
+            new_output->dt.previous_sizeof_prg = (size_t) 0U;
+            new_output->dt.previous_sizeof_info = (size_t) 0U;
+            new_output->dt.same_counter = 0U;
             new_output->next_output = NULL;
             if (previous_scan != NULL) {
                 previous_scan->next_output = new_output;
@@ -645,13 +652,6 @@ static int rotateLogFiles(const char * const directory, const int maxfiles)
 static int writeLogLine(Output * const output, const char * const date,
                         const char * const prg, const char * const info)
 {    
-    static char *previous_prg;
-    static char *previous_info;    
-    static size_t sizeof_previous_prg;
-    static size_t sizeof_previous_info;
-    static size_t previous_sizeof_prg;
-    static size_t previous_sizeof_info;
-    static unsigned int same_counter;
     size_t sizeof_prg;
     size_t sizeof_info;
     time_t now;    
@@ -667,40 +667,38 @@ static int writeLogLine(Output * const output, const char * const date,
     if (sizeof_prg > MAX_SIGNIFICANT_LENGTH) {
         sizeof_prg = MAX_SIGNIFICANT_LENGTH;
     }
-    if (sizeof_info == previous_sizeof_info &&
-        sizeof_prg == previous_sizeof_prg &&
-        memcmp(previous_info, info, sizeof_info) == 0 &&
-        memcmp(previous_prg, prg, sizeof_prg) == 0) {
-#if 0
-        if (same_counter < UINT_MAX) {
-            same_counter++;
+    if (sizeof_info == output->dt.previous_sizeof_info &&
+        sizeof_prg == output->dt.previous_sizeof_prg &&
+        memcmp(output->dt.previous_info, info, sizeof_info) == 0 &&
+        memcmp(output->dt.previous_prg, prg, sizeof_prg) == 0) {
+        if (output->dt.same_counter < UINT_MAX) {
+            output->dt.same_counter++;
         }
         return 0;
-#endif
     }
-    if (sizeof_info > sizeof_previous_info) {
-        char *pp = previous_info;
+    if (sizeof_info > output->dt.sizeof_previous_info) {
+        char *pp = output->dt.previous_info;
         
-        if ((pp = realloc(previous_info, sizeof_info)) != NULL) {
-            previous_info = pp;
-            memcpy(previous_info, info, sizeof_info);
-            sizeof_previous_info = sizeof_info;
+        if ((pp = realloc(output->dt.previous_info, sizeof_info)) != NULL) {
+            output->dt.previous_info = pp;
+            memcpy(output->dt.previous_info, info, sizeof_info);
+            output->dt.sizeof_previous_info = sizeof_info;
         }
     } else {
-        memcpy(previous_info, info, sizeof_info);
-        previous_sizeof_info = sizeof_info;
+        memcpy(output->dt.previous_info, info, sizeof_info);
+        output->dt.previous_sizeof_info = sizeof_info;
     }
-    if (sizeof_prg > sizeof_previous_prg) {
-        char *pp = previous_prg;
+    if (sizeof_prg > output->dt.sizeof_previous_prg) {
+        char *pp = output->dt.previous_prg;
         
-        if ((pp = realloc(previous_prg, sizeof_prg)) != NULL) {
-            previous_prg = pp;
-            memcpy(previous_prg, prg, sizeof_prg);
-            sizeof_previous_prg = sizeof_prg;
+        if ((pp = realloc(output->dt.previous_prg, sizeof_prg)) != NULL) {
+            output->dt.previous_prg = pp;
+            memcpy(output->dt.previous_prg, prg, sizeof_prg);
+            output->dt.sizeof_previous_prg = sizeof_prg;
         }
     } else {
-        memcpy(previous_prg, prg, sizeof_prg);
-        previous_sizeof_prg = sizeof_prg;
+        memcpy(output->dt.previous_prg, prg, sizeof_prg);
+        output->dt.previous_sizeof_prg = sizeof_prg;
     }
     now = time(NULL);    
     if (output->fp == NULL) {
@@ -814,16 +812,16 @@ static int writeLogLine(Output * const output, const char * const date,
         unlink(path);
         goto testdir;
     }
-    if (same_counter > 0U) {
+    if (output->dt.same_counter > 0U) {
         int fps;
         
-        fps = fprintf(output->fp, LAST_OUTPUT, same_counter);
+        fps = fprintf(output->fp, LAST_OUTPUT, output->dt.same_counter);
         if (fps >= (int) (sizeof LAST_OUTPUT - sizeof "%u")) {
             output->size += (off_t) fps;
         } else if (fps > 0) {
             output->size += (off_t) (sizeof LAST_OUTPUT + (size_t) 10U);
         }
-        same_counter = 0U;
+        output->dt.same_counter = 0U;
     }
     fprintf(output->fp, "%s [%s] %s\n", date, prg, info);
     output->size += (off_t) strlen(date);

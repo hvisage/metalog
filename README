@@ -165,6 +165,17 @@ Password failures :
   regex    = "ILLEGAL ROOT LOGIN"
   logdir   = "/var/log/pwdfail"
 
+* neg_regex = <regex> : this is the opposite of the previous directive.
+Logging will occur if the regex doesn't match. It can be useful to remove the
+crap, and it can be freely mixed with "regex" directives. "regex" and
+"neg_regex" directives are scanned in order.
+
+Example :
+
+  facility = "mail"
+  neg_regex= "starting daemon"
+  logdir   = "/var/log/mail"
+
 * maxsize = <size in bytes> : automatically rotate log files when their size
 have exceeded that size. Messages are never truncated and no message can be
 lost during a rotation. Every section can have a different maxsize value.

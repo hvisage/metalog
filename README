@@ -25,7 +25,7 @@ system. That library is used to process Perl-compatible regular expressions.
 
 libpcre comes with many distributions, but you can also download it from :
 
-                             http://www.pcre.org
+                             http://www.pcre.org/
                              
 Once installed, don't forget to run "ldconfig".
 
@@ -33,9 +33,6 @@ Then, compiling and installing Metalab isn't rocket science :
 
 ./configure
 make install-strip
-
-As of version 0.4, Metalog is only guaranteed to compile on GNU/Linux,
-OpenBSD, FreeBSD and NetBSD.
 
 
        ------------------------ CONFIGURATION ------------------------
@@ -102,24 +99,16 @@ Critical messages :
   facility = "*"
   minimum  = 1
   logdir   = "/var/log/important"
-i
 
-* NOTE: facility & neg-facility are Mutualy exclusive.
+* facility = <facility> : only record a message if the application that issued
+it uses syslog facility <facility> .
 
-* facility = <facility> : only record a message if the application that
-issued it uses syslog facility <facility> . Facility names are : "auth",
-"authpriv", "cron", "daemon", "ftp", "kern", "lpr", "mail", "news",
-"security", "syslog", "user", "uucp", "local0", "local1" ... "local7" .
-All kernel messages are logged with facility "kern". A section can have
-several "facility = ..." lines to match more than one facility.
-If <facility> is "*", it'll match all the facilities.
-ie. Only match those defined
+Facility names are : "auth", "authpriv", "cron", "daemon", "ftp", "kern",
+"lpr", "mail", "news", "security", "syslog", "user", "uucp", "local0",
+"local1" ... "local7" . All kernel messages are logged with facility "kern".
 
-* neg-facility = <facility> : <facility> is defined as above.
-It's functionality is equivalent to defining all the facilities
-BUT those facilities defined. 
-"*" is NOT a valid value for <facility>, as it doesn't make sense.
-
+A section can have several "facility = ..." lines to match more than one
+facility. If <facility> is "*", it'll match all the facilities.
 
 Example : record all authentication messages to /var/log/auth :
 
@@ -129,14 +118,13 @@ Authentication messages :
   facility = "authpriv"
   logdir   = "/var/log/auth"
   
-A wildcard sign is a special facility, that matches everything. You can use
-it to redirect all messages to a directory, or in combination with other
-filters.
-
 * program = <program> : only record messages signed by a specific daemon or
-program. You can use this as a modern alternative to syslog facilities : use
-"*" as a facility, and set a program name with that directive. Kernel
-messages can be caught with 'program = "kernel"' .
+program.
+
+You can use this as a modern alternative to syslog facilities : use "*" as a
+facility, and set a program name with that directive.
+
+Kernel messages can be caught with 'program = "kernel"' .
 
 Example : record Pure-FTPd messages in a directory, and in.ftpd messages in
 another directory (although the facility is the same : FTP) :
@@ -164,19 +152,11 @@ All Postfix messages :
  prog_regex = "postfix"
  logdir     = /var/log/postfix
 
-
 * regex = <regex> : a message must match the regular expression to pass that
 filter. Multiple regexes are allowed for a single section. All Perl
 extensions are allowed, and matching is case insensitive.
 
-* neg_regex = <regex> : a regular expression that must NOT match. Useful
-for filtering out "noisy" from stuff already logged elsewhere, or not needed.
-NOTE: the use of neg_regex would need *AT*LEAST* a trailing regex=<regex>,
-else it might not output anything!!!
-
 Example : record all authentication failures to /var/log/pwdfail :
-
-Password failures :
 
 Password failures :
 
@@ -184,16 +164,6 @@ Password failures :
   regex    = "(failed|invalid)\s+(password|login|authentication)"
   regex    = "ILLEGAL ROOT LOGIN"
   logdir   = "/var/log/pwdfail"
-
-Example : record all but expected login & ipfilters noise
-
-Everything :
- facility     = "*"
- neg_regex    = "(failed|invalid)\s+(password|login|authentication)"
- neg_regex    = "IN=eth0 OUT="
- regex        = "."
- logdir       = "/var/log/everything"
- 
 
 * maxsize = <size in bytes> : automatically rotate log files when their size
 have exceeded that size. Messages are never truncated and no message can be
@@ -282,16 +252,25 @@ On GNU/Linux systems, two processes are spawned : one is the "MASTER", doing
 much of the work. The other one (named "KERNEL") is needed for Linux and
 replaces the "klogd" daemon. It is responsible for logging kernel messages.
 
-You may notice that messages aren't immediatly recorded into log files (but
-scripts are run immediatly, though) . This is intentional : to avoid disk
-I/O, and unlike traditional syslog daemons, Metalog works in memory buffers,
-then flushes the data to disk by blocks. It improves a lot overall
-performances.
+By default, messages are immediately recorded into log files, and the I/O
+cache is flushed to be sure that you don't loose any message if a fatal crash
+or a power outage occurs.
 
-If you want to watch activity in real-time (like a good old "tail -f" on a
-log file), you can temporary disable buffering. Just send an USR1 signal to
-the "MASTER" process. You can re-enable buffering afterwards, by sending an
-USR2 signal.
+But if you prefer speed, Metalog can work asynchronously, using the --async
+switch. In this mode, to avoid disk I/O, and unlike traditional syslog
+daemons, Metalog works in memory buffers, then flushes the data to disk by
+blocks. It improves a lot overall performances.
+
+If you temporarely want to switch to the asynchronous mode, send an USR2
+signal to the process. Something like :
+
+kill -USR2 $(cat /var/run/metalog.pid)
+
+should do the trick.
+
+Later, if you want to watch activity in real-time (like a good old "tail -f"
+on a log file), you can disable buffering. Just send an USR1 signal to the
+"MASTER" process. You can always re-enable buffering afterwards.
 
   
      ------------------------ RUN-TIME OPTIONS ------------------------
@@ -299,18 +278,24 @@ USR2 signal.
       
 Metalog accepts some run-time options :
 
+- '-a' or '--async' : improve performance by using buffers (but log files
+won't get updated in real time) .
+
 - '-B' or '--daemonize' : have the server start in background
 (daemonization) .
 
 - '-c <xxx>' or '--consolelevel=<xxx>' : set the console log level on
 Linux. Valid values are from 0 to 7. The default is 7.
 
+- '-C <configuration file>' or '--configfile=<configuration file>' : use an
+alternative configuration file.
+
 - '-h' or '--help' : show help and version number.
 
 - '-p <filename>' or '--pidfile=<filename>' : set the name of the file
 that will hold the PID number. It defaults to /var/run/metalog.pid
 
-- '-s' or '--sychronous' : start in synchronous mode, with no bufferization.
+- '-s' or '--sync' : start in synchronous mode, with no bufferization.
 
 
 

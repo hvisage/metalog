@@ -4,7 +4,7 @@
 metalog \- an alternative syslog daemon
 .SH "SYNTAX"
 .LP 
-metalog [\fI\-\-daemonize\fP] [\fI\-\-consolelevel=0..7\fP] [\fI\-\-help\fP] [\fI\-\-synchronous\fP]
+metalog [\fI\-\-async\fP] [\fI\-\-daemonize\fP] [\fI\-\-consolelevel=0..7\fP] [\fI\-\-configfile=config file\fP] [\fI\-\-help\fP] [\fI\-\-pidfile=pid file\fP] [\fI\-\-sync\fP]
 .SH "DESCRIPTION"
 .LP 
 Metalog is a modern replacement for syslogd and klogd. The logged messages
@@ -19,21 +19,32 @@ performance.
 .SH "OPTIONS"
 .LP 
 .TP 
+\fB\-\-async\fR
+Improve performance by using buffers (bug log files won't get updated in real time)
+.TP 
 \fB\-\-daemonize\fR
 have the server start in background (daemonization) .
 .TP 
 \fB\-\-consolelevel=0..7\fR
 Set the console log level (Linux only).
 .TP 
+\fB\-\-configfile=config file\fR
+Use an alternate configuration file.
+.TP 
 \fB\-\-help\fR
 Output help information and exit.
 .TP 
-\fB\-\-synchronous\fR
+\fB\-\-pidfile=pid file\fR
+Use an alternate file to store the process number.
+.TP 
+\fB\-\-sync\fR
 Start in synchronous mode, with no bufferization.
 .SH "FILES"
 .LP 
 \fI/etc/metalog.conf\fP 
-.br 
+.br
+\fI/var/run/metalog.pid\fP 
+.br
 \fI/dev/log\fP 
 .SH "AUTHORS"
 .LP

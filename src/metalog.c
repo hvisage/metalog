@@ -602,12 +602,60 @@ static int rotateLogFiles(const char * const directory, const int maxfiles)
 
 static int writeLogLine(Output * const output, const char * const date,
                         const char * const prg, const char * const info)
-{
-    time_t now = time(NULL);
+{    
+    static char *previous_prg;
+    static char *previous_info;    
+    static size_t sizeof_previous_prg;
+    static size_t sizeof_previous_info;
+    static size_t previous_sizeof_prg;
+    static size_t previous_sizeof_info;
+    static unsigned int same_counter;
+    size_t sizeof_prg;
+    size_t sizeof_info;            
     
-    if (output == NULL || output->directory == NULL) {
+    if (output == NULL || output->directory == NULL ||
+        (sizeof_prg = strlen(prg)) <= (size_t) 0U ||
+        (sizeof_info = strlen(info)) <= (size_t) 0U) {
         return 0;
     }
+    if (sizeof_info > MAX_SIGNIFICANT_LENGTH) {
+        sizeof_info = MAX_SIGNIFICANT_LENGTH;
+    }
+    if (sizeof_prg > MAX_SIGNIFICANT_LENGTH) {
+        sizeof_prg = MAX_SIGNIFICANT_LENGTH;
+    }
+    if (sizeof_info == previous_sizeof_info &&
+        sizeof_prg == previous_sizeof_prg &&
+        memcmp(previous_info, info, sizeof_info) == 0 &&
+        memcmp(previous_prg, prg, sizeof_prg) == 0) {
+        if (same_counter < UINT_MAX) {
+            same_counter++;
+        }
+        return 0;
+    }
+    if (sizeof_info > sizeof_previous_info) {
+        char *pp = previous_info;
+        
+        if ((pp = realloc(previous_info, sizeof_info)) != NULL) {
+            previous_info = pp;
+            memcpy(previous_info, info, sizeof_info);
+            sizeof_previous_info = sizeof_info;
+        }
+    } else {
+        memcpy(previous_info, info, sizeof_info);        
+    }
+    if (sizeof_prg > sizeof_previous_prg) {
+        char *pp = previous_prg;
+        
+        if ((pp = realloc(previous_prg, sizeof_prg)) != NULL) {
+            previous_prg = pp;
+            memcpy(previous_prg, prg, sizeof_prg);
+            sizeof_previous_prg = sizeof_prg;
+        }
+    } else {
+        memcpy(previous_prg, prg, sizeof_prg);
+    }
+    time_t now = time(NULL);    
     if (output->fp == NULL) {
         struct stat st;
         FILE *fp;
@@ -719,10 +767,20 @@ static int writeLogLine(Output * const output, const char * const date,
         unlink(path);
         goto testdir;
     }
+    if (same_counter > 0U) {
+        int fps;
+        
+        fps = fprintf(output->fp, LAST_OUTPUT, same_counter);
+        if (fps >= (int) (sizeof LAST_OUTPUT - sizeof "%u")) {
+            output->size += (off_t) fps;
+        } else if (fps > 0) {
+            output->size += (off_t) (sizeof LAST_OUTPUT + (size_t) 10U);
+        }
+        same_counter = 0U;
+    }
     fprintf(output->fp, "%s [%s] %s\n", date, prg, info);
     output->size += (off_t) strlen(date);
-    output->size += (off_t) strlen(prg);        
-    output->size += (off_t) strlen(info);
+    output->size += (off_t) (sizeof_prg + sizeof_info);
     output->size += (off_t) 5;        
     if (synchronous != (sig_atomic_t) 0) {
         fflush(output->fp);

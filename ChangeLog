@@ -4,6 +4,7 @@
     setproctitle update
     --pidfile=...
     --asynchronous option, synchronous by default
+    Last repeated
 
 * Version 0.7b :
 

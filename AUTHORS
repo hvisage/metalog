@@ -1,2 +1,9 @@
-Hendrik Visage <hvisage@users.sourceforge.net>
-Frank DENIS "Jedi/Sector One" <j@pureftpd.org>
+
+* Leo Lipelis <aeoo@gentoo.org>
+  Tiny patch to allow /var/run/metalog.pid  
+  
+* Hendrik Visage <hvisage@users.sourceforge.net>
+  Implemented neg_regex, program_regex and neg_program_regex.
+
+* Frank DENIS "Jedi/Sector One" <j@pureftpd.org>
+  The remaining crap.

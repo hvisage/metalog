@@ -7,7 +7,7 @@ the asynchronous behavior.
 matched against regexes. See the new neg_regex, program_regex and
 program_neg_regex keywords.
  - The maximum urgency can now be specified for each block. A new
-keyowrd, "maximum" completes "minimum".
+keyword, "maximum" completes "minimum".
  - A PID file is now created. It defaults to /var/run/metalog.pid but
 it can be changed with the --pidfile switch.
  - The location of the configuration file can now be changed with

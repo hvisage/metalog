@@ -71,7 +71,7 @@ static int configParser(const char * const file)
         goto rtn;
     }
     while (fgets(line, sizeof line, fp) != NULL) {
-        if ((line_size = (int) strlen(line)) == 0) {
+        if ((line_size = (int) strlen(line)) <= 0) {
             continue;
         }
         if (line[line_size - 1] == '\n') {
@@ -81,13 +81,16 @@ static int configParser(const char * const file)
             line[--line_size] = 0;
         }
         if (pcre_exec(re_null, NULL, line, line_size,
-                      0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0 ||
+                      0, 0, ovector, 
+                      sizeof ovector / sizeof ovector[0]) >= 0 ||
             pcre_exec(re_comment, NULL, line, line_size,
-                      0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0) {
+                      0, 0, 
+                      ovector, sizeof ovector / sizeof ovector[0]) >= 0) {
             continue;
         } 
-        if ((stcount=pcre_exec(re_newblock, NULL, line, line_size,
-                      0, 0, ovector, sizeof ovector / sizeof ovector[0])) >= 0) {
+        if ((stcount = pcre_exec(re_newblock, NULL, line, line_size,
+                                 0, 0, ovector, 
+                                 sizeof ovector / sizeof ovector[0])) >= 0) {
             ConfigBlock *previous_block = cur_block;
             
             if ((cur_block = malloc(sizeof *cur_block)) == NULL) {
@@ -102,15 +105,17 @@ static int configParser(const char * const file)
                 previous_block->next_block = cur_block;
             }
 	    block_count++;
-	    if (stcount >1) {
+	    if (stcount > 1) {
 		pcre_get_substring(line,ovector,stcount,1,&value);
 		snprintf(cur_block->block_name,
-                         BN_LENGHT, "B%d-%s", block_count, value);
+                         sizeof cur_block->block_name,
+                         "B%d-%s", block_count, value);
 	    } else {
 		snprintf(cur_block->block_name,
-                         BN_LENGHT, "B%d-noname", block_count);
+                         sizeof cur_block->block_name,
+                         "B%d-noname", block_count);
 	    }
-	    fprintf(stderr,"\n\nblockname:%s:\n\n", cur_block->block_name);
+	    fprintf(stderr, "\n\nblockname:%s:\n\n", cur_block->block_name);
             continue;
         }
         if ((stcount = 
@@ -123,28 +128,25 @@ static int configParser(const char * const file)
 		if ((cur_block->debug = atoi(value))>0) {
 		    fprintf(stderr,"adding debug info for block :%s:\n",
 			    cur_block->block_name);
-		}
-		
+		}		
 	    } else if (strcasecmp(keyword, "minimum") == 0) {
                 cur_block->minimum = atoi(value);
             } else if ((strcasecmp(keyword, "facility") == 0) 
-		       || (strcasecmp(keyword, "neg-facility") ==0)) {
-		    
+		       || (strcasecmp(keyword, "neg-facility") ==0)) {		    
 		int n = 0;
 		int *new_facilities;
 		
 		/* First check for the "*" facility */
 		if (*value == '*' && value[1] == 0) {
-		    if (strcasecmp(keyword, "neg-facility") ==0)
-			{
-			    fprintf(stderr,"neg-facility with \"*\"\n");
-			    retcode = -4;
-			    goto rtn;
-			} else if (FAC_STATE_NOTSET != cur_block->facility_state ){
-			    fprintf(stderr,"facility = \"*\" after other facilities\n");
-			    retcode = -4;
-			    goto rtn;
-			}
+		    if (strcasecmp(keyword, "neg-facility") == 0) {
+                        fprintf(stderr,"neg-facility with \"*\"\n");
+                        retcode = -4;
+                        goto rtn;
+                    } else if (FAC_STATE_NOTSET != cur_block->facility_state) {
+                        fprintf(stderr,"facility = \"*\" after other facilities\n");
+                        retcode = -4;
+                        goto rtn;
+                    }
 		    if (cur_block->facilities != NULL) {
 			free(cur_block->facilities);
 		    }
@@ -157,33 +159,36 @@ static int configParser(const char * const file)
                      * Thus a "decent" facility... we hope ;^)
 		     * Let's check for sane facility & neg-facility values...
                      */
-		    if (strcasecmp(keyword, "neg-facility") ==0){ 
+		    if (strcasecmp(keyword, "neg-facility") == 0){
 			if ((FAC_STATE_NEG != cur_block->facility_state)
 			    && (FAC_STATE_NOTSET != cur_block->facility_state)) {
-			    fprintf(stderr,"neg-facility after a facility defined\n");
+			    fprintf(stderr,
+                                    "neg-facility after a facility defined\n");
 			    retcode = -4;
 			    goto rtn;
 			} else {
 			    cur_block->facility_state=FAC_STATE_NEG;	
-			    if ((debug>2) || (cur_block->debug>2)){
-				fprintf(stderr,"Setting neg-facility %s %s",keyword,value);
+			    if ((debug > 2) || (cur_block->debug > 2)) {
+				fprintf(stderr,"Setting neg-facility %s %s",
+                                        keyword,value);
 			    }
 			}
-		    } else if (strcasecmp(keyword, "facility") ==0) {
+		    } else if (strcasecmp(keyword, "facility") == 0) {
 			if ((FAC_STATE_NOTSET != cur_block->facility_state)
 			    && (FAC_STATE_ADD != cur_block->facility_state)) {
-			    fprintf(stderr,"facility after a neg-facility defined\n");
-			    retcode=-4;
+			    fprintf(stderr,
+                                    "facility after a neg-facility defined\n");
+			    retcode = -4;
 			    goto rtn;
 			} else {
-			    cur_block->facility_state=FAC_STATE_ADD;
-			    if ((debug>2) || (cur_block->debug>2)){
-				fprintf(stderr,"Setting facility %s %s",keyword,value);
+			    cur_block->facility_state = FAC_STATE_ADD;
+			    if ((debug > 2) || (cur_block->debug > 2)){
+				fprintf(stderr,"Setting facility %s %s",
+                                        keyword,value);
+                            }
 			}
-			}
-		    }
-		    
-		    /*The facility & neg-facility's haven't been intermingled */
+		    }		    
+		    /* The facility & neg-facility's haven't been intermingled */
 		    while (facilitynames[n].c_name != NULL &&
 			   strcasecmp(facilitynames[n].c_name, value) != 0) {
 			n++;
@@ -213,8 +218,7 @@ static int configParser(const char * const file)
 		    cur_block->facilities[cur_block->nb_facilities] = 
 			LOG_FAC(facilitynames[n].c_val);
 		    cur_block->nb_facilities++;
-		}/*The block for the (neg-)facility stuff, ie. non-* */
-		
+		}/*The block for the (neg-)facility stuff, ie. non-* */		
 	    } else if ((strcasecmp(keyword, "regex") == 0) 
 		       || (strcasecmp(keyword, "neg-regex") == 0)) {	    
                 const char *regex;
@@ -232,9 +236,9 @@ static int configParser(const char * const file)
 		 *  -hvisage.
                  */
 		if ((strcasecmp(keyword, "regex") == 0)) {
-		    state=1; /* Standard positive matching */
+		    state = 1; /* Standard positive matching */
 		} else {
-		    state=2; /* Negative matching */
+		    state = 2; /* Negative matching */
 		}
                 if ((regex = strdup(value)) == NULL) {
                     perror("Oh no ! More memory !");
@@ -299,9 +303,9 @@ static int configParser(const char * const file)
                 PCREInfo *new_prog_regexes;
                 
 		if ((strcasecmp(keyword, "prog_regex") == 0)) {
-		    state=1; /* Standard positive matching */
+		    state = 1; /* Standard positive matching */
 		} else {
-		    state=2; /* Negative matching */
+		    state = 2; /* Negative matching */
 		}
                 if ((prog_regex = strdup(value)) == NULL) {
                     perror("Oh no ! More memory !");
@@ -347,13 +351,14 @@ static int configParser(const char * const file)
                     PCREInfo * const pcre_info = &cur_block->prog_regexes[cur_block->nb_prog_regexes];
                     
                     pcre_info->pcre = new_prog_regex;
-                    pcre_info->pcre_extra = pcre_study(new_prog_regex, 0, &errptr);
+                    pcre_info->pcre_extra = pcre_study(new_prog_regex, 
+                                                       0, &errptr);
                 }
 		if ((cur_block->debug > 1) || (debug > 1)){
 		    printf("adding: %s %d %s %d\n",
 			   keyword,cur_block->nb_prog_regexes,prog_regex,state);
 		}
-		cur_block->prog_regex_state[cur_block->nb_prog_regexes]=state;
+		cur_block->prog_regex_state[cur_block->nb_prog_regexes] = state;
 		cur_block->nb_prog_regexes++;
                 /*
                  * End of prog_regex options 
@@ -1152,27 +1157,27 @@ static void setsignals(void)
 
 static void dodaemonize(void)
 {
-	pid_t child;
-	
-	if (daemonize) {
-		if ((child = fork()) < (pid_t) 0) {
-			perror("Daemonization failed - fork");
-			return;
-		} else if (child != (pid_t) 0) {
-			_exit(EXIT_SUCCESS);
-		} else {
-			if (setsid() == (pid_t) -1) {
-			   perror("Daemonization failed : setsid");
-			}
-			chdir("/");
-			if (isatty(1)) {
-				close(1);
-			}
-			if (isatty(2)) {
-				close(2);
-			}
-		}
-	}	
+    pid_t child;
+    
+    if (daemonize != 0) {
+        if ((child = fork()) < (pid_t) 0) {
+            perror("Daemonization failed - fork");
+            return;
+        } else if (child != (pid_t) 0) {
+            _exit(EXIT_SUCCESS);
+        } else {
+            if (setsid() == (pid_t) -1) {
+                perror("Daemonization failed : setsid");
+            }
+            chdir("/");
+            if (isatty(1)) {
+                close(1);
+            }
+            if (isatty(2)) {
+                close(2);
+            }
+        }
+    }	
 }
 
 static void help(void)
@@ -1237,7 +1242,7 @@ int main(int argc, char *argv[])
     int sockets[2];
 
 #ifndef HAVE_SETPROCTITLE
-	prg_name = argv[0];
+    prg_name = argv[0];
 #endif
     checkRoot();
     parseOptions(argc, argv);

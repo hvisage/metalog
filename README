@@ -307,6 +307,9 @@ Linux. Valid values are from 0 to 7. The default is 7.
 
 - '-h' or '--help' : show help and version number.
 
+- '-p <filename>' or '--pidfile=<filename>' : set the name of the file
+that will hold the PID number. It defaults to /var/run/metalog.pid
+
 - '-s' or '--sychronous' : start in synchronous mode, with no bufferization.
 
 

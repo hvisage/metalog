@@ -2,6 +2,7 @@
     fakesnprintf
     BSD's getopt_long
     setproctitle update
+    --pidfile=...
 
 * Version 0.7b :
 

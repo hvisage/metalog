@@ -161,7 +161,8 @@ typedef enum LogLineType_ {
 #define OUTPUT_DIR_PERMS 0700
 #define OUTPUT_DIR_LOGFILES_PREFIX "log-"   /* log-YYYY-MM-DD-HH:MM:SS */
 #define CONFIG_FILE "/etc/metalog.conf"
-#define NONPRINTABLE_SUSTITUTE_CHAR ' '
+#define DEFAULT_PID_FILE "/var/run/metalog.pid"
+#define NONPRINTABLE_SUSTITUTE_CHAR '_'
 #define PROGNAME_MASTER "metalog [MASTER]"
 #define PROGNAME_KERNEL "metalog [KERNEL]"
 

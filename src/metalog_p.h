@@ -13,6 +13,7 @@ static struct option long_options[] = {
     { "consolelevel", 1, NULL, 'c' },
 #endif
     { "help", 0, NULL, 'h' },
+    { "pidfile", 1, NULL, 'p' },
     { "synchronous", 0, NULL, 's' },
     { NULL, 0, NULL, 0 }
 };
@@ -28,5 +29,6 @@ static pid_t child;
 static pid_t command_child;
 static sig_atomic_t synchronous;
 static signed char daemonize;
+static const char *pid_file = DEFAULT_PID_FILE;
 
 #endif

@@ -894,11 +894,58 @@ static int process(const int sockets[])
     return 0;
 }
 
+static int delete_pid_file(const char * const pid_file)
+{
+    if (pid_file != NULL) {        
+        return unlink(pid_file);
+    }
+    return 0;
+}
+
+static int update_pid_file(const char * const pid_file)
+{
+    char buf[42];
+    int fd;
+    size_t towrite;
+    ssize_t written;
+    
+    if (pid_file == NULL || *pid_file != '/') {
+        return 0;
+    }
+    if (SNCHECK(snprintf(buf, sizeof buf, "%lu\n",
+                         (unsigned long) getpid()), sizeof buf)) {
+        return -1;
+    }
+    if (unlink(pid_file) != 0 && errno != ENOENT) {
+        return -1;
+    }
+    if ((fd = open(pid_file, O_CREAT | O_WRONLY | O_TRUNC |
+                   O_NOFOLLOW, (mode_t) 0644)) == -1) {
+        fprintf(stderr, "Unable to create the [%s] pid file : [%s]",
+                pid_file, strerror(errno));
+        return -1;
+    }
+    towrite = strlen(buf);
+    while ((written = write(fd, buf, towrite)) < (ssize_t) 0 &&
+           errno == EINTR);
+    if (written < (ssize_t) 0 || (size_t) written != towrite) {
+        fprintf(stderr, "Error while writing the [%s] pid file : [%s]",
+                pid_file, strerror(errno));        
+        (void) ftruncate(fd, (off_t) 0);
+        while (close(fd) != 0 && errno == EINTR);
+        return -1;
+    }
+    while (close(fd) != 0 && errno == EINTR);    
+    
+    return 0;
+}
+
 static void exit_hook(void)
 {
     if (child > (pid_t) 0) {
         kill(child, SIGTERM);
     }
+    (void) delete_pid_file(pid_file);
 }
 
 static RETSIGTYPE sigkchld(int sig) __attribute__ ((noreturn));
@@ -967,7 +1014,7 @@ static void setsignals(void)
     signal(SIGUSR2, sigusr2);
 }
 
-static void dodaemonize(void)
+static int dodaemonize(void)
 {
     pid_t child;
     
@@ -1029,6 +1076,11 @@ static void parseOptions(int argc, char *argv[])
 #endif
         case 'h' :
             help();
+        case 'p' :
+            if ((pid_file = strdup(optarg)) == NULL) {
+                perror("You're really running out of memory");
+                exit(EXIT_FAILURE);
+            }
         case 's' :
             synchronous = (sig_atomic_t) 1;
             break;
@@ -1059,6 +1111,7 @@ int main(int argc, char *argv[])
     }
     dodaemonize();
     setsignals();
+    (void) update_pid_file(pid_file);
     clearargs(argc, argv);
     setprogname(PROGNAME_MASTER);
     if (getDataSources(sockets) < 0) {

@@ -58,12 +58,10 @@
 #ifndef HAVE_SYSLOG_NAMES
 # include "syslognames.h"
 #endif
-#if !defined(NO_GETOPT_LONG) && !defined(HAVE_GETOPT_LONG)
-# include "gnu-getopt.h"
+#ifndef HAVE_GETOPT_LONG
+# include "bsd-getopt_long.h"
 #else
-# ifdef HAVE_GETOPT_H
-#  include <getopt.h>
-# endif
+# include <getopt.h>
 #endif
 #ifdef HAVE_SYS_WAIT_H
 # include <sys/wait.h>

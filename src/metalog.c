@@ -971,25 +971,25 @@ static void dodaemonize(void)
 {
     pid_t child;
     
-    if (daemonize != 0) {
-        if ((child = fork()) < (pid_t) 0) {
-            perror("Daemonization failed - fork");
-            return;
-        } else if (child != (pid_t) 0) {
-            _exit(EXIT_SUCCESS);
-        } else {
-            if (setsid() == (pid_t) -1) {
-                perror("Daemonization failed : setsid");
-            }
-            chdir("/");
-            if (isatty(1)) {
-                close(1);
-            }
-            if (isatty(2)) {
-                close(2);
-            }
+    if ((child = fork()) == (pid_t) -1) {
+        perror("Unable to fork");
+        return -1;
+    } else if (child != (pid_t) 0) {
+        exit(EXIT_SUCCESS);
+    } else {
+        int i = 2;
+        
+        if (setsid() == (pid_t) -1) {
+            perror("Unable to create our own process group");
         }
-    }       
+        do {
+            if (isatty(i)) {
+                while (close(i) != 0 && errno == EINTR);
+            }
+            i--;
+        } while (i >= 0);
+    }    
+    return 0;
 }
 
 static void help(void) __attribute__ ((noreturn));

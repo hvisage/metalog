@@ -1,23 +1,24 @@
-%define name	metalog
+%define name    metalog
 %define version @VERSION@
 %define release 1
 %define prefix  /usr/local
 %define builddir $RPM_BUILD_DIR/%{name}-%{version}
 
-Name:		%{name}
-Version:	%{version}
-Release:	%{release}
-Vendor:		Various
-Packager:	Frank DENIS <j@pureftpd.org>
-URL:		http://metalog.sourceforge.net
-Source:     ftp://download.sourceforge.net/pub/sourceforge/metalog/%{name}-%{version}.tar.gz
-Group:		System/Logging
-Copyright:	GPL
-#Requires:	
-Provides:	syslog-daemon
-BuildRoot:	/var/tmp/%{name}-%{version}
-Summary:	An efficient alternative to syslogd
-Obsoletes:  syslogd klogd
+Name:           %{name}
+Version:        %{version}
+Release:        %{release}
+Vendor:         Various
+Packager:       Frank DENIS <j@pureftpd.org>
+URL:            http://metalog.sourceforge.net
+Source:         ftp://ftp.fr.pureftpd.org/metalog/%{name}-%{version}.tar.gz
+Group:          System/Logging
+Copyright:      GPL
+Requires:       libpcre
+Provides:       syslog-daemon
+BuildRoot:      /var/tmp/%{name}-%{version}
+Summary:        An efficient alternative to syslogd
+Obsoletes:      syslogd klogd
+
 %description
 Metalog is a modern replacement for syslogd and klogd. The logged messages
 can be dispatched according to their facility, urgency, program name and/or
@@ -79,3 +80,6 @@ install -m 644 metalog.conf $RPM_BUILD_ROOT/etc/metalog.conf
 %changelog
 * Mon Jul  9 2001 Frank DENIS <j@pureftpd.org>
 - First RPM build of this package.
+
+* Sun Apr  6 2003 Frank DENIS <j@pureftpd.org>
+- Update to 0.7

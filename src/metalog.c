@@ -534,8 +534,8 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
 
 static int rotateLogFiles(const char * const directory, const int maxfiles)
 {
-    char path[PATH_MAX];
-    char old_name[PATH_MAX];
+    char path[MAXPATHLEN];
+    char old_name[MAXPATHLEN];
     const char *name;
     DIR *dir;
     struct dirent *dirent;
@@ -664,7 +664,7 @@ static int writeLogLine(Output * const output, const char * const date,
         FILE *fp;
         FILE *fp_ts;
         time_t creatime;
-        char path[PATH_MAX];    
+        char path[MAXPATHLEN];    
         
         testdir:
         if (stat(output->directory, &st) < 0) {
@@ -725,8 +725,8 @@ static int writeLogLine(Output * const output, const char * const date,
     if (output->size >= output->maxsize ||
         now > (output->creatime + output->maxtime)) {
         struct tm *time_gm;    
-        char path[PATH_MAX];
-        char newpath[PATH_MAX];            
+        char path[MAXPATHLEN];
+        char newpath[MAXPATHLEN];            
         
         if (output->fp == NULL) {
             fprintf(stderr, "Internal inconsistency line [%d]\n", __LINE__);

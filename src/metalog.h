@@ -97,6 +97,20 @@
 
 #include "mysnprintf.h"
 
+#ifndef MAXPATHLEN
+# ifdef PATH_MAX
+#  define MAXPATHLEN PATH_MAX
+# else
+#  define MAXPATHLEN 65536U
+Warning: neither PATH_MAX nor MAXPAHLEN were found.
+Remove these lines if you really want to compile the server, but
+the server may be insecure if a wrong value is set here.    
+# endif
+#endif
+#if (MAXPATHLEN) >= (INT_MAX)
+Your platform has a very large maximum path len, we should not trust it.
+#endif
+
 #ifdef _PATH_LOG
 # define SOCKNAME _PATH_LOG
 #else

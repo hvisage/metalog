@@ -144,16 +144,18 @@ Pure-FTPd messages :
   program  = "pure-ftpd"
   logdir   = "/var/log/pure-ftpd"
 
-* prog_regex = <regex> : similar to program, but not just a string equal
+* program_regex = <regex> : similar to program, but not just a string equal
 match, but a regular expression.
 
 Example : this would match program fields with [postfix/smtp], [postfix/smtpd]
- and [postfix/cleanup] etc.
+and [postfix/cleanup] etc.
 
 All Postfix messages :
- facility   = "*"
- prog_regex = "postfix"
- logdir     = /var/log/postfix
+ facility      = "*"
+ program_regex = "postfix"
+ logdir        = /var/log/postfix
+
+* program_neg_regex = <regex> : log programs that do _not_ match the regex.
 
 * regex = <regex> : a message must match the regular expression to pass that
 filter. Multiple regexes are allowed for a single section. All Perl

@@ -8,6 +8,8 @@
     Last repeated
     maximum
     neg_regex
+    program_regex
+    program_neg_regex
 
 * Version 0.7-beta :
 

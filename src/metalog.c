@@ -170,7 +170,8 @@ static int configParser(const char * const file)
                                               &errptr, &erroffset, NULL)) 
                     == NULL) {
                     fprintf(stderr, "Invalid regex : [%s]\n", regex);
-                    return -5;
+                    retcode = -5;
+                    goto rtn;
                 }
                 {
                     PCREInfo * const pcre_info = 

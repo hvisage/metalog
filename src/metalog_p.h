@@ -2,9 +2,9 @@
 #define __METALOG_P_H__ 1
 
 #ifdef HAVE_KLOGCTL
-# define GETOPT_OPTIONS "Bc:hs"
+# define GETOPT_OPTIONS "Bc:hsd"
 #else
-# define GETOPT_OPTIONS "Bhs"
+# define GETOPT_OPTIONS "Bhsd"
 #endif
 
 static struct option long_options[] = {
@@ -14,6 +14,7 @@ static struct option long_options[] = {
 #endif
     { "help", 0, NULL, 'h' },
     { "synchronous", 0, NULL, 's' },
+    { "debug", 0, NULL, 'd' },
     { NULL, 0, NULL, 0 }
 };
 

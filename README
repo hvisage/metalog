@@ -102,6 +102,9 @@ Critical messages :
   facility = "*"
   minimum  = 1
   logdir   = "/var/log/important"
+i
+
+* NOTE: facility & neg-facility are Mutualy exclusive.
 
 * facility = <facility> : only record a message if the application that
 issued it uses syslog facility <facility> . Facility names are : "auth",
@@ -109,6 +112,14 @@ issued it uses syslog facility <facility> . Facility names are : "auth",
 "security", "syslog", "user", "uucp", "local0", "local1" ... "local7" .
 All kernel messages are logged with facility "kern". A section can have
 several "facility = ..." lines to match more than one facility.
+If <facility> is "*", it'll match all the facilities.
+ie. Only match those defined
+
+* neg-facility = <facility> : <facility> is defined as above.
+It's functionality is equivalent to defining all the facilities
+BUT those facilities defined. 
+"*" is NOT a valid value for <facility>, as it doesn't make sense.
+
 
 Example : record all authentication messages to /var/log/auth :
 
@@ -142,9 +153,26 @@ Pure-FTPd messages :
   program  = "pure-ftpd"
   logdir   = "/var/log/pure-ftpd"
 
+* prog_regex = <regex> : similar to program, but not just a string equal
+match, but a regular expression.
+
+Example : this would match program fields with [postfix/smtp], [postfix/smtpd]
+ and [postfix/cleanup] etc.
+
+All Postfix messages :
+ facility   = "*"
+ prog_regex = "postfix"
+ logdir     = /var/log/postfix
+
+
 * regex = <regex> : a message must match the regular expression to pass that
 filter. Multiple regexes are allowed for a single section. All Perl
 extensions are allowed, and matching is case insensitive.
+
+* neg_regex = <regex> : a regular expression that must NOT match. Useful
+for filtering out "noisy" from stuff already logged elsewhere, or not needed.
+NOTE: the use of neg_regex would need *AT*LEAST* a trailing regex=<regex>,
+else it might not output anything!!!
 
 Example : record all authentication failures to /var/log/pwdfail :
 
@@ -156,6 +184,16 @@ Password failures :
   regex    = "(failed|invalid)\s+(password|login|authentication)"
   regex    = "ILLEGAL ROOT LOGIN"
   logdir   = "/var/log/pwdfail"
+
+Example : record all but expected login & ipfilters noise
+
+Everything :
+ facility     = "*"
+ neg_regex    = "(failed|invalid)\s+(password|login|authentication)"
+ neg_regex    = "IN=eth0 OUT="
+ regex        = "."
+ logdir       = "/var/log/everything"
+ 
 
 * maxsize = <size in bytes> : automatically rotate log files when their size
 have exceeded that size. Messages are never truncated and no message can be
@@ -208,6 +246,10 @@ echo "$3" | mail -s "Password failure (program : $2)" root
 
   Don't forget to properly quote arguments to avoid security problems.
   
+
+* debug : adds debugging output for that block.
+Ie. shows what matched & what didn't matched for that block...
+Mostly a programming debugging tool.
   
          ------------------------ LOG FILES ------------------------
          

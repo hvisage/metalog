@@ -844,6 +844,7 @@ static int spawnCommand(const char * const command, const char * const date,
                         const char * const prg, const char * const info)
 {
     struct stat st;
+    pid_t command_child;
     
     if (command == NULL || *command == 0 ||
         stat(command, &st) < 0 || !S_ISREG(st.st_mode)) {
@@ -855,10 +856,11 @@ static int spawnCommand(const char * const command, const char * const date,
     if (command_child == (pid_t) 0) {
         execl(command, command, date, prg, info, (char *) NULL);
         _exit(EXIT_FAILURE);
-    } else if (command_child != (pid_t) -1) {
-        while (command_child != (pid_t) 0) {
-            pause();
-        }
+    }
+    if (command_child == (pid_t) -1) {
+        fprintf(stderr, "Unable to launch [%s] : [%s]\n",
+                command == NULL ? "null" : command, strerror(errno));
+        return -1;
     }
     return 0;
 }
@@ -1126,8 +1128,6 @@ static RETSIGTYPE sigchld(int sig)
         if (pid == child) {
             fprintf(stderr, "Klog child [%u] died\n", (unsigned) pid);
             should_exit = 1;
-        } else if (pid == command_child) {
-            command_child = (pid_t) 0;
         }
     }
 #else
@@ -1135,8 +1135,6 @@ static RETSIGTYPE sigchld(int sig)
         if (pid == child) {
             fprintf(stderr, "Klog child [%u] died\n", (unsigned) pid);
             should_exit = 1;
-        } else if (pid == command_child) {
-            command_child = (pid_t) 0;
         }
     }    
 #endif

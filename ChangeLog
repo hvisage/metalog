@@ -1,4 +1,6 @@
 
+* Version 0.8 :
+
 * Version 0.7 :
     Autoconf/automake scripts were modernized.
     Portability improvements : import fakesnprintf/mysnprintf and

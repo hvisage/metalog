@@ -31,7 +31,6 @@ static Output *outputs;
 static int console_level = DEFAULT_CONSOLE_LEVEL;
 #endif
 static pid_t child;
-static pid_t command_child;
 static sig_atomic_t synchronous = (sig_atomic_t) 1;
 static signed char daemonize;
 static const char *pid_file = DEFAULT_PID_FILE;

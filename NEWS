@@ -1,4 +1,6 @@
 
+* Version 0.8
+
 * Version 0.7
  - Logging is now synchronous by default. Use --async to get back to
 the asynchronous behavior.

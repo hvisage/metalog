@@ -96,7 +96,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             (*cur_block)->facilities[(*cur_block)->nb_facilities] = 
                 LOG_FAC(facilitynames[n].c_val);
             (*cur_block)->nb_facilities++;
-        } else if (strcasecmp(keyword, "regex") == 0) {
+        } else if (strcasecmp(keyword, "regex") == 0 ||
+                   strcasecmp(keyword, "neg_regex") == 0) {
             const char *regex;
             RegexWithSign *new_regexeswithsign;
             
@@ -121,8 +122,12 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             {
                 RegexWithSign * const this_regex = 
                     &((*cur_block)->regexeswithsign[(*cur_block)->nb_regexes]);
-
-                this_regex->sign = REGEX_SIGN_POSITIVE;
+                
+                if (strcasecmp(keyword, "neg_regex")) {
+                    this_regex->sign = REGEX_SIGN_NEGATIVE;
+                } else {
+                    this_regex->sign = REGEX_SIGN_POSITIVE;
+                }
                 this_regex->regex.pcre = new_regex;
                 this_regex->regex.pcre_extra = 
                     pcre_study(new_regex, 0, errptr);
@@ -812,13 +817,14 @@ static int spawnCommand(const char * const command, const char * const date,
 static int processLogLine(const int logcode, const char * const date,
                           const char * const prg, const char * const info)
 {
+    int ovector[16];
     ConfigBlock *block = config_blocks;
+    RegexWithSign *this_regex;    
     const int facility = LOG_FAC(logcode);
     const int priority = LOG_PRI(logcode);
     int nb_regexes;
     int info_len;
-    int ovector[16];
-    RegexWithSign *this_regex;
+    int regex_result = 0;
             
     info_len = strlen(info);
     while (block != NULL) {
@@ -844,19 +850,28 @@ static int processLogLine(const int logcode, const char * const date,
         if ((nb_regexes = block->nb_regexes) > 0 && info_len > 0) {
             this_regex = block->regexeswithsign;
             do {
-                if (pcre_exec(this_regex->regex.pcre, 
-                              this_regex->regex.pcre_extra,
-                              info, info_len, 0, 0, ovector,
-                              sizeof ovector / sizeof ovector[0]) >= 0) {
-                    goto regex_ok;
+                if (this_regex->sign == REGEX_SIGN_POSITIVE) {
+                    if (pcre_exec(this_regex->regex.pcre, 
+                                  this_regex->regex.pcre_extra,
+                                  info, info_len, 0, 0, ovector,
+                                  sizeof ovector / sizeof ovector[0]) >= 0) {
+                        regex_result = 1;
+                    }
+                } else {
+                    if (pcre_exec(this_regex->regex.pcre, 
+                                  this_regex->regex.pcre_extra,
+                                  info, info_len, 0, 0, ovector,
+                                  sizeof ovector / sizeof ovector[0]) < 0) {
+                        regex_result = 1;
+                    }                    
                 }
                 this_regex++;
                 nb_regexes--;                
             } while (nb_regexes > 0);
-            
-            goto nextblock;
+            if (regex_result == 0) {
+                goto nextblock;
+            }
         }        
-        regex_ok:
         if (block->output != NULL) {
             writeLogLine(block->output, date, prg, info);
         }
@@ -1072,29 +1087,48 @@ static void setsignals(void)
     signal(SIGUSR2, sigusr2);
 }
 
-static int dodaemonize(void)
+static int closedesc_all(const int closestdin)
+{
+    int fodder;
+    
+    if (closestdin != 0) {
+        (void) close(0);
+        if ((fodder = open("/dev/null", O_RDONLY)) == -1) {
+            return -1;
+        }
+        (void) dup2(fodder, 0);
+        if (fodder > 0) {
+            (void) close(fodder);
+        }
+    }
+    if ((fodder = open("/dev/null", O_WRONLY)) == -1) {
+        return -1;
+    }
+    (void) dup2(fodder, 1);
+    (void) dup2(1, 2);
+    if (fodder > 2) {
+        (void) close(fodder);
+    }
+    
+    return 0;
+}
+
+static void dodaemonize(void)
 {
     pid_t child;
     
-    if ((child = fork()) == (pid_t) -1) {
-        perror("Unable to fork");
-        return -1;
-    } else if (child != (pid_t) 0) {
-        exit(EXIT_SUCCESS);
-    } else {
-        int i = 2;
-        
-        if (setsid() == (pid_t) -1) {
-            perror("Unable to create our own process group");
+    if (daemonize != 0) {
+        if ((child = fork()) == (pid_t) -1) {
+            perror("Daemonization failed - fork");
+            return;
+        } else if (child != (pid_t) 0) {
+            _exit(EXIT_SUCCESS);
+        } else if (setsid() == (pid_t) -1) {
+            perror("Daemonization failed : setsid");
         }
-        do {
-            if (isatty(i)) {
-                while (close(i) != 0 && errno == EINTR);
-            }
-            i--;
-        } while (i >= 0);
+        (void) chdir("/");
+        (void) closedesc_all(1);
     }    
-    return 0;
 }
 
 static void help(void) __attribute__ ((noreturn));
@@ -1176,9 +1210,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Bad configuration file - aborting\n");
         return -1;
     }
-    if (daemonize != 0) {
-        dodaemonize();
-    }
+    dodaemonize();
     setsignals();
     (void) update_pid_file(pid_file);
     clearargs(argc, argv);

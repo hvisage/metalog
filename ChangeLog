@@ -1,3 +1,10 @@
+* Version 0.8 :
+    fakesnprintf
+    BSD's getopt_long
+    setproctitle update
+
+* Version 0.7b :
+
 * Version 0.6 :
     Use strtoq if strtoull isn't available.
     Read /dev/klog when klogctl() isn't implemented.

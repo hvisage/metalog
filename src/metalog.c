@@ -818,7 +818,7 @@ static void sanitize(char * const line_)
     register unsigned char *line = (unsigned char *) line_;
     
     while (*line != 0U) {
-        if (*line < 32U) {
+        if (ISCTRLCODE(*line)) {
             *line = NONPRINTABLE_SUSTITUTE_CHAR;
         }
         line++;

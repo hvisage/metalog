@@ -173,4 +173,10 @@ typedef enum LogLineType_ {
 # endif
 #endif
 
+#ifdef ACCEPT_UNICODE_CONTROL_CHARS
+# define ISCTRLCODE(X) ((X) == 0x7f || ((unsigned char) (X)) < 32U)
+#else
+# define ISCTRLCODE(X) ((X) == 0x7f || !(((unsigned char) (X)) & 0x60))
+#endif
+
 #endif

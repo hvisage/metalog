@@ -135,7 +135,6 @@ typedef struct Output_ {
 #define BN_LENGHT 20 /* The max length of a blockname */
 
 typedef struct ConfigBlock_ {
-    char block_name[BN_LENGHT];
     int minimum;
     int *facilities;     
     char facility_state; /* ie, are we negating, or or we adding */

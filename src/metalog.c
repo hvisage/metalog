@@ -9,28 +9,15 @@
 
 static int configParser(const char * const file)
 {
-    pcre *re_newblock;
-    pcre *re_newstmt;
-    pcre *re_str;
-    pcre *re_comment;    
-    pcre *re_null;
-    const char *errptr;  
-    const char *keyword;
-    const char *value;
-    int erroffset;
+    char line[LINE_MAX];    
     int ovector[16];
-    int stcount;
-    int retcode = 0;
-    char state;
-    FILE *fp;
     ConfigBlock default_block = {
-            "",                        /* block_name */
             DEFAULT_MINIMUM,           /* minimum */
             NULL,                      /* facilities */
             FAC_STATE_NOTSET,          /* facility_state */
             0,                         /* nb_facilities */
             NULL,                      /* regexes */
-            NULL,                      /* Regex states, ie. Negative/Positive*/
+            NULL,                      /* Regex states, ie. Negative/Positive */
             0,                         /* nb_regexes */
             (off_t) DEFAULT_MAXSIZE,   /* maxsize */
             DEFAULT_MAXFILES,          /* maxfiles */
@@ -43,11 +30,22 @@ static int configParser(const char * const file)
             0,                         /* nb_prog_regexes */
             NULL                       /* next_block */
     };
+    pcre *re_newblock;
+    pcre *re_newstmt;
+    pcre *re_str;
+    pcre *re_comment;    
+    pcre *re_null;
+    FILE *fp;    
     ConfigBlock *cur_block = &default_block;
     pcre *new_regex,*new_prog_regex;
+    const char *errptr;  
+    const char *keyword;
+    const char *value;
+    int erroffset;
+    int retcode = 0;    
+    char state;
+    int stcount;
     int line_size;
-    int block_count=0;
-    char line[LINE_MAX];
 
     if ((fp = fopen(file, "rt")) == NULL) {
         perror("Can't open the configuration file");
@@ -83,9 +81,9 @@ static int configParser(const char * const file)
                       ovector, sizeof ovector / sizeof ovector[0]) >= 0) {
             continue;
         } 
-        if ((stcount = pcre_exec(re_newblock, NULL, line, line_size,
-                                 0, 0, ovector, 
-                                 sizeof ovector / sizeof ovector[0])) >= 0) {
+        if (pcre_exec(re_newblock, NULL, line, line_size,
+                      0, 0, ovector, 
+                      sizeof ovector / sizeof ovector[0]) >= 0) {
             ConfigBlock *previous_block = cur_block;
             
             if ((cur_block = malloc(sizeof *cur_block)) == NULL) {
@@ -99,18 +97,6 @@ static int configParser(const char * const file)
             } else {
                 previous_block->next_block = cur_block;
             }
-            block_count++;
-            if (stcount > 1) {
-                pcre_get_substring(line, ovector, stcount, 1 ,&value);
-                snprintf(cur_block->block_name,
-                         sizeof cur_block->block_name,
-                         "B%d-%s", block_count, value);
-            } else {
-                snprintf(cur_block->block_name,
-                         sizeof cur_block->block_name,
-                         "B%d-noname", block_count);
-            }
-            fprintf(stderr, "\n\nblockname:%s:\n\n", cur_block->block_name);
             continue;
         }
         if ((stcount = 

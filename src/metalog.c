@@ -642,7 +642,8 @@ static int writeLogLine(Output * const output, const char * const date,
             sizeof_previous_info = sizeof_info;
         }
     } else {
-        memcpy(previous_info, info, sizeof_info);        
+        memcpy(previous_info, info, sizeof_info);
+        previous_sizeof_info = sizeof_info;
     }
     if (sizeof_prg > sizeof_previous_prg) {
         char *pp = previous_prg;
@@ -654,6 +655,7 @@ static int writeLogLine(Output * const output, const char * const date,
         }
     } else {
         memcpy(previous_prg, prg, sizeof_prg);
+        previous_sizeof_prg = sizeof_prg;
     }
     time_t now = time(NULL);    
     if (output->fp == NULL) {

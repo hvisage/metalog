@@ -165,7 +165,7 @@ typedef enum LogLineType_ {
 #define NONPRINTABLE_SUSTITUTE_CHAR '_'
 #define PROGNAME_MASTER "metalog [MASTER]"
 #define PROGNAME_KERNEL "metalog [KERNEL]"
-#define LAST_OUTPUT "(Last output repeated %u times)\n"
+#define LAST_OUTPUT "                - Last output repeated %u times -\n"
 #define MAX_SIGNIFICANT_LENGTH 512U
 
 #ifndef HAVE_STRTOULL

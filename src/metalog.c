@@ -22,7 +22,6 @@ static int configParser(const char * const file)
     int erroffset;
     int ovector[16];
     int stcount;
-    int blockcount = 0;
     int retcode = 0;
     char state;
     FILE *fp;
@@ -49,7 +48,6 @@ static int configParser(const char * const file)
     };
     ConfigBlock *cur_block = &default_block;
     pcre *new_regex,*new_prog_regex;
-    char *new_states;
     int line_size;
     int block_count=0;
     char line[LINE_MAX];

@@ -126,8 +126,9 @@ typedef struct Output_ {
 #define FAC_STATE_ADD 2
 #define FAC_STATE_NEG 3
 #define BN_LENGHT 20 /* The max length of a blockname */
+
 typedef struct ConfigBlock_ {
-    const char block_name[BN_LENGHT];
+    char block_name[BN_LENGHT];
     int debug;
     int minimum;
     int *facilities;     

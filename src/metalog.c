@@ -115,11 +115,12 @@ static int configParser(const char * const file)
                 /* First check for the "*" facility */
                 if (*value == '*' && value[1] == 0) {
                     if (strcasecmp(keyword, "neg-facility") == 0) {
-                        fprintf(stderr,"neg-facility with \"*\"\n");
+                        fprintf(stderr, "neg-facility with \"*\"\n");
                         retcode = -4;
                         goto rtn;
-                    } else if (FAC_STATE_NOTSET != cur_block->facility_state) {
-                        fprintf(stderr,"facility = \"*\" after other facilities\n");
+                    } else if (cur_block->facility_state != FAC_STATE_NOTSET) {
+                        fprintf(stderr,
+                                "facility = \"*\" after other facilities\n");
                         retcode = -4;
                         goto rtn;
                     }
@@ -244,12 +245,15 @@ static int configParser(const char * const file)
                     cur_block->regex_state = new_states;
                     cur_block->regexes = new_regexes;
                 }
-                if ((new_regex = pcre_compile(regex, PCRE_CASELESS, &errptr, &erroffset, NULL)) == NULL) {
+                if ((new_regex = pcre_compile(regex, PCRE_CASELESS, 
+                                              &errptr, &erroffset, NULL))
+                    == NULL) {
                     fprintf(stderr, "Invalid regex : [%s]\n", regex);
                     return -5;
                 }
                 {
-                    PCREInfo * const pcre_info = &cur_block->regexes[cur_block->nb_regexes];
+                    PCREInfo * const pcre_info = 
+                        &cur_block->regexes[cur_block->nb_regexes];
                     
                     pcre_info->pcre = new_regex;
                     pcre_info->pcre_extra = pcre_study(new_regex, 0, &errptr);

@@ -6,6 +6,8 @@
     --asynchronous option, synchronous by default
     --configfile=...
     Last repeated
+    maximum
+    neg_regex
 
 * Version 0.7-beta :
 

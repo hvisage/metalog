@@ -58,6 +58,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         pcre_get_substring(line, ovector, stcount, 2, &value);
         if (strcasecmp(keyword, "minimum") == 0) {
             (*cur_block)->minimum = atoi(value);
+        } else if (strcasecmp(keyword, "maximum") == 0) {
+            (*cur_block)->maximum = atoi(value);
         } else if (strcasecmp(keyword, "facility") == 0) {
             int n = 0;
             int *new_facilities;
@@ -133,6 +135,44 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                     pcre_study(new_regex, 0, errptr);
             }
             (*cur_block)->nb_regexes++;
+        } else if (strcasecmp(keyword, "program_regex") == 0 ||
+                   strcasecmp(keyword, "program_neg_regex") == 0) {
+            const char *regex;
+            RegexWithSign *new_regexeswithsign;
+            
+            if ((regex = strdup(value)) == NULL) {
+                perror("Oh no! More memory!");
+                return -3;
+            }
+            if ((new_regexeswithsign = 
+                 realloc((*cur_block)->program_regexeswithsign,
+                         ((*cur_block)->program_nb_regexes + 1) *
+                         sizeof *((*cur_block)->regexeswithsign))) == NULL) {
+                perror("Oh no! More memory!");
+                return -3;
+            }
+            (*cur_block)->program_regexeswithsign = new_regexeswithsign;
+            if ((new_regex = pcre_compile(regex, PCRE_CASELESS, 
+                                          errptr, erroffset, NULL)) 
+                == NULL) {
+                fprintf(stderr, "Invalid program regex : [%s]\n", regex);
+                return -5;
+            }
+            {
+                RegexWithSign * const this_regex = 
+                    &((*cur_block)->program_regexeswithsign
+                      [(*cur_block)->program_nb_regexes]);
+                
+                if (strcasecmp(keyword, "program_neg_regex")) {
+                    this_regex->sign = REGEX_SIGN_NEGATIVE;
+                } else {
+                    this_regex->sign = REGEX_SIGN_POSITIVE;
+                }
+                this_regex->regex.pcre = new_regex;
+                this_regex->regex.pcre_extra = 
+                    pcre_study(new_regex, 0, errptr);
+            }
+            (*cur_block)->program_nb_regexes++;            
         } else if (strcasecmp(keyword, "maxsize") == 0) {
             (*cur_block)->maxsize = (off_t) strtoull(value, NULL, 0);
             if ((*cur_block)->output != NULL) {
@@ -214,6 +254,7 @@ static int configParser(const char * const file)
     int erroffset;
     ConfigBlock default_block = {
             DEFAULT_MINIMUM,           /* minimum */
+            DEFAULT_MAXIMUM,           /* maximum */            
             NULL,                      /* facilities */
             0,                         /* nb_facilities */
             NULL,                      /* regexes */
@@ -224,6 +265,8 @@ static int configParser(const char * const file)
             NULL,                      /* output */
             NULL,                      /* command */
             NULL,                      /* program */            
+            NULL,                      /* program_regexes */
+            0,                         /* program_nb_regexes */
             NULL                       /* next_block */
     };
     ConfigBlock *cur_block = &default_block;
@@ -824,9 +867,9 @@ static int processLogLine(const int logcode, const char * const date,
     const int priority = LOG_PRI(logcode);
     int nb_regexes;
     int info_len;
-    int regex_result = 0;
+    int prg_len;
+    int regex_result;
             
-    info_len = strlen(info);
     while (block != NULL) {
         if (block->facilities != NULL) {
             int nb = block->nb_facilities;
@@ -841,13 +884,42 @@ static int processLogLine(const int logcode, const char * const date,
             goto nextblock;
         }
         facility_ok:
-        if (priority > block->minimum) {
+        if (priority > block->minimum && priority < block->maximum) {
             goto nextblock;
         }
         if (block->program != NULL && strcasecmp(block->program, prg) != 0) {
             goto nextblock;
+        }
+        regex_result = 0;
+        if ((nb_regexes = block->program_nb_regexes) > 0) {
+            prg_len = (int) strlen(prg);
+            this_regex = block->program_regexeswithsign;
+            do {
+                if (this_regex->sign == REGEX_SIGN_POSITIVE) {
+                    if (pcre_exec(this_regex->regex.pcre, 
+                                  this_regex->regex.pcre_extra,
+                                  prg, prg_len, 0, 0, ovector,
+                                  sizeof ovector / sizeof ovector[0]) >= 0) {
+                        regex_result = 1;
+                    }
+                } else {
+                    if (pcre_exec(this_regex->regex.pcre, 
+                                  this_regex->regex.pcre_extra,
+                                  prg, prg_len, 0, 0, ovector,
+                                  sizeof ovector / sizeof ovector[0]) < 0) {
+                        regex_result = 1;
+                    }                    
+                }
+                this_regex++;
+                nb_regexes--;                
+            } while (nb_regexes > 0);
+            if (regex_result == 0) {
+                goto nextblock;
+            }
         }        
-        if ((nb_regexes = block->nb_regexes) > 0 && info_len > 0) {
+        regex_result = 0;
+        if ((nb_regexes = block->nb_regexes) > 0 && *info != 0) {
+            info_len = (int) strlen(info);
             this_regex = block->regexeswithsign;
             do {
                 if (this_regex->sign == REGEX_SIGN_POSITIVE) {

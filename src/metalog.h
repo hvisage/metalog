@@ -153,6 +153,7 @@ typedef struct RegexWithSign_ {
 
 typedef struct ConfigBlock_ {
     int minimum;
+    int maximum;
     int *facilities;     
     int nb_facilities;
     RegexWithSign *regexeswithsign;
@@ -163,6 +164,8 @@ typedef struct ConfigBlock_ {
     Output *output;
     const char *command;
     const char *program;
+    RegexWithSign *program_regexeswithsign;
+    int program_nb_regexes;
     struct ConfigBlock_ *next_block;
 } ConfigBlock;
 
@@ -172,6 +175,7 @@ typedef enum LogLineType_ {
 } LogLineType;
 
 #define DEFAULT_MINIMUM LOG_DEBUG
+#define DEFAULT_MAXIMUM INT_MAX
 #define DEFAULT_MAXSIZE ((off_t) 1000000)
 #define DEFAULT_MAXFILES 5
 #define DEFAULT_MAXTIME ((time_t) 60 * 60 * 24)

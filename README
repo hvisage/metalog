@@ -100,6 +100,9 @@ Critical messages :
   minimum  = 1
   logdir   = "/var/log/important"
 
+* maximum = <level> : don't log if the message level exceeds that value. By
+default, maximum is the largest possible level.
+
 * facility = <facility> : only record a message if the application that issued
 it uses syslog facility <facility> .
 

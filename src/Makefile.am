@@ -6,7 +6,7 @@ metalog_SOURCES = \
 	metalog.h \
 	metalog_p.h \
 	bsd-getopt_long.c \
-        bsd-getopt_long.h.c \
+        bsd-getopt_long.h \
 	fakesnprintf.c \
 	fakesnprintf.h \
         mysnprintf.c \

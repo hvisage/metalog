@@ -12,9 +12,8 @@ Perl-compatible regular expressions. Log files can be automatically rotated
 when they exceed a certain size or age. External shell scripts (e.g., mail)
 can be launched when specific patterns are found.
 
-Metalog is easier to configure than syslogd and syslog-ng, accepts unlimited
-number of rules and has (switchable) memory bufferization for maximal
-performance.
+Metalog is simple to configure, accepts unlimited number of rules and has
+(switchable) memory bufferization for maximal performance.
 
 
         ------------------------ COMPILATION ------------------------

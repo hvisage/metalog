@@ -928,7 +928,8 @@ static int process(const int sockets[])
                 close(ufdspnt->fd);
                 return -1;
             }
-            readen = read(ufdspnt->fd, line, sizeof line - 1U);
+            while ((readen = read(ufdspnt->fd, line, sizeof line - 1U)) < 0
+                   && errno == EINTR);
             if (readen < 0) {
                 goto sockerr;
             }

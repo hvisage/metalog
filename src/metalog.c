@@ -671,10 +671,12 @@ static int writeLogLine(Output * const output, const char * const date,
         sizeof_prg == previous_sizeof_prg &&
         memcmp(previous_info, info, sizeof_info) == 0 &&
         memcmp(previous_prg, prg, sizeof_prg) == 0) {
+#if 0
         if (same_counter < UINT_MAX) {
             same_counter++;
         }
         return 0;
+#endif
     }
     if (sizeof_info > sizeof_previous_info) {
         char *pp = previous_info;
@@ -916,7 +918,7 @@ static int processLogLine(const int logcode, const char * const date,
             if (regex_result == 0) {
                 goto nextblock;
             }
-        }        
+        }
         regex_result = 0;
         if ((nb_regexes = block->nb_regexes) > 0 && *info != 0) {
             info_len = (int) strlen(info);
@@ -943,7 +945,7 @@ static int processLogLine(const int logcode, const char * const date,
             if (regex_result == 0) {
                 goto nextblock;
             }
-        }        
+        }
         if (block->output != NULL) {
             writeLogLine(block->output, date, prg, info);
         }

@@ -206,7 +206,7 @@ typedef enum LogLineType_ {
 #define LAST_OUTPUT "                - Last output repeated %u times -\n"
 #define LAST_OUTPUT_TWICE "                - Last output repeated twice -\n"
 #define MAX_SIGNIFICANT_LENGTH 512U
-#define MAX_LOG_LENGTH 16384U          /* must be < (INT_MAX / 2) */
+#define MAX_LOG_LENGTH 8192U          /* must be < (INT_MAX / 2) */
 
 #ifndef HAVE_STRTOULL
 # ifdef HAVE_STRTOQ

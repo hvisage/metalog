@@ -897,7 +897,9 @@ static int processLogLine(const int logcode, const char * const date,
         }
         if ((nb_regexes = block->program_nb_regexes) > 0) {
             regex_result = 0;            
-            prg_len = (int) strlen(prg);
+            if ((prg_len = (int) strlen(prg)) < 0) {
+                goto nextblock;
+            }
             this_regex = block->program_regexeswithsign;
             do {
                 if (this_regex->sign == REGEX_SIGN_POSITIVE) {
@@ -922,7 +924,9 @@ static int processLogLine(const int logcode, const char * const date,
                 goto nextblock;
             }
         }       
-        info_len = (int) strlen(info);                    
+        if ((info_len = (int) strlen(info)) < 0) {
+            goto nextblock;
+        }
         if ((nb_regexes = block->nb_regexes) > 0 && *info != 0) {
             regex_result = 0;            
             this_regex = block->regexeswithsign;
@@ -959,6 +963,7 @@ static int processLogLine(const int logcode, const char * const date,
             spawnCommand(block->command, date, prg, info);
         }        
         nextblock:
+        
         block = block->next_block;
     }
     

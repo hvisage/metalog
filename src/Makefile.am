@@ -5,7 +5,6 @@ metalog_SOURCES = \
 	metalog.c \
     metalog.h \
     metalog_p.h \
-    gnu-getopt.c \
-    gnu-getopt1.c \
-    gnu-getopt.h \
+    bsd-getopt_long.c \
+    bsd-getopt_long.h.c \
     syslognames.h

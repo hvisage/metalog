@@ -1,21 +1,32 @@
 %define name    metalog
 %define version @VERSION@
 %define release 1
-%define prefix  /usr/local
 %define builddir $RPM_BUILD_DIR/%{name}-%{version}
+%define no_install_post_compress_docs    1
+
+#dont change these. Use --define instead. See below.
+%define prefixdef  /usr/local
+%define sysconfdef /etc
+
+#If you don't like the prefix '/usr/local' you can override it like this:
+#rpm -ba|--rebuild --define 'prefix /usr'
+%{?!prefix:%define prefix %{prefixdef}}
+
+#If you don't like the sysconfdir '/etc' you can override it like this:
+#rpm -ba|--rebuild --define 'sysconfdir /usr/local/etc'
+%{?!sysconfdir:%define sysconfdir %{sysconfdef}}
 
 Name:           %{name}
 Version:        %{version}
 Release:        %{release}
-Vendor:         Various
+Vendor:         Generic
 Packager:       Frank DENIS <j@pureftpd.org>
-URL:            http://metalog.sourceforge.net
+URL:            http://metalog.sourceforge.net/
 Source:         ftp://ftp.fr.pureftpd.org/metalog/%{name}-%{version}.tar.gz
 Group:          System/Logging
 Copyright:      GPL
-Requires:       libpcre
 Provides:       syslog-daemon
-BuildRoot:      /var/tmp/%{name}-%{version}
+BuildRoot:      %{_tmppath}/%{name}-%{version}
 Summary:        An efficient alternative to syslogd
 Obsoletes:      syslogd klogd
 
@@ -25,20 +36,17 @@ can be dispatched according to their facility, urgency, program name and/or
 Perl-compatible regular expressions. Log files can be automatically rotated
 when they exceed a certain size or age. External shell scripts (e.g., mail)
 can be launched when specific patterns are found.
-Metalog is easier to configure than syslogd and syslog-ng, accepts unlimited
-number of rules and has (switchable) memory bufferization for maximal
+Metalog is easier to configure than syslogd and accepts an unlimited
+number of rules and it has (switchable) memory bufferization for maximal
 performance.
 
 %prep
 %setup -n %{name}-%{version} 
-#%patch -p1
 
 %build
-if [ ! -f configure ]; then
-  CFLAGS="$RPM_OPT_FLAGS" ./autogen.sh --prefix=%{_prefix}
-else
-  CFLAGS="$RPM_OPT_FLAGS" ./configure --prefix=%{_prefix}
-fi
+CFLAGS="$RPM_OPT_FLAGS" ./configure --prefix=%{prefix} \
+  --mandir=%{_mandir} --sysconfdir=%{sysconfdir}
+
 if [ "$SMP" != "" ]; then
   (make "MAKE=make -k -j $SMP"; exit 0)
   make
@@ -48,19 +56,21 @@ fi
 
 %install
 [ -n "$RPM_BUILD_ROOT" -a "$RPM_BUILD_ROOT" != / ] && rm -rf "$RPM_BUILD_ROOT"
-make prefix=$RPM_BUILD_ROOT%{prefix} sysconfdir=$RPM_BUILD_ROOT%{sysconfdir} install
+make DESTDIR="$RPM_BUILD_ROOT" install-strip
 
 if [ ! -d $RPM_BUILD_ROOT%{prefix}/sbin ]; then
   mkdir -p $RPM_BUILD_ROOT%{prefix}/sbin
 fi
-if [ ! -d $RPM_BUILD_ROOT/etc ]; then
-  mkdir -p $RPM_BUILD_ROOT/etc
+if [ ! -d $RPM_BUILD_ROOT%{sysconfdir} ]; then
+  mkdir -p $RPM_BUILD_ROOT%{sysconfdir}
 fi
-if [ ! -d $RPM_BUILD_ROOT%{prefix}/man/man8 ]; then
-  mkdir -p $RPM_BUILD_ROOT%{prefix}/man/man8
+if [ ! -d $RPM_BUILD_ROOT%{_mandir}/man8 ]; then
+  mkdir -p $RPM_BUILD_ROOT%{_mandir}/man8
 fi
 
-install -m 644 metalog.conf $RPM_BUILD_ROOT/etc/metalog.conf
+gzip --best $RPM_BUILD_ROOT/%{_mandir}/man8/*.8
+
+install -m 644 metalog.conf $RPM_BUILD_ROOT%{sysconfdir}/
 
 %clean
 [ -n "$RPM_BUILD_ROOT" -a "$RPM_BUILD_ROOT" != / ] && rm -rf "$RPM_BUILD_ROOT"
@@ -68,18 +78,19 @@ install -m 644 metalog.conf $RPM_BUILD_ROOT/etc/metalog.conf
 %files
 
 %defattr(0755, root, root)
-%{prefix}/sbin/metalog
+%{prefix}/sbin/*
 
 %defattr(0644, root, root)
-%{prefix}/man/man8/metalog.8
+%{_mandir}/man8/*
 
-%doc README AUTHORS NEWS metalog.conf
+%defattr(-, root, root)
+%doc README AUTHORS NEWS
 
-%config /etc/metalog.conf
+%config(noreplace) %{sysconfdir}/*.conf
 
 %changelog
 * Mon Jul  9 2001 Frank DENIS <j@pureftpd.org>
 - First RPM build of this package.
 
 * Sun Apr  6 2003 Frank DENIS <j@pureftpd.org>
-- Update to 0.7
+- Cleanups

@@ -10,6 +10,7 @@
     neg_regex
     program_regex
     program_neg_regex
+    better spec file
 
 * Version 0.7-beta :
 

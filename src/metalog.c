@@ -7,21 +7,212 @@
 # include <dmalloc.h>
 #endif
 
+static int parseLine(char * const line, ConfigBlock **cur_block,
+                     const ConfigBlock * const default_block,
+                     const char ** const errptr, int * const erroffset,
+                     pcre * const re_newblock, pcre * const re_newstmt,
+                     pcre * const re_comment, pcre * const re_null) {
+    int ovector[16];    
+    pcre *new_regex;
+    const char *keyword;
+    const char *value;    
+    int line_size;
+    int stcount;    
+
+    if ((line_size = (int) strlen(line)) <= 0) {
+        return 0;
+    }
+    if (line[line_size - 1] == '\n') {
+        if (line_size < 2) {
+            return 0;
+        }
+        line[--line_size] = 0;
+    }    
+    if (pcre_exec(re_null, NULL, line, line_size,
+                  0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0 ||
+        pcre_exec(re_comment, NULL, line, line_size,
+                  0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0) {
+        return 0;
+    } 
+    if (pcre_exec(re_newblock, NULL, line, line_size,
+                  0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0) {
+        ConfigBlock *previous_block = *cur_block;
+        
+        if ((*cur_block = malloc(sizeof **cur_block)) == NULL) {
+            perror("Oh no ! More memory !");
+            return -3;
+        }
+        **cur_block = *default_block;
+        if (config_blocks == NULL) {
+            config_blocks = *cur_block;
+        } else {
+            previous_block->next_block = *cur_block;
+        }
+        return 0;
+    }
+    if ((stcount = 
+         pcre_exec(re_newstmt, NULL, line, line_size,
+                   0, 0, ovector, 
+                   sizeof ovector / sizeof ovector[0])) >= 3) {
+        pcre_get_substring(line, ovector, stcount, 1, &keyword);
+        pcre_get_substring(line, ovector, stcount, 2, &value);
+        if (strcasecmp(keyword, "minimum") == 0) {
+            (*cur_block)->minimum = atoi(value);
+        } else if (strcasecmp(keyword, "facility") == 0) {
+            int n = 0;
+            int *new_facilities;
+            
+            if (*value == '*' && value[1] == 0) {
+                if ((*cur_block)->facilities != NULL) {
+                    free((*cur_block)->facilities);
+                }
+                (*cur_block)->facilities = NULL;
+                (*cur_block)->nb_facilities = 0;
+                return 0;
+            }
+            while (facilitynames[n].c_name != NULL &&
+                   strcasecmp(facilitynames[n].c_name, value) != 0) {
+                n++;
+            }
+            if (facilitynames[n].c_name == NULL) {
+                fprintf(stderr, "Unknown facility : [%s]\n", value);
+                return -4;
+            }
+            if ((*cur_block)->facilities == NULL) {
+                if (((*cur_block)->facilities =
+                     malloc(sizeof *((*cur_block)->facilities))) == NULL) {
+                    perror("Oh no ! More memory !");
+                    return -3;
+                }                    
+            } else {
+                if ((new_facilities =
+                     realloc((*cur_block)->facilities,
+                             ((*cur_block)->nb_facilities + 1) *
+                             sizeof *((*cur_block)->facilities))) == NULL) {
+                    perror("Oh no ! More memory !");
+                    return -3;
+                }                    
+            }
+            (*cur_block)->facilities[(*cur_block)->nb_facilities] = 
+                LOG_FAC(facilitynames[n].c_val);
+            (*cur_block)->nb_facilities++;
+        } else if (strcasecmp(keyword, "regex") == 0) {
+            const char *regex;
+            PCREInfo *new_regexes;
+            
+            if ((regex = strdup(value)) == NULL) {
+                perror("Oh no ! More memory !");
+                return -3;
+            }
+            if ((*cur_block)->regexes == NULL) {
+                if (((*cur_block)->regexes = 
+                     malloc(sizeof *((*cur_block)->regexes))) == NULL) {
+                    perror("Oh no ! More memory !");
+                    return -3;
+                }                    
+            } else {
+                if ((new_regexes = 
+                     realloc((*cur_block)->regexes, 
+                             ((*cur_block)->nb_regexes + 1) *
+                             sizeof *((*cur_block)->regexes))) == NULL) {
+                    perror("Oh no ! More memory !");
+                    return -3;
+                }
+                (*cur_block)->regexes = new_regexes;
+            }
+            if ((new_regex = pcre_compile(regex, PCRE_CASELESS, 
+                                          errptr, erroffset, NULL)) 
+                == NULL) {
+                fprintf(stderr, "Invalid regex : [%s]\n", regex);
+                return -5;
+            }
+            {
+                PCREInfo * const pcre_info = 
+                    &((*cur_block)->regexes[(*cur_block)->nb_regexes]);
+                
+                pcre_info->pcre = new_regex;
+                pcre_info->pcre_extra = pcre_study(new_regex, 0, errptr);
+            }
+            (*cur_block)->nb_regexes++;
+        } else if (strcasecmp(keyword, "maxsize") == 0) {
+            (*cur_block)->maxsize = (off_t) strtoull(value, NULL, 0);
+            if ((*cur_block)->output != NULL) {
+                (*cur_block)->output->maxsize = (*cur_block)->maxsize;
+            }                
+        } else if (strcasecmp(keyword, "maxfiles") == 0) {
+                (*cur_block)->maxfiles = atoi(value);
+            if ((*cur_block)->output != NULL) {
+                (*cur_block)->output->maxfiles = (*cur_block)->maxfiles;
+            }                
+        } else if (strcasecmp(keyword, "maxtime") == 0) {
+            (*cur_block)->maxtime = (time_t) strtoull(value, NULL, 0);
+            if ((*cur_block)->output != NULL) {
+                (*cur_block)->output->maxtime = (*cur_block)->maxtime;
+            }
+        } else if (strcasecmp(keyword, "logdir") == 0) {
+            char *logdir;
+            Output *outputs_scan = outputs;
+            Output *previous_scan = NULL;
+            Output *new_output;
+            
+            while (outputs_scan != NULL) {
+                if (outputs_scan->directory != NULL && 
+                    strcmp(outputs_scan->directory, value) == 0) {
+                    (*cur_block)->output = outputs_scan;
+                    goto duplicate_output;
+                }
+                previous_scan = outputs_scan;
+                outputs_scan = outputs_scan->next_output;
+            }
+            if ((new_output = malloc(sizeof *new_output)) == NULL ||
+                (logdir = strdup(value)) == NULL) {
+                if (new_output != NULL) {
+                    free(new_output);
+                }
+                perror("Oh no ! More memory !");
+                return -3;
+            }    
+            new_output->directory = logdir;
+            new_output->fp = NULL;
+            new_output->size = (off_t) 0;
+            new_output->maxsize = (*cur_block)->maxsize;
+            new_output->maxfiles = (*cur_block)->maxfiles;
+            new_output->maxtime = (*cur_block)->maxtime;
+            new_output->next_output = NULL;
+            if (previous_scan != NULL) {
+                previous_scan->next_output = new_output;
+            } else {
+                outputs = new_output;
+            }
+            (*cur_block)->output = new_output;
+            duplicate_output:
+            (void) 0;
+        } else if (strcasecmp(keyword, "command") == 0) {
+            if (((*cur_block)->command = strdup(value)) == NULL) {
+                perror("Oh no ! More memory !");
+                return -3;
+            }
+        } else if (strcasecmp(keyword, "program") == 0) {
+            if (((*cur_block)->program = strdup(value)) == NULL) {
+                perror("Oh no ! More memory !");
+                return -3;
+            }
+        }
+    }
+    return 0;
+}
+
 static int configParser(const char * const file)
 {
+    char line[LINE_MAX];
+    FILE *fp;
+    const char *errptr;
     pcre *re_newblock;
     pcre *re_newstmt;
-    pcre *re_str;
-    pcre *re_comment;    
+    pcre *re_comment;
     pcre *re_null;
-    const char *errptr;  
-    const char *keyword;
-    const char *value;
-    int erroffset;
-    int ovector[16];
-    int stcount;
     int retcode = 0;
-    FILE *fp;
+    int erroffset;
     ConfigBlock default_block = {
             DEFAULT_MINIMUM,           /* minimum */
             NULL,                      /* facilities */
@@ -37,18 +228,14 @@ static int configParser(const char * const file)
             NULL                       /* next_block */
     };
     ConfigBlock *cur_block = &default_block;
-    pcre *new_regex;
-    int line_size;
-    char line[LINE_MAX];
 
-    if ((fp = fopen(file, "rt")) == NULL) {
+    if ((fp = fopen(file, "r")) == NULL) {
         perror("Can't open the configuration file");
         return -2;
     }
     re_newblock = pcre_compile(":\\s*$", 0, &errptr, &erroffset, NULL);
     re_newstmt = pcre_compile("^\\s*(.+?)\\s*=\\s*\"?(.+?)\"?\\s*$", 0, 
                               &errptr, &erroffset, NULL);
-    re_str = pcre_compile("\"(.+)\"", 0, &errptr, &erroffset, NULL);    
     re_comment = pcre_compile("^\\s*#", 0, &errptr, &erroffset, NULL);        
     re_null = pcre_compile("^\\s*$", 0, &errptr, &erroffset, NULL);
     if (re_newblock == NULL || re_newstmt == NULL ||
@@ -58,200 +245,13 @@ static int configParser(const char * const file)
         goto rtn;
     }
     while (fgets(line, sizeof line, fp) != NULL) {
-        if ((line_size = (int) strlen(line)) <= 0) {
-            continue;
+        if ((retcode = parseLine(line, &cur_block, &default_block,
+                                 &errptr, &erroffset,
+                                 re_newblock, re_newstmt,
+                                 re_comment, re_null)) != 0) {
+            break;
         }
-        if (line[line_size - 1] == '\n') {
-            if (line_size < 2) {
-                continue;
-            }
-            line[--line_size] = 0;
-        }
-        if (pcre_exec(re_null, NULL, line, line_size,
-                      0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0 ||
-            pcre_exec(re_comment, NULL, line, line_size,
-                      0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0) {
-            continue;
-        } 
-        if (pcre_exec(re_newblock, NULL, line, line_size,
-                      0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0) {
-            ConfigBlock *previous_block = cur_block;
-            
-            if ((cur_block = malloc(sizeof *cur_block)) == NULL) {
-                perror("Oh no ! More memory !");
-                retcode = -3;
-                goto rtn;
-            }
-            *cur_block = default_block;
-            if (config_blocks == NULL) {
-                config_blocks = cur_block;
-            } else {
-                previous_block->next_block = cur_block;
-            }
-            continue;
-        }
-        if ((stcount = 
-             pcre_exec(re_newstmt, NULL, line, line_size,
-                       0, 0, ovector, 
-                       sizeof ovector / sizeof ovector[0])) >= 3) {
-            pcre_get_substring(line, ovector, stcount, 1, &keyword);
-            pcre_get_substring(line, ovector, stcount, 2, &value);
-            if (strcasecmp(keyword, "minimum") == 0) {
-                cur_block->minimum = atoi(value);
-            } else if (strcasecmp(keyword, "facility") == 0) {
-                int n = 0;
-                int *new_facilities;
-                
-                if (*value == '*' && value[1] == 0) {
-                    if (cur_block->facilities != NULL) {
-                        free(cur_block->facilities);
-                    }
-                    cur_block->facilities = NULL;
-                    cur_block->nb_facilities = 0;
-                    continue;
-                }
-                while (facilitynames[n].c_name != NULL &&
-                       strcasecmp(facilitynames[n].c_name, value) != 0) {
-                    n++;
-                }
-                if (facilitynames[n].c_name == NULL) {
-                    fprintf(stderr, "Unknown facility : [%s]\n", value);
-                    retcode = -4;
-                    goto rtn;
-                }
-                if (cur_block->facilities == NULL) {
-                    if ((cur_block->facilities =
-                         malloc(sizeof *(cur_block->facilities))) == NULL) {
-                        perror("Oh no ! More memory !");
-                        retcode = -3;
-                        goto rtn;
-                    }                    
-                } else {
-                    if ((new_facilities =
-                         realloc(cur_block->facilities,
-                                 (cur_block->nb_facilities + 1) *
-                                 sizeof *(cur_block->facilities))) == NULL) {
-                        perror("Oh no ! More memory !");
-                        retcode = -3;
-                        goto rtn;
-                    }                    
-                }
-                cur_block->facilities[cur_block->nb_facilities] = 
-                    LOG_FAC(facilitynames[n].c_val);
-                cur_block->nb_facilities++;
-            } else if (strcasecmp(keyword, "regex") == 0) {
-                const char *regex;
-                PCREInfo *new_regexes;
-                
-                if ((regex = strdup(value)) == NULL) {
-                    perror("Oh no ! More memory !");
-                    retcode = -3;
-                    goto rtn;
-                }
-                if (cur_block->regexes == NULL) {
-                    if ((cur_block->regexes = 
-                         malloc(sizeof *(cur_block->regexes))) == NULL) {
-                        perror("Oh no ! More memory !");
-                        retcode = -3;
-                        goto rtn;
-                    }                    
-                } else {
-                    if ((new_regexes = 
-                         realloc(cur_block->regexes, 
-                                 (cur_block->nb_regexes + 1) *
-                                 sizeof *(cur_block->regexes))) == NULL) {
-                        perror("Oh no ! More memory !");
-                        retcode = -3;
-                        goto rtn;
-                    }
-                    cur_block->regexes = new_regexes;
-                }
-                if ((new_regex = pcre_compile(regex, PCRE_CASELESS, 
-                                              &errptr, &erroffset, NULL)) 
-                    == NULL) {
-                    fprintf(stderr, "Invalid regex : [%s]\n", regex);
-                    retcode = -5;
-                    goto rtn;
-                }
-                {
-                    PCREInfo * const pcre_info = 
-                        &cur_block->regexes[cur_block->nb_regexes];
-                    
-                    pcre_info->pcre = new_regex;
-                    pcre_info->pcre_extra = pcre_study(new_regex, 0, &errptr);
-                }
-                cur_block->nb_regexes++;
-            } else if (strcasecmp(keyword, "maxsize") == 0) {
-                cur_block->maxsize = (off_t) strtoull(value, NULL, 0);
-                if (cur_block->output != NULL) {
-                    cur_block->output->maxsize = cur_block->maxsize;
-                }                
-            } else if (strcasecmp(keyword, "maxfiles") == 0) {
-                cur_block->maxfiles = atoi(value);
-                if (cur_block->output != NULL) {
-                    cur_block->output->maxfiles = cur_block->maxfiles;
-                }                
-            } else if (strcasecmp(keyword, "maxtime") == 0) {
-                cur_block->maxtime = (time_t) strtoull(value, NULL, 0);
-                if (cur_block->output != NULL) {
-                    cur_block->output->maxtime = cur_block->maxtime;
-                }
-            } else if (strcasecmp(keyword, "logdir") == 0) {
-                char *logdir;
-                Output *outputs_scan = outputs;
-                Output *previous_scan = NULL;
-                Output *new_output;
-                
-                while (outputs_scan != NULL) {
-                    if (outputs_scan->directory != NULL && 
-                        strcmp(outputs_scan->directory, value) == 0) {
-                        cur_block->output = outputs_scan;
-                        goto duplicate_output;
-                    }
-                    previous_scan = outputs_scan;
-                    outputs_scan = outputs_scan->next_output;
-                }
-                if ((new_output = malloc(sizeof *new_output)) == NULL ||
-                    (logdir = strdup(value)) == NULL) {
-                    if (new_output != NULL) {
-                        free(new_output);
-                    }
-                    perror("Oh no ! More memory !");
-                    retcode = -3;
-                    goto rtn;
-                }    
-                new_output->directory = logdir;
-                new_output->fp = NULL;
-                new_output->size = (off_t) 0;
-                new_output->maxsize = cur_block->maxsize;
-                new_output->maxfiles = cur_block->maxfiles;
-                new_output->maxtime = cur_block->maxtime;
-                new_output->next_output = NULL;
-                if (previous_scan != NULL) {
-                    previous_scan->next_output = new_output;
-                } else {
-                    outputs = new_output;
-                }
-                cur_block->output = new_output;
-                duplicate_output:
-                (void) 0;
-            } else if (strcasecmp(keyword, "command") == 0) {
-                if ((cur_block->command = strdup(value)) == NULL) {
-                    perror("Oh no ! More memory !");
-                    retcode = -3;
-                    goto rtn;
-                }
-            } else if (strcasecmp(keyword, "program") == 0) {
-                if ((cur_block->program = strdup(value)) == NULL) {
-                    perror("Oh no ! More memory !");
-                    retcode = -3;
-                    goto rtn;
-                }
-            }
-            continue;
-        }
-    }    
-    
+    }
     rtn:
     if (re_newblock != NULL) {
         pcre_free(re_newblock);
@@ -603,7 +603,7 @@ static int writeLogLine(Output * const output, const char * const date,
                     output->directory);
             return -2;
         }
-        if ((fp = fopen(path, "at")) == NULL) {
+        if ((fp = fopen(path, "a")) == NULL) {
             fprintf(stderr, "Unable to access [%s]\n", path);
             return -3;
         }
@@ -614,10 +614,10 @@ static int writeLogLine(Output * const output, const char * const date,
             fclose(fp);
             return -2;
         }
-        if ((fp_ts = fopen(path, "rt")) == NULL) {
+        if ((fp_ts = fopen(path, "r")) == NULL) {
             recreate_ts:
             creatime = time(NULL);
-            if ((fp_ts = fopen(path, "wt")) == NULL) {
+            if ((fp_ts = fopen(path, "w")) == NULL) {
                 fprintf(stderr, "Unable to write the timestamp [%s]\n", path);
                 fclose(fp);
                 return -3;

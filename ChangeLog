@@ -3,6 +3,7 @@
     BSD's getopt_long
     setproctitle update
     --pidfile=...
+    --asynchronous option, synchronous by default
 
 * Version 0.7b :
 

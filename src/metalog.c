@@ -1061,6 +1061,9 @@ static void parseOptions(int argc, char *argv[])
     while ((fodder =  getopt_long(argc, argv, GETOPT_OPTIONS, 
                                   long_options, &option_index)) != -1) {
         switch (fodder) {            
+        case 'a' :
+            synchronous = (sig_atomic_t) 0;
+            break;
         case 'B' :
             daemonize = 1;
             break;
@@ -1081,8 +1084,8 @@ static void parseOptions(int argc, char *argv[])
                 perror("You're really running out of memory");
                 exit(EXIT_FAILURE);
             }
+            break;
         case 's' :
-            synchronous = (sig_atomic_t) 1;
             break;
         default :
             fprintf(stderr, "Unknown option\n");

@@ -417,12 +417,12 @@ static int getDataSources(int sockets[])
         close(sockets[0]);
         return -3;
     } else if (child == (pid_t) 0) {
+        char line[LINE_MAX];        
         int s;
         int t;
         int u;
         ssize_t written;
         size_t towrite;
-        char line[LINE_MAX];
                 
         signal(SIGUSR1, SIG_IGN);
         signal(SIGUSR2, SIG_IGN);

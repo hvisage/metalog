@@ -1,9 +1,11 @@
+
 * Version 0.7 :
+    Autoconf/automake scripts were modernized.
     Portability improvements : import fakesnprintf/mysnprintf and
 Pure-FTPd and OpenBSD's getopt_long() from Pure Load Balancer.
     Fixes to the setproctitle() emulation on Linux.
     New command-line argument : --pidfile=... (pid_file global)
-    New command-line argument --async. Switch to the synchronous mode by
+    New command-line argument : --async. Switch to the synchronous mode by
 default.
     New command-line argument : --configfile=... (config_file global).
     Introduce the DuplicateTracker structure into Output, used in

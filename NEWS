@@ -1,8 +1,20 @@
-* Version 0.7
 
+* Version 0.7
+ - Logging is now synchronous by default. Use --async to get back to
+the asynchronous behavior.
+ - Duplicate messages are now only logged once.
+ - Negative regexes were implemented and programs can now also be
+matched against regexes. See the new neg_regex, program_regex and
+program_neg_regex keywords.
+ - The maximum urgency can now be specified for each block. A new
+keyowrd, "maximum" completes "minimum".
+ - A PID file is now created. It defaults to /var/run/metalog.pid but
+it can be changed with the --pidfile switch.
+ - The location of the configuration file can now be changed with
+--with-configfile.
+ - The code was cleaned up.
 
 * Version 0.7-beta
-
  - This is a transitional version with new features contributed by
 Hendrick Visage.
 

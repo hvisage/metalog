@@ -1,0 +1,10 @@
+* Version 0.6 :
+    Use strtoq if strtoull isn't available.
+    Read /dev/klog when klogctl() isn't implemented.
+    Add --consolelevel.
+    Create SPEC and LSM files.
+    Include syslog names.
+
+* Version 0.5 :
+    First public release.
+    

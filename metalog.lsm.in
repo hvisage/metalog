@@ -1,0 +1,21 @@
+Begin4
+Title: metalog
+Version: @VERSION@
+Entered-date:  9 Jul 2001
+Description: Metalog is a modern replacement for syslogd and klogd. The
+logged messages can be dispatched according to their facility, urgency,
+program name and/or Perl-compatible regular expressions. Log files can be
+automatically rotated when they exceed a certain size or age. External shell
+scripts (e.g., mail) can be launched when specific patterns are found.
+Metalog is easier to configure than syslogd and syslog-ng, accepts unlimited
+number of rules and has (switchable) memory bufferization for maximal
+performance.
+Keywords: syslog,syslogd,logger
+Author: j@pureftpd.org (Frank DENIS)
+Maintained-by: j@pureftpd.org (Frank DENIS)
+Primary-site: http://download.sourceforge.net/metalog/
+Alternate-site: 
+Original-site: http://metalog.sourceforge.net
+Platforms: Linux,FreeBSD,NetBSD,OpenBSD
+Copying-policy: GPL
+End

@@ -1,0 +1,7 @@
+* Version 0.6
+ - Metalog is now working on Linux, OpenBSD, FreeBSD and NetBSD.
+ - New --consolelevel option to set up the console level on Linux.
+ - RPM packages are now available.
+
+* Version 0.5
+ - First public release.

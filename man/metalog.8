@@ -1,0 +1,40 @@
+.TH "metalog" "1" "0.5" "Frank DENIS" "Syslog daemon"
+.SH "NAME"
+.LP 
+metalog \- an alternative syslog daemon
+.SH "SYNTAX"
+.LP 
+metalog [\fI\-\-daemonize\fP] [\fI\-\-consolelevel=0..7\fP] [\fI\-\-help\fP] [\fI\-\-synchronous\fP]
+.SH "DESCRIPTION"
+.LP 
+Metalog is a modern replacement for syslogd and klogd. The logged messages
+can be dispatched according to their facility, urgency, program name and/or
+Perl\-compatible regular expressions. Log files can be automatically rotated
+when they exceed a certain size or age. External shell scripts (ex: mail)
+can be launched when specific patterns are found.
+.br 
+Metalog is easier to configure than syslogd and syslog\-ng, accepts unlimited
+number of rules and has (switchable) memory bufferisation for maximal
+performance.
+.SH "OPTIONS"
+.LP 
+.TP 
+\fB\-\-daemonize\fR
+have the server start in background (daemonization) .
+.TP 
+\fB\-\-consolelevel=0..7\fR
+Set the console log level (Linux only).
+.TP 
+\fB\-\-help\fR
+Output help information and exit.
+.TP 
+\fB\-\-synchronous\fR
+Start in synchronous mode, with no bufferization.
+.SH "FILES"
+.LP 
+\fI/etc/metalog.conf\fP 
+.br 
+\fI/dev/log\fP 
+.SH "AUTHORS"
+.LP 
+Frank DENIS (Jedi/Sector One) <ange@angelic.com>

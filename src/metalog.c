@@ -106,7 +106,7 @@ static int configParser(const char * const file)
             }
             block_count++;
             if (stcount > 1) {
-                pcre_get_substring(line,ovector,stcount,1,&value);
+                pcre_get_substring(line,ovector,stcount, 1 ,&value);
                 snprintf(cur_block->block_name,
                          sizeof cur_block->block_name,
                          "B%d-%s", block_count, value);
@@ -125,7 +125,7 @@ static int configParser(const char * const file)
             pcre_get_substring(line, ovector, stcount, 1, &keyword);
             pcre_get_substring(line, ovector, stcount, 2, &value);
             if (strcasecmp(keyword, "debug") == 0) {
-                if ((cur_block->debug = atoi(value))>0) {
+                if ((cur_block->debug = atoi(value)) > 0) {
                     fprintf(stderr,"adding debug info for block :%s:\n",
                             cur_block->block_name);
                 }               
@@ -182,7 +182,7 @@ static int configParser(const char * const file)
                             goto rtn;
                         } else {
                             cur_block->facility_state = FAC_STATE_ADD;
-                            if ((debug > 2) || (cur_block->debug > 2)){
+                            if ((debug > 2) || (cur_block->debug > 2)) {
                                 fprintf(stderr,"Setting facility %s %s",
                                         keyword,value);
                             }
@@ -218,7 +218,7 @@ static int configParser(const char * const file)
                     cur_block->facilities[cur_block->nb_facilities] = 
                         LOG_FAC(facilitynames[n].c_val);
                     cur_block->nb_facilities++;
-                }/*The block for the (neg-)facility stuff, ie. non-* */         
+                } /*The block for the (neg-)facility stuff, ie. non-* */         
             } else if ((strcasecmp(keyword, "regex") == 0) 
                        || (strcasecmp(keyword, "neg-regex") == 0)) {        
                 const char *regex;

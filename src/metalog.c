@@ -611,7 +611,8 @@ static int writeLogLine(Output * const output, const char * const date,
     static size_t previous_sizeof_info;
     static unsigned int same_counter;
     size_t sizeof_prg;
-    size_t sizeof_info;            
+    size_t sizeof_info;
+    time_t now;    
     
     if (output == NULL || output->directory == NULL ||
         (sizeof_prg = strlen(prg)) <= (size_t) 0U ||
@@ -657,7 +658,7 @@ static int writeLogLine(Output * const output, const char * const date,
         memcpy(previous_prg, prg, sizeof_prg);
         previous_sizeof_prg = sizeof_prg;
     }
-    time_t now = time(NULL);    
+    now = time(NULL);    
     if (output->fp == NULL) {
         struct stat st;
         FILE *fp;

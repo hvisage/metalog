@@ -63,7 +63,7 @@
 #define IN_GETOPT_LONG_C 1
 
 #include <config.h>
-#include "plb.h"
+#include "metalog.h"
 
 #ifndef HAVE_GETOPT_LONG
 

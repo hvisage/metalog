@@ -88,6 +88,8 @@
 # define ALLOCA_FREE(X) free(X)
 #endif
 
+#include "mysnprintf.h"
+
 #ifdef _PATH_LOG
 # define SOCKNAME _PATH_LOG
 #else

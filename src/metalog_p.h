@@ -21,8 +21,10 @@ static struct option long_options[] = {
     { NULL, 0, NULL, 0 }
 };
 
+#if defined(__linux__) && !defined(HAVE_SETPROCTITLE)
 static char **argv0;
 static int argv_lth;
+#endif
 static ConfigBlock *config_blocks;
 static Output *outputs;
 #ifdef HAVE_KLOGCTL

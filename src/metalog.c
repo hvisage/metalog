@@ -852,7 +852,7 @@ static int spawnCommand(const char * const command, const char * const date,
     }
     command_child = fork();
     if (command_child == (pid_t) 0) {
-        execl(command, command, date, prg, info, NULL);
+        execl(command, command, date, prg, info, (void *) NULL);
         _exit(EXIT_FAILURE);
     } else if (command_child != (pid_t) -1) {
         while (command_child != (pid_t) 0) {

@@ -9,15 +9,24 @@
 
 static int configParser(const char * const file)
 {
-    char line[LINE_MAX];    
+    pcre *re_newblock;
+    pcre *re_newstmt;
+    pcre *re_str;
+    pcre *re_comment;    
+    pcre *re_null;
+    const char *errptr;  
+    const char *keyword;
+    const char *value;
+    int erroffset;
     int ovector[16];
+    int stcount;
+    int retcode = 0;
+    FILE *fp;
     ConfigBlock default_block = {
             DEFAULT_MINIMUM,           /* minimum */
             NULL,                      /* facilities */
-            FAC_STATE_NOTSET,          /* facility_state */
             0,                         /* nb_facilities */
             NULL,                      /* regexes */
-            NULL,                      /* Regex states, ie. Negative/Positive */
             0,                         /* nb_regexes */
             (off_t) DEFAULT_MAXSIZE,   /* maxsize */
             DEFAULT_MAXFILES,          /* maxfiles */
@@ -25,33 +34,18 @@ static int configParser(const char * const file)
             NULL,                      /* output */
             NULL,                      /* command */
             NULL,                      /* program */            
-            NULL,                      /* prog_regexes */
-            NULL,                      /* prog_regex_state */
-            0,                         /* nb_prog_regexes */
             NULL                       /* next_block */
     };
-    pcre *re_newblock;
-    pcre *re_newstmt;
-    pcre *re_str;
-    pcre *re_comment;    
-    pcre *re_null;
-    FILE *fp;    
     ConfigBlock *cur_block = &default_block;
-    pcre *new_regex,*new_prog_regex;
-    const char *errptr;  
-    const char *keyword;
-    const char *value;
-    int erroffset;
-    int retcode = 0;    
-    char state;
-    int stcount;
+    pcre *new_regex;
     int line_size;
+    char line[LINE_MAX];
 
     if ((fp = fopen(file, "rt")) == NULL) {
         perror("Can't open the configuration file");
         return -2;
     }
-    re_newblock = pcre_compile("(.+?):\\s*$", 0, &errptr, &erroffset, NULL);
+    re_newblock = pcre_compile(":\\s*$", 0, &errptr, &erroffset, NULL);
     re_newstmt = pcre_compile("^\\s*(.+?)\\s*=\\s*\"?(.+?)\"?\\s*$", 0, 
                               &errptr, &erroffset, NULL);
     re_str = pcre_compile("\"(.+)\"", 0, &errptr, &erroffset, NULL);    
@@ -74,16 +68,13 @@ static int configParser(const char * const file)
             line[--line_size] = 0;
         }
         if (pcre_exec(re_null, NULL, line, line_size,
-                      0, 0, ovector, 
-                      sizeof ovector / sizeof ovector[0]) >= 0 ||
+                      0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0 ||
             pcre_exec(re_comment, NULL, line, line_size,
-                      0, 0, 
-                      ovector, sizeof ovector / sizeof ovector[0]) >= 0) {
+                      0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0) {
             continue;
         } 
         if (pcre_exec(re_newblock, NULL, line, line_size,
-                      0, 0, ovector, 
-                      sizeof ovector / sizeof ovector[0]) >= 0) {
+                      0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0) {
             ConfigBlock *previous_block = cur_block;
             
             if ((cur_block = malloc(sizeof *cur_block)) == NULL) {
@@ -107,108 +98,51 @@ static int configParser(const char * const file)
             pcre_get_substring(line, ovector, stcount, 2, &value);
             if (strcasecmp(keyword, "minimum") == 0) {
                 cur_block->minimum = atoi(value);
-            } else if ((strcasecmp(keyword, "facility") == 0) 
-                       || (strcasecmp(keyword, "neg-facility") == 0)) {
+            } else if (strcasecmp(keyword, "facility") == 0) {
                 int n = 0;
                 int *new_facilities;
                 
-                /* First check for the "*" facility */
                 if (*value == '*' && value[1] == 0) {
-                    if (strcasecmp(keyword, "neg-facility") == 0) {
-                        fprintf(stderr, "neg-facility with \"*\"\n");
-                        retcode = -4;
-                        goto rtn;
-                    } else if (cur_block->facility_state != FAC_STATE_NOTSET) {
-                        fprintf(stderr,
-                                "facility = \"*\" after other facilities\n");
-                        retcode = -4;
-                        goto rtn;
-                    }
                     if (cur_block->facilities != NULL) {
                         free(cur_block->facilities);
                     }
                     cur_block->facilities = NULL;
                     cur_block->nb_facilities = 0;
-                    cur_block->facility_state = FAC_STATE_ALL;
-                } else {
-                    /*
-                     * Not "*"
-                     * Thus a "decent" facility... we hope ;^)
-                     * Let's check for sane facility & neg-facility values...
-                     */
-                    if (strcasecmp(keyword, "neg-facility") == 0){
-                        if ((FAC_STATE_NEG != cur_block->facility_state)
-                            && (FAC_STATE_NOTSET != cur_block->facility_state)) {
-                            fprintf(stderr,
-                                    "neg-facility after a facility defined\n");
-                            retcode = -4;
-                            goto rtn;
-                        } else {
-                            cur_block->facility_state = FAC_STATE_NEG;    
-                        }
-                    } else if (strcasecmp(keyword, "facility") == 0) {
-                        if ((FAC_STATE_NOTSET != cur_block->facility_state)
-                            && (FAC_STATE_ADD != cur_block->facility_state)) {
-                            fprintf(stderr,
-                                    "facility after a neg-facility defined\n");
-                            retcode = -4;
-                            goto rtn;
-                        } else {
-                            cur_block->facility_state = FAC_STATE_ADD;
-                        }
-                    }               
-                    /* The facility & neg-facility's haven't been intermingled */
-                    while (facilitynames[n].c_name != NULL &&
-                           strcasecmp(facilitynames[n].c_name, value) != 0) {
-                        n++;
-                    }
-                    if (facilitynames[n].c_name == NULL) {
-                        fprintf(stderr, "Unknown facility : [%s]\n", value);
-                        retcode = -4;
+                    continue;
+                }
+                while (facilitynames[n].c_name != NULL &&
+                       strcasecmp(facilitynames[n].c_name, value) != 0) {
+                    n++;
+                }
+                if (facilitynames[n].c_name == NULL) {
+                    fprintf(stderr, "Unknown facility : [%s]\n", value);
+                    retcode = -4;
+                    goto rtn;
+                }
+                if (cur_block->facilities == NULL) {
+                    if ((cur_block->facilities =
+                         malloc(sizeof *(cur_block->facilities))) == NULL) {
+                        perror("Oh no ! More memory !");
+                        retcode = -3;
                         goto rtn;
-                    }
-                    if (cur_block->facilities == NULL) {
-                        if ((cur_block->facilities =
-                             malloc(sizeof *(cur_block->facilities))) == NULL) {
-                            perror("Oh no ! More memory !");
-                            retcode = -3;
-                            goto rtn;
-                        }                    
-                    } else {
-                        if ((new_facilities =
-                             realloc(cur_block->facilities,
-                                     (cur_block->nb_facilities + 1) *
-                                     sizeof *(cur_block->facilities))) == NULL) {
-                            perror("Oh no ! More memory !");
-                            retcode = -3;
-                            goto rtn;
-                        }                    
-                    }
-                    cur_block->facilities[cur_block->nb_facilities] = 
-                        LOG_FAC(facilitynames[n].c_val);
-                    cur_block->nb_facilities++;
-                } /*The block for the (neg-)facility stuff, ie. non-* */         
-            } else if ((strcasecmp(keyword, "regex") == 0) 
-                       || (strcasecmp(keyword, "neg-regex") == 0)) {        
+                    }                    
+                } else {
+                    if ((new_facilities =
+                         realloc(cur_block->facilities,
+                                 (cur_block->nb_facilities + 1) *
+                                 sizeof *(cur_block->facilities))) == NULL) {
+                        perror("Oh no ! More memory !");
+                        retcode = -3;
+                        goto rtn;
+                    }                    
+                }
+                cur_block->facilities[cur_block->nb_facilities] = 
+                    LOG_FAC(facilitynames[n].c_val);
+                cur_block->nb_facilities++;
+            } else if (strcasecmp(keyword, "regex") == 0) {
                 const char *regex;
-                char *new_states;
                 PCREInfo *new_regexes;
                 
-                /*
-                 * The idea is that the order of the 
-                 * matching would define if it matches or not 
-                 * In theory a simple bit field would suffice,
-                 * but that could limit the number of possible regexes, 
-                 * and besides, a char would help with the extra that
-                 * someday might arrive.
-                 *
-                 *  -hvisage.
-                 */
-                if ((strcasecmp(keyword, "regex") == 0)) {
-                    state = 1; /* Standard positive matching */
-                } else {
-                    state = 2; /* Negative matching */
-                }
                 if ((regex = strdup(value)) == NULL) {
                     perror("Oh no ! More memory !");
                     retcode = -3;
@@ -220,12 +154,7 @@ static int configParser(const char * const file)
                         perror("Oh no ! More memory !");
                         retcode = -3;
                         goto rtn;
-                    } else if ((cur_block->regex_state =
-                                malloc(sizeof (char))) == NULL) {
-                        perror("Oh no ! More memory !");
-                        retcode = -3;
-                        goto rtn;
-                    }                                       
+                    }                    
                 } else {
                     if ((new_regexes = 
                          realloc(cur_block->regexes, 
@@ -234,99 +163,20 @@ static int configParser(const char * const file)
                         perror("Oh no ! More memory !");
                         retcode = -3;
                         goto rtn;
-                    } else if ((new_states =
-                                realloc(cur_block->regex_state,
-                                        (cur_block->nb_regexes + 1) *
-                                        sizeof (char))) == NULL) {
-                        perror("Oh no ! More memory !");
-                        retcode = -3;
-                        goto rtn;
                     }
-                    cur_block->regex_state = new_states;
                     cur_block->regexes = new_regexes;
                 }
-                if ((new_regex = pcre_compile(regex, PCRE_CASELESS, 
-                                              &errptr, &erroffset, NULL))
-                    == NULL) {
+                if ((new_regex = pcre_compile(regex, PCRE_CASELESS, &errptr, &erroffset, NULL)) == NULL) {
                     fprintf(stderr, "Invalid regex : [%s]\n", regex);
                     return -5;
                 }
                 {
-                    PCREInfo * const pcre_info = 
-                        &cur_block->regexes[cur_block->nb_regexes];
+                    PCREInfo * const pcre_info = &cur_block->regexes[cur_block->nb_regexes];
                     
                     pcre_info->pcre = new_regex;
                     pcre_info->pcre_extra = pcre_study(new_regex, 0, &errptr);
                 }
-                cur_block->regex_state[cur_block->nb_regexes]=state;
                 cur_block->nb_regexes++;
-
-                /*
-                 End of regex options 
-                 */
-            } else if ((strcasecmp(keyword, "prog_regex") == 0) 
-                       || (strcasecmp(keyword, "neg-prog_regex") == 0)) {           
-                const char *prog_regex;
-                char *new_prog_states;
-                PCREInfo *new_prog_regexes;
-                
-                if ((strcasecmp(keyword, "prog_regex") == 0)) {
-                    state = 1; /* Standard positive matching */
-                } else {
-                    state = 2; /* Negative matching */
-                }
-                if ((prog_regex = strdup(value)) == NULL) {
-                    perror("Oh no ! More memory !");
-                    retcode = -3;
-                    goto rtn;
-                }
-                if (cur_block->prog_regexes == NULL) {
-                    if ((cur_block->prog_regexes = 
-                         malloc(sizeof *(cur_block->prog_regexes))) == NULL) {
-                        perror("Oh no ! More memory !");
-                        retcode = -3;
-                        goto rtn;
-                    } else if ((cur_block->prog_regex_state =
-                                malloc(sizeof (char))) == NULL) {
-                        perror("Oh no ! More memory !");
-                        retcode = -3;
-                        goto rtn;
-                    }                                       
-                } else {
-                    if ((new_prog_regexes = 
-                         realloc(cur_block->prog_regexes, 
-                                 (cur_block->nb_prog_regexes + 1) *
-                                 sizeof *(cur_block->prog_regexes))) == NULL) {
-                        perror("Oh no ! More memory !");
-                        retcode = -3;
-                        goto rtn;
-                    } else if ((new_prog_states =
-                                realloc(cur_block->prog_regex_state,
-                                        (cur_block->nb_prog_regexes + 1) *
-                                        sizeof (char))) == NULL) {
-                        perror("Oh no ! More memory !");
-                        retcode = -3;
-                        goto rtn;
-                    }
-                    cur_block->prog_regex_state = new_prog_states;
-                    cur_block->prog_regexes = new_prog_regexes;
-                }
-                if ((new_prog_regex = pcre_compile(prog_regex, PCRE_CASELESS, &errptr, &erroffset, NULL)) == NULL) {
-                    fprintf(stderr, "Invalid prog_regex : [%s]\n", prog_regex);
-                    return -5;
-                }
-                {
-                    PCREInfo * const pcre_info = &cur_block->prog_regexes[cur_block->nb_prog_regexes];
-                    
-                    pcre_info->pcre = new_prog_regex;
-                    pcre_info->pcre_extra = pcre_study(new_prog_regex, 
-                                                       0, &errptr);
-                }
-                cur_block->prog_regex_state[cur_block->nb_prog_regexes] = state;
-                cur_block->nb_prog_regexes++;
-                /*
-                 * End of prog_regex options 
-                 */                
             } else if (strcasecmp(keyword, "maxsize") == 0) {
                 cur_block->maxsize = (off_t) strtoull(value, NULL, 0);
                 if (cur_block->output != NULL) {
@@ -875,11 +725,11 @@ static int processLogLine(const int logcode, const char * const date,
     ConfigBlock *block = config_blocks;
     const int facility = LOG_FAC(logcode);
     const int priority = LOG_PRI(logcode);
-    int nb_regexes,curr; /*We'll be counting UP from 0 to nb_regexes-1*/
+    int nb_regexes;
     int info_len;
     int ovector[16];
     PCREInfo *pcre_info;
-        
+            
     info_len = strlen(info);
     while (block != NULL) {
         if (block->facilities != NULL) {
@@ -889,11 +739,7 @@ static int processLogLine(const int logcode, const char * const date,
             while (nb > 0) {
                 nb--;
                 if (facility == facilities[nb]) {
-                    if (FAC_STATE_ADD == block->facility_state) {
-                        goto facility_ok;
-                    }else if (FAC_STATE_NEG == block->facility_state) {
-                        goto nextblock;
-                    }
+                    goto facility_ok;
                 }
             }
             goto nextblock;
@@ -907,20 +753,15 @@ static int processLogLine(const int logcode, const char * const date,
         }        
         if ((nb_regexes = block->nb_regexes) > 0 && info_len > 0) {
             pcre_info = block->regexes;
-            curr = 0;
             do {
                 if (pcre_exec(pcre_info->pcre, pcre_info->pcre_extra,
                               info, info_len, 0, 0, ovector,
                               sizeof ovector / sizeof ovector[0]) >= 0) {
-                    if (block->regex_state[curr] == 1   ) {
-                        goto regex_ok; /*A regex state */
-                    } else {
-                        goto nextblock; /*a neg-regex state */
-                    }
+                    goto regex_ok;
                 }
                 pcre_info++;
-                curr++;                
-            } while (nb_regexes > curr);
+                nb_regexes--;                
+            } while (nb_regexes > 0);
             goto nextblock;
         }        
         regex_ok:
@@ -1025,7 +866,6 @@ static void exit_hook(void)
     }
 }
 
-static RETSIGTYPE sigkchld(int sig) __attribute__ ((noreturn));
 static RETSIGTYPE sigkchld(int sig)
 {
     fprintf(stderr, "Process [%u] died with signal [%d]\n", 
@@ -1093,30 +933,29 @@ static void setsignals(void)
 
 static void dodaemonize(void)
 {
-    pid_t child;
-    
-    if (daemonize != 0) {
-        if ((child = fork()) < (pid_t) 0) {
-            perror("Daemonization failed - fork");
-            return;
-        } else if (child != (pid_t) 0) {
-            _exit(EXIT_SUCCESS);
-        } else {
-            if (setsid() == (pid_t) -1) {
-                perror("Daemonization failed : setsid");
-            }
-            chdir("/");
-            if (isatty(1)) {
-                close(1);
-            }
-            if (isatty(2)) {
-                close(2);
-            }
-        }
-    }   
+        pid_t child;
+        
+        if (daemonize) {
+                if ((child = fork()) < (pid_t) 0) {
+                        perror("Daemonization failed - fork");
+                        return;
+                } else if (child != (pid_t) 0) {
+                        _exit(EXIT_SUCCESS);
+                } else {
+                        if (setsid() == (pid_t) -1) {
+                           perror("Daemonization failed : setsid");
+                        }
+                        chdir("/");
+                        if (isatty(1)) {
+                                close(1);
+                        }
+                        if (isatty(2)) {
+                                close(2);
+                        }
+                }
+        }       
 }
 
-static void help(void) __attribute__ ((noreturn));
 static void help(void)
 {
     const struct option *options = long_options;
@@ -1176,7 +1015,7 @@ int main(int argc, char *argv[])
     int sockets[2];
 
 #ifndef HAVE_SETPROCTITLE
-    prg_name = argv[0];
+        prg_name = argv[0];
 #endif
     checkRoot();
     parseOptions(argc, argv);

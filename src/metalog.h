@@ -128,18 +128,11 @@ typedef struct Output_ {
     struct Output_ *next_output;
 } Output;
 
-#define FAC_STATE_NOTSET 0
-#define FAC_STATE_ALL 1
-#define FAC_STATE_ADD 2
-#define FAC_STATE_NEG 3
-
 typedef struct ConfigBlock_ {
     int minimum;
     int *facilities;     
-    char facility_state; /* ie, are we negating, or or we adding */
     int nb_facilities;
     PCREInfo *regexes;
-    char *regex_state;
     int nb_regexes;
     off_t maxsize;
     int maxfiles;
@@ -147,9 +140,6 @@ typedef struct ConfigBlock_ {
     Output *output;
     const char *command;
     const char *program;
-    PCREInfo *prog_regexes;
-    char *prog_regex_state;
-    int nb_prog_regexes;
     struct ConfigBlock_ *next_block;
 } ConfigBlock;
 

@@ -38,9 +38,10 @@ make install-strip
        ------------------------ CONFIGURATION ------------------------
        
        
-A configuration file called /etc/metalog.conf should be installed. You can
-find a sample file in this directory, but it's certainly not perfect for
-your system and your needs. So read on.
+A configuration file should be installed. Its default location is
+/etc/metalog.conf (unless you tweaked --with-sysconfdir) . You can find a
+sample file in this directory, but it's certainly not perfect for your system
+and your needs. So read on.
 
 A configuration file has the following syntax :
 

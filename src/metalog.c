@@ -104,11 +104,13 @@ static int configParser(const char * const file)
 	    block_count++;
 	    if (stcount >1) {
 		pcre_get_substring(line,ovector,stcount,1,&value);
-		snprintf(cur_block->block_name,BN_LENGHT,"B%d-%s",block_count,value);
+		snprintf(cur_block->block_name,
+                         BN_LENGHT, "B%d-%s", block_count, value);
 	    } else {
-		snprintf(cur_block->block_name,BN_LENGHT,"B%d-noname",block_count);
+		snprintf(cur_block->block_name,
+                         BN_LENGHT, "B%d-noname", block_count);
 	    }
-	    fprintf(stderr,"\n\nblockname:%s:\n\n",cur_block->block_name);
+	    fprintf(stderr,"\n\nblockname:%s:\n\n", cur_block->block_name);
             continue;
         }
         if ((stcount = 
@@ -131,9 +133,7 @@ static int configParser(const char * const file)
 		int n = 0;
 		int *new_facilities;
 		
-		/* First check for the 
-		   "*" facility
-		*/
+		/* First check for the "*" facility */
 		if (*value == '*' && value[1] == 0) {
 		    if (strcasecmp(keyword, "neg-facility") ==0)
 			{
@@ -152,11 +152,11 @@ static int configParser(const char * const file)
 		    cur_block->nb_facilities = 0;
 		    cur_block->facility_state = FAC_STATE_ALL;
 		} else {
-		    /*Not "*"
-		      Thus a "decent" facility... we hope ;^)
-		    */
-		    
-		    /*Let's check for sane facility & neg-facility values...*/
+		    /*
+                     * Not "*"
+                     * Thus a "decent" facility... we hope ;^)
+		     * Let's check for sane facility & neg-facility values...
+                     */
 		    if (strcasecmp(keyword, "neg-facility") ==0){ 
 			if ((FAC_STATE_NEG != cur_block->facility_state)
 			    && (FAC_STATE_NOTSET != cur_block->facility_state)) {
@@ -216,28 +216,26 @@ static int configParser(const char * const file)
 		}/*The block for the (neg-)facility stuff, ie. non-* */
 		
 	    } else if ((strcasecmp(keyword, "regex") == 0) 
-		       || (strcasecmp(keyword, "neg-regex") == 0)) {
-	    
-	    const char *regex;
-	    char *new_states;
-	    PCREInfo *new_regexes;
-	    
+		       || (strcasecmp(keyword, "neg-regex") == 0)) {	    
+                const char *regex;
+                char *new_states;
+                PCREInfo *new_regexes;
+                
 		/*
-		  The idea is that the order of the 
-		  matching would define if it matches or not 
-		  In theory a simple bit field would suffice,
-		  but that could limit the number of possible regexes, 
-		  and besides, a char would help with the extra that
-		  someday might arrive
-
-		  hvisage
-		*/
+		 * The idea is that the order of the 
+		 * matching would define if it matches or not 
+		 * In theory a simple bit field would suffice,
+		 * but that could limit the number of possible regexes, 
+		 * and besides, a char would help with the extra that
+		 * someday might arrive.
+                 *
+		 *  -hvisage.
+                 */
 		if ((strcasecmp(keyword, "regex") == 0)) {
 		    state=1; /* Standard positive matching */
 		} else {
 		    state=2; /* Negative matching */
 		}
-
                 if ((regex = strdup(value)) == NULL) {
                     perror("Oh no ! More memory !");
                     retcode = -3;
@@ -254,9 +252,7 @@ static int configParser(const char * const file)
 			perror("Oh no ! More memory !");
 			retcode = -3;
 			goto rtn;
-		    }
-			
-		    
+		    }					    
                 } else {
                     if ((new_regexes = 
                          realloc(cur_block->regexes, 
@@ -286,39 +282,27 @@ static int configParser(const char * const file)
                     pcre_info->pcre = new_regex;
                     pcre_info->pcre_extra = pcre_study(new_regex, 0, &errptr);
                 }
-		if ((cur_block->debug >1) ||(debug > 1)){
+		if ((cur_block->debug > 1) ||(debug > 1)){
 		    printf("adding: %s %d %s %d\n",
 			   keyword,cur_block->nb_regexes,regex,state);
 		}
 		cur_block->regex_state[cur_block->nb_regexes]=state;
 		cur_block->nb_regexes++;
 
-    /*
-      End of regex options 
-    */
-		    } else if ((strcasecmp(keyword, "prog_regex") == 0) 
-		   || (strcasecmp(keyword, "neg-prog_regex") == 0)) {
-	    
-	    const char *prog_regex;
-	    char *new_prog_states;
-	    PCREInfo *new_prog_regexes;
-	    
-		/*
-		  The idea is that the order of the 
-		  matching would define if it matches or not 
-		  In theory a simple bit field would suffice,
-		  but that could limit the number of possible prog_regexes, 
-		  and besides, a char would help with the extra that
-		  someday might arrive
-
-		  hvisage
-		*/
+                /*
+                 End of regex options 
+                 */
+            } else if ((strcasecmp(keyword, "prog_regex") == 0) 
+                       || (strcasecmp(keyword, "neg-prog_regex") == 0)) {	    
+                const char *prog_regex;
+                char *new_prog_states;
+                PCREInfo *new_prog_regexes;
+                
 		if ((strcasecmp(keyword, "prog_regex") == 0)) {
 		    state=1; /* Standard positive matching */
 		} else {
 		    state=2; /* Negative matching */
 		}
-
                 if ((prog_regex = strdup(value)) == NULL) {
                     perror("Oh no ! More memory !");
                     retcode = -3;
@@ -335,9 +319,7 @@ static int configParser(const char * const file)
 			perror("Oh no ! More memory !");
 			retcode = -3;
 			goto rtn;
-		    }
-			
-		    
+		    }					    
                 } else {
                     if ((new_prog_regexes = 
                          realloc(cur_block->prog_regexes, 
@@ -373,11 +355,9 @@ static int configParser(const char * const file)
 		}
 		cur_block->prog_regex_state[cur_block->nb_prog_regexes]=state;
 		cur_block->nb_prog_regexes++;
-
-    /*
-      End of prog_regex options 
-    */
-		    
+                /*
+                 * End of prog_regex options 
+                 */                
             } else if (strcasecmp(keyword, "maxsize") == 0) {
                 cur_block->maxsize = (off_t) strtoull(value, NULL, 0);
                 if (cur_block->output != NULL) {

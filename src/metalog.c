@@ -813,15 +813,20 @@ static int writeLogLine(Output * const output, const char * const date,
         goto testdir;
     }
     if (output->dt.same_counter > 0U) {
-        int fps;
-        
-        fps = fprintf(output->fp, LAST_OUTPUT, output->dt.same_counter);
-        if (fps >= (int) (sizeof LAST_OUTPUT - sizeof "%u")) {
-            output->size += (off_t) fps;
-        } else if (fps > 0) {
-            output->size += (off_t) (sizeof LAST_OUTPUT + (size_t) 10U);
+        if (output->dt.same_counter == 1) {
+            fprintf(output->fp, LAST_OUTPUT_TWICE);
+            output->size += (off_t) (sizeof LAST_OUTPUT_TWICE - (size_t) 1U);
+        } else {
+            int fps;
+            
+            fps = fprintf(output->fp, LAST_OUTPUT, output->dt.same_counter);
+            if (fps >= (int) (sizeof LAST_OUTPUT - sizeof "%u")) {
+                output->size += (off_t) fps;
+            } else if (fps > 0) {
+                output->size += (off_t) (sizeof LAST_OUTPUT + (size_t) 10U);
+            }
         }
-        output->dt.same_counter = 0U;
+        output->dt.same_counter = 0U;        
     }
     fprintf(output->fp, "%s [%s] %s\n", date, prg, info);
     output->size += (off_t) strlen(date);
@@ -858,7 +863,7 @@ static int spawnCommand(const char * const command, const char * const date,
 }
 
 static int processLogLine(const int logcode, const char * const date,
-                          const char * const prg, const char * const info)
+                          const char * const prg, char * const info)
 {
     int ovector[16];
     ConfigBlock *block = config_blocks;
@@ -890,8 +895,8 @@ static int processLogLine(const int logcode, const char * const date,
         if (block->program != NULL && strcasecmp(block->program, prg) != 0) {
             goto nextblock;
         }
-        regex_result = 0;
         if ((nb_regexes = block->program_nb_regexes) > 0) {
+            regex_result = 0;            
             prg_len = (int) strlen(prg);
             this_regex = block->program_regexeswithsign;
             do {
@@ -916,10 +921,10 @@ static int processLogLine(const int logcode, const char * const date,
             if (regex_result == 0) {
                 goto nextblock;
             }
-        }
-        regex_result = 0;
+        }       
+        info_len = (int) strlen(info);                    
         if ((nb_regexes = block->nb_regexes) > 0 && *info != 0) {
-            info_len = (int) strlen(info);
+            regex_result = 0;            
             this_regex = block->regexeswithsign;
             do {
                 if (this_regex->sign == REGEX_SIGN_POSITIVE) {
@@ -944,12 +949,15 @@ static int processLogLine(const int logcode, const char * const date,
                 goto nextblock;
             }
         }
+        if ((size_t) info_len > MAX_LOG_LENGTH) {
+            info[MAX_LOG_LENGTH] = 0;
+        }
         if (block->output != NULL) {
             writeLogLine(block->output, date, prg, info);
         }
         if (block->command != NULL) {
             spawnCommand(block->command, date, prg, info);
-        }
+        }        
         nextblock:
         block = block->next_block;
     }

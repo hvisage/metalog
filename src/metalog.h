@@ -142,11 +142,20 @@ typedef struct Output_ {
     struct Output_ *next_output;
 } Output;
 
+typedef enum RegexSign_ {
+    REGEX_SIGN_POSITIVE, REGEX_SIGN_NEGATIVE
+} RegexSign;
+
+typedef struct RegexWithSign_ {
+    PCREInfo regex;
+    RegexSign sign;
+} RegexWithSign;
+
 typedef struct ConfigBlock_ {
     int minimum;
     int *facilities;     
     int nb_facilities;
-    PCREInfo *regexes;
+    RegexWithSign *regexeswithsign;
     int nb_regexes;
     off_t maxsize;
     int maxfiles;

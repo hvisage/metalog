@@ -98,28 +98,20 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             (*cur_block)->nb_facilities++;
         } else if (strcasecmp(keyword, "regex") == 0) {
             const char *regex;
-            PCREInfo *new_regexes;
+            RegexWithSign *new_regexeswithsign;
             
             if ((regex = strdup(value)) == NULL) {
                 perror("Oh no! More memory!");
                 return -3;
             }
-            if ((*cur_block)->regexes == NULL) {
-                if (((*cur_block)->regexes = 
-                     malloc(sizeof *((*cur_block)->regexes))) == NULL) {
-                    perror("Oh no! More memory!");
-                    return -3;
-                }                    
-            } else {
-                if ((new_regexes = 
-                     realloc((*cur_block)->regexes, 
-                             ((*cur_block)->nb_regexes + 1) *
-                             sizeof *((*cur_block)->regexes))) == NULL) {
-                    perror("Oh no! More memory!");
-                    return -3;
-                }
-                (*cur_block)->regexes = new_regexes;
+            if ((new_regexeswithsign = 
+                 realloc((*cur_block)->regexeswithsign,
+                         ((*cur_block)->nb_regexes + 1) *
+                         sizeof *((*cur_block)->regexeswithsign))) == NULL) {
+                perror("Oh no! More memory!");
+                return -3;
             }
+            (*cur_block)->regexeswithsign = new_regexeswithsign;
             if ((new_regex = pcre_compile(regex, PCRE_CASELESS, 
                                           errptr, erroffset, NULL)) 
                 == NULL) {
@@ -127,11 +119,13 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 return -5;
             }
             {
-                PCREInfo * const pcre_info = 
-                    &((*cur_block)->regexes[(*cur_block)->nb_regexes]);
-                
-                pcre_info->pcre = new_regex;
-                pcre_info->pcre_extra = pcre_study(new_regex, 0, errptr);
+                RegexWithSign * const this_regex = 
+                    &((*cur_block)->regexeswithsign[(*cur_block)->nb_regexes]);
+
+                this_regex->sign = REGEX_SIGN_POSITIVE;
+                this_regex->regex.pcre = new_regex;
+                this_regex->regex.pcre_extra = 
+                    pcre_study(new_regex, 0, errptr);
             }
             (*cur_block)->nb_regexes++;
         } else if (strcasecmp(keyword, "maxsize") == 0) {
@@ -824,7 +818,7 @@ static int processLogLine(const int logcode, const char * const date,
     int nb_regexes;
     int info_len;
     int ovector[16];
-    PCREInfo *pcre_info;
+    RegexWithSign *this_regex;
             
     info_len = strlen(info);
     while (block != NULL) {
@@ -848,16 +842,18 @@ static int processLogLine(const int logcode, const char * const date,
             goto nextblock;
         }        
         if ((nb_regexes = block->nb_regexes) > 0 && info_len > 0) {
-            pcre_info = block->regexes;
+            this_regex = block->regexeswithsign;
             do {
-                if (pcre_exec(pcre_info->pcre, pcre_info->pcre_extra,
+                if (pcre_exec(this_regex->regex.pcre, 
+                              this_regex->regex.pcre_extra,
                               info, info_len, 0, 0, ovector,
                               sizeof ovector / sizeof ovector[0]) >= 0) {
                     goto regex_ok;
                 }
-                pcre_info++;
+                this_regex++;
                 nb_regexes--;                
             } while (nb_regexes > 0);
+            
             goto nextblock;
         }        
         regex_ok:

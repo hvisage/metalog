@@ -889,7 +889,6 @@ static int processLogLine(const int logcode, const char * const date,
     int info_len;
     int ovector[16];
     PCREInfo *pcre_info;
-    int logline_out = 0; /* This is for checking if we've printed out the logline */
         
     info_len = strlen(info);
     while (block != NULL) {

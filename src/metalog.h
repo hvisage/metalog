@@ -1,6 +1,13 @@
 #ifndef __METALOG_H__
 #define __METALOG_H__ 1
 
+#ifndef __GNUC__
+# ifdef __attribute__
+#  undef __attribute__
+# endif
+# define __attribute__(a)
+#endif
+
 #include <stdio.h>
 #ifdef STDC_HEADERS
 # include <stdlib.h>

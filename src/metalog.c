@@ -1088,6 +1088,7 @@ static void exit_hook(void)
     }
 }
 
+static RETSIGTYPE sigkchld(int sig) __attribute__ ((noreturn));
 static RETSIGTYPE sigkchld(int sig)
 {
     fprintf(stderr, "Process [%u] died with signal [%d]\n", 
@@ -1178,6 +1179,7 @@ static void dodaemonize(void)
     }   
 }
 
+static void help(void) __attribute__ ((noreturn));
 static void help(void)
 {
     const struct option *options = long_options;

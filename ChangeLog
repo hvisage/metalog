@@ -1,19 +1,24 @@
 * Version 0.7 :
-    fakesnprintf
-    BSD's getopt_long
-    setproctitle update
-    --pidfile=...
-    --asynchronous option, synchronous by default
-    --configfile=...
-    Last repeated
-    maximum
-    neg_regex
-    program_regex
-    program_neg_regex
-    better spec file
-    confdir
+    Portability improvements : import fakesnprintf/mysnprintf and
+Pure-FTPd and OpenBSD's getopt_long() from Pure Load Balancer.
+    Fixes to the setproctitle() emulation on Linux.
+    New command-line argument : --pidfile=... (pid_file global)
+    New command-line argument --async. Switch to the synchronous mode by
+default.
+    New command-line argument : --configfile=... (config_file global).
+    Introduce the DuplicateTracker structure into Output, used in
+writeLogLine().
+    New configuration file keyword : "maximum". Just works like "minimum".
+    Re-implement neg_regex, program_regex and program_neg_regex. Instead of
+storing vanilla regexes, a RegexWithSign structure was introduced, to add
+whether we are successful when the regex matches (.sign = REGEX_SIGN_POSITIVE)
+or when it doesn't match (.sign = REGEX_SIGN_NEGATIVE) .
+    Revamped the spec file.
+    --with-sysconfdir is now honoured, but defaults to /etc.
 
 * Version 0.7-beta :
+
+    Transitional version with improvements by Hendrik Visage.
 
 * Version 0.6 :
     Use strtoq if strtoull isn't available.

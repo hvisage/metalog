@@ -64,7 +64,6 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             (*cur_block)->maximum = atoi(value);
         } else if (strcasecmp(keyword, "facility") == 0) {
             int n = 0;
-            int *new_facilities;
 
             if (*value == '*' && value[1] == 0) {
                 if ((*cur_block)->facilities != NULL) {
@@ -82,20 +81,12 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 fprintf(stderr, "Unknown facility : [%s]\n", value);
                 return -4;
             }
+            (*cur_block)->facilities = realloc((*cur_block)->facilities,
+                                               ((*cur_block)->nb_facilities + 1) *
+                                               sizeof(*(*cur_block)->facilities));
             if ((*cur_block)->facilities == NULL) {
-                if (((*cur_block)->facilities =
-                     malloc(sizeof *((*cur_block)->facilities))) == NULL) {
-                    perror("Oh no! More memory!");
-                    return -3;
-                }
-            } else {
-                if ((new_facilities =
-                     realloc((*cur_block)->facilities,
-                             ((*cur_block)->nb_facilities + 1) *
-                             sizeof *((*cur_block)->facilities))) == NULL) {
-                    perror("Oh no! More memory!");
-                    return -3;
-                }
+                perror("Oh no! More memory!");
+                return -3;
             }
             (*cur_block)->facilities[(*cur_block)->nb_facilities] =
                 LOG_FAC(facilitynames[n].c_val);

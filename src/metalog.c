@@ -1320,10 +1320,11 @@ static void help(void)
 {
     const struct option *options = long_options;
 
-    puts("\n" PACKAGE " version " VERSION "\n");
+    puts(PACKAGE " version " VERSION "\n");
+    puts("Options:");
     do {
-        printf("-%c\t--%s\t%s\n", options->val, options->name,
-               options->has_arg ? "<opt>" : "");
+        printf("   -%c, --%s%s\n", options->val, options->name,
+               options->has_arg ? " <opt>" : "");
         options++;
     } while (options->name != NULL);
     exit(EXIT_SUCCESS);
@@ -1388,8 +1389,8 @@ int main(int argc, char *argv[])
 {
     int sockets[2];
 
-    checkRoot();
     parseOptions(argc, argv);
+    checkRoot();
     if (configParser(config_file) < 0) {
         fprintf(stderr, "Bad configuration file - aborting\n");
         return -1;

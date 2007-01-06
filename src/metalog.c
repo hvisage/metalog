@@ -427,10 +427,6 @@ static int getDataSources(int sockets[])
     } else if (child == (pid_t) 0) {
         char line[LINE_MAX];
         int s;
-        int t;
-        int u;
-        ssize_t written;
-        size_t towrite;
 
         signal(SIGUSR1, SIG_IGN);
         signal(SIGUSR2, SIG_IGN);
@@ -878,7 +874,6 @@ static int spawn_recursion = 0;
 static int spawnCommand(const char * const command, const char * const date,
                         const char * const prg, const char * const info)
 {
-    struct stat st;
     pid_t pid;
 
     if (spawn_recursion) return 1;
@@ -1045,10 +1040,6 @@ static int log_udp( char *buf, int bsize)
 
 static int log_kernel( char *buf, int bsize)
 {
-  int logcode;
-  char *date;
-  const char *prg;
-  char *info;
   char *s = buf;
   int n=0, start=0;
 

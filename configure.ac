@@ -17,6 +17,10 @@ AC_ISC_POSIX
 AC_PROG_CC_STDC
 
 CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE=1"
+dnl Use -Wall if we have gcc.
+if test "x$GCC" = "xyes"; then
+	CFLAGS="$CFLAGS -Wall"
+fi
 
 dnl Checks for header files
 

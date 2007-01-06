@@ -885,8 +885,9 @@ static int spawnCommand(const char * const command, const char * const date,
         _exit(127);
     }
 
-    doLog("Forked command \"%s \"%s\" \"%s\" \"%s\" [%u].",
-        command, date, prg, info, (unsigned) pid);
+    if (verbose)
+        doLog("Forked command \"%s \"%s\" \"%s\" \"%s\" [%u].",
+              command, date, prg, info, (unsigned) pid);
     spawn_recursion--;
     return 0;
 }
@@ -1218,12 +1219,12 @@ static RETSIGTYPE sigchld(int sig)
             spawn_recursion++;
             if ( WIFEXITED(child_status) && WEXITSTATUS(child_status) )
                 doLog("Child [%u] exited with return code %u.",
-                    (unsigned) pid, WEXITSTATUS(child_status));
+                      (unsigned) pid, WEXITSTATUS(child_status));
             else if ( !WIFEXITED(child_status) )
-                    doLog("Child [%u] caught signal %u.",
-                        (unsigned) pid, WTERMSIG(child_status));
-                else
-                    doLog("Child [%u] exited successfully.", (unsigned) pid);
+                doLog("Child [%u] caught signal %u.",
+                      (unsigned) pid, WTERMSIG(child_status));
+            else if (verbose)
+                doLog("Child [%u] exited successfully.", (unsigned) pid);
             spawn_recursion--;
         }
     }
@@ -1350,6 +1351,9 @@ static void parseOptions(int argc, char *argv[])
                 perror("You're really running out of memory");
                 exit(EXIT_FAILURE);
             }
+            break;
+        case 'v' :
+            ++verbose;
             break;
         case 'V' :
             puts(PACKAGE " version " VERSION);

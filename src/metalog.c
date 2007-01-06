@@ -237,9 +237,9 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 perror("Oh no! More memory!");
                 return -3;
             }
-	} else if (strcasecmp(keyword, "break") == 0) {
-	    (*cur_block)->brk = atoi(value);
-    	}
+        } else if (strcasecmp(keyword, "break") == 0) {
+            (*cur_block)->brk = atoi(value);
+        }
     }
     return 0;
 }
@@ -268,7 +268,7 @@ static int configParser(const char * const file)
             NULL,                      /* output */
             NULL,                      /* command */
             NULL,                      /* program */
-	        0,                         /* break flag */
+            0,                         /* break flag */
             NULL,                      /* program_regexes */
             0,                         /* program_nb_regexes */
             NULL                       /* next_block */
@@ -433,23 +433,23 @@ static int getDataSources(int sockets[])
         }
 
         while( loop) {
-	  while ((s = klogctl(2, line, sizeof (line))) < 0 && errno == EINTR);
-	    if( s == -1){
-	      loop = 0;
-	      break;
-	    }
-	    /* make sure we write the whole buffer into the pipe
-	       line parsing is done on the other end */
-	    int out = 0, w;
-	    while( out < s){
-	      w = write( fdpipe[1], &line[out], s - out);
-	      if( (w == -1) && (errno != EINTR)){
-		loop = 0;
-		break;
-	      }
-	      out += w;
-	    }
-	}
+          while ((s = klogctl(2, line, sizeof (line))) < 0 && errno == EINTR);
+            if( s == -1){
+              loop = 0;
+              break;
+            }
+            /* make sure we write the whole buffer into the pipe
+               line parsing is done on the other end */
+            int out = 0, w;
+            while( out < s){
+              w = write( fdpipe[1], &line[out], s - out);
+              if( (w == -1) && (errno != EINTR)){
+                loop = 0;
+                break;
+              }
+              out += w;
+            }
+        }
         klogctl(7, NULL, 0);
         klogctl(0, NULL, 0);
 
@@ -981,13 +981,13 @@ static int processLogLine(const int logcode, const char * const date,
         }
         if (block->output != NULL) {
             writeLogLine(block->output, date, prg, info);
-	    if (block->brk)
-		break;
+            if (block->brk)
+                break;
         }
         if (block->command != NULL) {
             spawnCommand(block->command, date, prg, info);
-	    if (block->brk)
-		break;
+            if (block->brk)
+                break;
         }
         nextblock:
 
@@ -1084,48 +1084,48 @@ static int process(const int sockets[])
 
       /* UDP socket (syslog) */
       if( ufds[0].revents != 0){
-	event = ufds[0].revents;
-	ufds[0].revents = 0;
-	if (event != POLLIN) {
-	  fprintf(stderr, "Socket error - aborting\n");
-	  close(ufds[0].fd);
-	  return -1;
-	}
+        event = ufds[0].revents;
+        ufds[0].revents = 0;
+        if (event != POLLIN) {
+          fprintf(stderr, "Socket error - aborting\n");
+          close(ufds[0].fd);
+          return -1;
+        }
 
-	/* receive a single log line (UDP) and process it. receive one byte for '\0' */
-	while( ((rd = read(ufds[0].fd, buffer[0], sizeof(buffer[0])-1)) < 0) && (errno == EINTR));
-	if( rd == -1){
-	  return -1;
-	}
-	log_udp( buffer[0], rd);
+        /* receive a single log line (UDP) and process it. receive one byte for '\0' */
+        while( ((rd = read(ufds[0].fd, buffer[0], sizeof(buffer[0])-1)) < 0) && (errno == EINTR));
+        if( rd == -1){
+          return -1;
+        }
+        log_udp( buffer[0], rd);
       }
 
       /* STREAM_SOCKET (klog) */
       if( (nbufds > 1) && (ufds[1].revents != 0)){
-	event = ufds[1].revents;
-	ufds[1].revents = 0;
-	if (event != POLLIN) {
-	  fprintf(stderr, "Socket error - aborting\n");
-	  close(ufds[1].fd);
-	  return -1;
-	}
+        event = ufds[1].revents;
+        ufds[1].revents = 0;
+        if (event != POLLIN) {
+          fprintf(stderr, "Socket error - aborting\n");
+          close(ufds[1].fd);
+          return -1;
+        }
 
-	/* receive a chunk of kernel log message... */
-	while( (rd = read(ufds[1].fd, &buffer[1][bpos], sizeof(buffer[1]) - bpos)) < 0 && errno == EINTR);
-	if( rd == -1){
-	  return -1;
-	}
+        /* receive a chunk of kernel log message... */
+        while( (rd = read(ufds[1].fd, &buffer[1][bpos], sizeof(buffer[1]) - bpos)) < 0 && errno == EINTR);
+        if( rd == -1){
+          return -1;
+        }
 
-	/* ... and process them line by line */
-	rd += bpos;
-	if( (ld = log_kernel( buffer[1], rd)) > 0){
-	  /* move remainder of a message to the beginning of the buffer
-	   it'll be logged once we can read the whole line into buffer[1] */
-	  memmove( buffer[1], &buffer[1][ld], bpos = rd - ld);
-	}
-	else{
-	  bpos = 0;
-	}
+        /* ... and process them line by line */
+        rd += bpos;
+        if( (ld = log_kernel( buffer[1], rd)) > 0){
+          /* move remainder of a message to the beginning of the buffer
+           it'll be logged once we can read the whole line into buffer[1] */
+          memmove( buffer[1], &buffer[1][ld], bpos = rd - ld);
+        }
+        else{
+          bpos = 0;
+        }
       }
     }
     return 0;

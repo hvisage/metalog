@@ -129,14 +129,14 @@ int fakesnprintf_vsnprintf(char * const str_, const size_t size_,
                 *str++ = '%';
                 size--;
                 goto breakpoint_nextspecial_inc;
-	    case 'c': {
-		int val;
+            case 'c': {
+                int val;
 
-		val = va_arg(va, int);
-		*str++ = (char) val;
-		size--;
+                val = va_arg(va, int);
+                *str++ = (char) val;
+                size--;
                 goto breakpoint_nextspecial_inc;
-	    }
+            }
             case 'l': case 'L':
                 longs++;
                 goto breakpoint_nextspecial_inc;

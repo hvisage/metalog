@@ -192,8 +192,7 @@ static int pure_parse_long_options(char * const *nargv, const char *options,
 
     for (i = 0; long_options[i].name; i++) {
         /* find matching long option */
-        if (strncmp(current_argv, long_options[i].name,
-		    current_argv_len))
+        if (strncmp(current_argv, long_options[i].name, current_argv_len))
             continue;
 
         if (strlen(long_options[i].name) == current_argv_len) {
@@ -373,7 +372,7 @@ static int pure_getopt_internal(int nargc, char * const *nargv,
                 nonopt_end = -1;
             }
             pure_optind++;
-			/* process next argument */
+            /* process next argument */
             goto start;
         }
         if (nonopt_start != -1 && nonopt_end == -1)
@@ -440,7 +439,7 @@ static int pure_getopt_internal(int nargc, char * const *nargv,
         return BADCH;
     }
     if (long_options != NULL && optchar == 'W' && oli[1] == ';') {
-		/* -W long-option */
+        /* -W long-option */
         if (*pure_place)			/* no space */
             /* NOTHING */;
         else if (++pure_optind >= nargc) {	/* no arg */

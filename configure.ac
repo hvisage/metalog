@@ -16,8 +16,7 @@ AC_AIX
 AC_ISC_POSIX
 AC_PROG_CC_STDC
 
-CFLAGS="$CFLAGS -D_GNU_SOURCE=1 -I/usr/local/include "
-LDFLAGS="$LDFLAGS -L/usr/local/lib "
+CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE=1"
 
 dnl Checks for header files
 
@@ -228,11 +227,8 @@ fi
 
 sysconfdir="$CONFDIR"
 AC_SUBST(sysconfdir)
-
-CPPFLAGS="$CPPFLAGS -DCONFDIR='\"$sysconfdir\"'"
+AC_DEFINE_UNQUOTED([CONFDIR], "$sysconfdir", [Configuration dir])
 
 AC_CONFIG_FILES(Makefile src/Makefile man/Makefile metalog.spec metalog.lsm)
 
 AC_OUTPUT
-
-

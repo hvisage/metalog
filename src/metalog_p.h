@@ -8,16 +8,16 @@
 #endif
 
 static struct option long_options[] = {
-    { "async", 0, NULL, 'a' },    
+    { "async", 0, NULL, 'a' },
     { "daemonize", 0, NULL, 'B' },
 #ifdef HAVE_KLOGCTL
     { "consolelevel", 1, NULL, 'c' },
 #endif
-    { "configfile", 1, NULL, 'C' },    
+    { "configfile", 1, NULL, 'C' },
     { "help", 0, NULL, 'h' },
     { "pidfile", 1, NULL, 'p' },
     { "synchronous", 0, NULL, 's' },
-    { "sync", 0, NULL, 's' },    
+    { "sync", 0, NULL, 's' },
     { NULL, 0, NULL, 0 }
 };
 

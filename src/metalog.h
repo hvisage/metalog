@@ -104,7 +104,7 @@
 #  define MAXPATHLEN 65536U
 Warning: neither PATH_MAX nor MAXPAHLEN were found.
 Remove these lines if you really want to compile the server, but
-the server may be insecure if a wrong value is set here.    
+the server may be insecure if a wrong value is set here.
 # endif
 #endif
 #if (MAXPATHLEN) >= (INT_MAX)
@@ -114,7 +114,7 @@ Your platform has a very large maximum path len, we should not trust it.
 #ifdef _PATH_LOG
 # define SOCKNAME _PATH_LOG
 #else
-# define SOCKNAME "/dev/log" 
+# define SOCKNAME "/dev/log"
 #endif
 #ifdef _PATH_KLOG
 # define KLOG_FILE _PATH_KLOG
@@ -133,12 +133,12 @@ typedef struct PCREInfo_ {
 
 typedef struct DuplicateTracker_ {
     char *previous_prg;
-    char *previous_info;    
+    char *previous_info;
     size_t sizeof_previous_prg;
     size_t sizeof_previous_info;
     size_t previous_sizeof_prg;
     size_t previous_sizeof_info;
-    unsigned int same_counter;    
+    unsigned int same_counter;
 } DuplicateTracker;
 
 typedef struct Output_ {
@@ -165,7 +165,7 @@ typedef struct RegexWithSign_ {
 typedef struct ConfigBlock_ {
     int minimum;
     int maximum;
-    int *facilities;     
+    int *facilities;
     int nb_facilities;
     RegexWithSign *regexeswithsign;
     int nb_regexes;
@@ -175,12 +175,12 @@ typedef struct ConfigBlock_ {
     Output *output;
     const char *command;
     const char *program;
-    /*                                                                        
-     * If output or command match, and brk is set,                            
-     * do output and/or command then break out of                             
-     * match loop, i.e. don't consider any more                               
-     * sections below this one in the config file.                            
-     */                                                                       
+    /*
+     * If output or command match, and brk is set,
+     * do output and/or command then break out of
+     * match loop, i.e. don't consider any more
+     * sections below this one in the config file.
+     */
     int brk;
     RegexWithSign *program_regexeswithsign;
     int program_nb_regexes;

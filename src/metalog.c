@@ -12,13 +12,14 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                      const ConfigBlock * const default_block,
                      const char ** const errptr, int * const erroffset,
                      pcre * const re_newblock, pcre * const re_newstmt,
-                     pcre * const re_comment, pcre * const re_null) {
-    int ovector[16];    
+                     pcre * const re_comment, pcre * const re_null)
+{
+    int ovector[16];
     pcre *new_regex;
     const char *keyword;
-    const char *value;    
+    const char *value;
     int line_size;
-    int stcount;    
+    int stcount;
 
     if ((line_size = (int) strlen(line)) <= 0) {
         return 0;
@@ -28,17 +29,17 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             return 0;
         }
         line[--line_size] = 0;
-    }    
+    }
     if (pcre_exec(re_null, NULL, line, line_size,
                   0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0 ||
         pcre_exec(re_comment, NULL, line, line_size,
                   0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0) {
         return 0;
-    } 
+    }
     if (pcre_exec(re_newblock, NULL, line, line_size,
                   0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0) {
         ConfigBlock *previous_block = *cur_block;
-        
+
         if ((*cur_block = malloc(sizeof **cur_block)) == NULL) {
             perror("Oh no! More memory!");
             return -3;
@@ -51,9 +52,9 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         }
         return 0;
     }
-    if ((stcount = 
+    if ((stcount =
          pcre_exec(re_newstmt, NULL, line, line_size,
-                   0, 0, ovector, 
+                   0, 0, ovector,
                    sizeof ovector / sizeof ovector[0])) >= 3) {
         pcre_get_substring(line, ovector, stcount, 1, &keyword);
         pcre_get_substring(line, ovector, stcount, 2, &value);
@@ -64,7 +65,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         } else if (strcasecmp(keyword, "facility") == 0) {
             int n = 0;
             int *new_facilities;
-            
+
             if (*value == '*' && value[1] == 0) {
                 if ((*cur_block)->facilities != NULL) {
                     free((*cur_block)->facilities);
@@ -86,7 +87,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                      malloc(sizeof *((*cur_block)->facilities))) == NULL) {
                     perror("Oh no! More memory!");
                     return -3;
-                }                    
+                }
             } else {
                 if ((new_facilities =
                      realloc((*cur_block)->facilities,
@@ -94,21 +95,21 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                              sizeof *((*cur_block)->facilities))) == NULL) {
                     perror("Oh no! More memory!");
                     return -3;
-                }                    
+                }
             }
-            (*cur_block)->facilities[(*cur_block)->nb_facilities] = 
+            (*cur_block)->facilities[(*cur_block)->nb_facilities] =
                 LOG_FAC(facilitynames[n].c_val);
             (*cur_block)->nb_facilities++;
         } else if (strcasecmp(keyword, "regex") == 0 ||
                    strcasecmp(keyword, "neg_regex") == 0) {
             const char *regex;
             RegexWithSign *new_regexeswithsign;
-            
+
             if ((regex = strdup(value)) == NULL) {
                 perror("Oh no! More memory!");
                 return -3;
             }
-            if ((new_regexeswithsign = 
+            if ((new_regexeswithsign =
                  realloc((*cur_block)->regexeswithsign,
                          ((*cur_block)->nb_regexes + 1) *
                          sizeof *((*cur_block)->regexeswithsign))) == NULL) {
@@ -116,23 +117,23 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 return -3;
             }
             (*cur_block)->regexeswithsign = new_regexeswithsign;
-            if ((new_regex = pcre_compile(regex, PCRE_CASELESS, 
-                                          errptr, erroffset, NULL)) 
+            if ((new_regex = pcre_compile(regex, PCRE_CASELESS,
+                                          errptr, erroffset, NULL))
                 == NULL) {
                 fprintf(stderr, "Invalid regex : [%s]\n", regex);
                 return -5;
             }
             {
-                RegexWithSign * const this_regex = 
+                RegexWithSign * const this_regex =
                     &((*cur_block)->regexeswithsign[(*cur_block)->nb_regexes]);
-                
+
                 if (strcasecmp(keyword, "neg_regex") == 0) {
                     this_regex->sign = REGEX_SIGN_NEGATIVE;
                 } else {
                     this_regex->sign = REGEX_SIGN_POSITIVE;
                 }
                 this_regex->regex.pcre = new_regex;
-                this_regex->regex.pcre_extra = 
+                this_regex->regex.pcre_extra =
                     pcre_study(new_regex, 0, errptr);
             }
             (*cur_block)->nb_regexes++;
@@ -140,51 +141,51 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                    strcasecmp(keyword, "program_neg_regex") == 0) {
             const char *regex;
             RegexWithSign *new_regexeswithsign;
-            
+
             if ((regex = strdup(value)) == NULL) {
                 perror("Oh no! More memory!");
                 return -3;
             }
-            if ((new_regexeswithsign = 
+            if ((new_regexeswithsign =
                  realloc((*cur_block)->program_regexeswithsign,
                          ((*cur_block)->program_nb_regexes + 1) *
-                         sizeof *((*cur_block)->program_regexeswithsign))) 
+                         sizeof *((*cur_block)->program_regexeswithsign)))
                 == NULL) {
                 perror("Oh no! More memory!");
                 return -3;
             }
             (*cur_block)->program_regexeswithsign = new_regexeswithsign;
-            if ((new_regex = pcre_compile(regex, PCRE_CASELESS, 
-                                          errptr, erroffset, NULL)) 
+            if ((new_regex = pcre_compile(regex, PCRE_CASELESS,
+                                          errptr, erroffset, NULL))
                 == NULL) {
                 fprintf(stderr, "Invalid program regex : [%s]\n", regex);
                 return -5;
             }
             {
-                RegexWithSign * const this_regex = 
+                RegexWithSign * const this_regex =
                     &((*cur_block)->program_regexeswithsign
                       [(*cur_block)->program_nb_regexes]);
-                
+
                 if (strcasecmp(keyword, "program_neg_regex") == 0) {
                     this_regex->sign = REGEX_SIGN_NEGATIVE;
                 } else {
                     this_regex->sign = REGEX_SIGN_POSITIVE;
                 }
                 this_regex->regex.pcre = new_regex;
-                this_regex->regex.pcre_extra = 
+                this_regex->regex.pcre_extra =
                     pcre_study(new_regex, 0, errptr);
             }
-            (*cur_block)->program_nb_regexes++;            
+            (*cur_block)->program_nb_regexes++;
         } else if (strcasecmp(keyword, "maxsize") == 0) {
             (*cur_block)->maxsize = (off_t) strtoull(value, NULL, 0);
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->maxsize = (*cur_block)->maxsize;
-            }                
+            }
         } else if (strcasecmp(keyword, "maxfiles") == 0) {
                 (*cur_block)->maxfiles = atoi(value);
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->maxfiles = (*cur_block)->maxfiles;
-            }                
+            }
         } else if (strcasecmp(keyword, "maxtime") == 0) {
             (*cur_block)->maxtime = (time_t) strtoull(value, NULL, 0);
             if ((*cur_block)->output != NULL) {
@@ -195,9 +196,9 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             Output *outputs_scan = outputs;
             Output *previous_scan = NULL;
             Output *new_output;
-            
+
             while (outputs_scan != NULL) {
-                if (outputs_scan->directory != NULL && 
+                if (outputs_scan->directory != NULL &&
                     strcmp(outputs_scan->directory, value) == 0) {
                     (*cur_block)->output = outputs_scan;
                     goto duplicate_output;
@@ -212,7 +213,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 }
                 perror("Oh no! More memory!");
                 return -3;
-            }    
+            }
             new_output->directory = logdir;
             new_output->fp = NULL;
             new_output->size = (off_t) 0;
@@ -220,7 +221,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             new_output->maxfiles = (*cur_block)->maxfiles;
             new_output->maxtime = (*cur_block)->maxtime;
             new_output->dt.previous_prg = NULL;
-            new_output->dt.previous_info = NULL;            
+            new_output->dt.previous_info = NULL;
             new_output->dt.sizeof_previous_prg = (size_t) 0U;
             new_output->dt.sizeof_previous_info = (size_t) 0U;
             new_output->dt.previous_sizeof_prg = (size_t) 0U;
@@ -265,7 +266,7 @@ static int configParser(const char * const file)
     int erroffset;
     ConfigBlock default_block = {
             DEFAULT_MINIMUM,           /* minimum */
-            DEFAULT_MAXIMUM,           /* maximum */            
+            DEFAULT_MAXIMUM,           /* maximum */
             NULL,                      /* facilities */
             0,                         /* nb_facilities */
             NULL,                      /* regexes */
@@ -288,9 +289,9 @@ static int configParser(const char * const file)
         return -2;
     }
     re_newblock = pcre_compile(":\\s*$", 0, &errptr, &erroffset, NULL);
-    re_newstmt = pcre_compile("^\\s*(.+?)\\s*=\\s*\"?(.+?)\"?\\s*$", 0, 
+    re_newstmt = pcre_compile("^\\s*(.+?)\\s*=\\s*\"?(.+?)\"?\\s*$", 0,
                               &errptr, &erroffset, NULL);
-    re_comment = pcre_compile("^\\s*#", 0, &errptr, &erroffset, NULL);        
+    re_comment = pcre_compile("^\\s*#", 0, &errptr, &erroffset, NULL);
     re_null = pcre_compile("^\\s*$", 0, &errptr, &erroffset, NULL);
     if (re_newblock == NULL || re_newstmt == NULL ||
         re_comment == NULL || re_null == NULL) {
@@ -320,11 +321,12 @@ static int configParser(const char * const file)
         pcre_free(re_null);
     }
     fclose(fp);
-    
+
     return retcode;
 }
 
-static void clearargs(int argc, char **argv) {
+static void clearargs(int argc, char **argv)
+{
 #ifndef NO_PROCNAME_CHANGE
 # if defined(__linux__) && !defined(HAVE_SETPROCTITLE)
     int i;
@@ -375,7 +377,7 @@ static void setprogname(const char * const title)
     }
 # elif defined(__hpux__)
     union pstun pst;
-    
+
     pst.pst_command = title;
     pstat(PSTAT_SETCMD, pst, strlen(title), 0, 0);
 # endif
@@ -391,7 +393,7 @@ static int getDataSources(int sockets[])
     pid_t pgid;
     int loop = 1;
 #endif
-    
+
     if ((sockets[0] = socket(PF_UNIX, SOCK_DGRAM, 0)) < 0) {
         perror("Unable to create a local socket");
         return -1;
@@ -416,20 +418,20 @@ static int getDataSources(int sockets[])
         perror("Unable to create a pipe");
         close(sockets[0]);
         return -3;
-    }    
+    }
     pgid = getpgrp();
     if ((child = fork()) < (pid_t) 0) {
         perror("Unable to create the klogd child");
         close(sockets[0]);
         return -3;
     } else if (child == (pid_t) 0) {
-        char line[LINE_MAX];        
+        char line[LINE_MAX];
         int s;
         int t;
         int u;
         ssize_t written;
         size_t towrite;
-                
+
         signal(SIGUSR1, SIG_IGN);
         signal(SIGUSR2, SIG_IGN);
         setpgid((pid_t) 0, pgid);
@@ -461,21 +463,21 @@ static int getDataSources(int sockets[])
 	}
         klogctl(7, NULL, 0);
         klogctl(0, NULL, 0);
-        
+
         return 0;
     }
     sockets[1] = fdpipe[0];
 #else                                  /* !HAVE_KLOGCTL */
-    {    
+    {
         int klogfd;
-        
+
         if ((klogfd = open(KLOG_FILE, O_RDONLY)) < 0) {
             return 0;                  /* non-fatal */
         }
         sockets[1] = klogfd;
     }
 #endif
-    
+
     return 0;
 }
 
@@ -502,10 +504,10 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
         line++;
 #ifndef HAVE_KLOGCTL
     } else {
-        *logcode = 0;        
+        *logcode = 0;
     }
 #endif
-    
+
     if (loglinetype == LOGLINETYPE_KLOG) {
         const char *months[] = {
                 "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -514,7 +516,7 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
         const time_t now = time(NULL);
         struct tm *tm;
         static char datebuf[100];
-        
+
         *logcode |= LOG_KERN;
         *prg = CF_PROGNAME_KERNEL;
         *info = line;
@@ -526,9 +528,9 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
                      tm->tm_hour, tm->tm_min, tm->tm_sec);
         }
         *date = datebuf;
-                 
+
         return 0;
-    }    
+    }
     *date = line;
     while (*line != ':') {
         if (*line == 0) {
@@ -565,7 +567,7 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
                 return -1;
             }
             line++;
-        }        
+        }
     } else {
         *line = 0;
     }
@@ -577,7 +579,7 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
         line++;
     }
     *info = line;
-    
+
     return 0;
 }
 
@@ -592,7 +594,7 @@ static int rotateLogFiles(const char * const directory, const int maxfiles)
     int year, mon, mday, hour, min, sec;
     int older_year, older_mon = INT_MAX, older_mday = INT_MAX,
         older_hour = INT_MAX, older_min = INT_MAX, older_sec = INT_MAX;
-    
+
     rescan:
     foundlogs = 0;
     *old_name = 0;
@@ -608,7 +610,7 @@ static int rotateLogFiles(const char * const directory, const int maxfiles)
             if (sscanf(name, OUTPUT_DIR_LOGFILES_PREFIX "%d-%d-%d-%d:%d:%d",
                        &year, &mon, &mday, &hour, &min, &sec) != 6) {
                 continue;
-            }            
+            }
             foundlogs++;
             if (year < older_year || (year == older_year &&
                (mon  < older_mon  || (mon  == older_mon  &&
@@ -633,7 +635,7 @@ static int rotateLogFiles(const char * const directory, const int maxfiles)
             return -3;
         }
         if (snprintf(path, sizeof path, "%s/%s", directory, old_name) < 0) {
-            fprintf(stderr, "Path to long to unlink [%s/%s]\n", 
+            fprintf(stderr, "Path to long to unlink [%s/%s]\n",
                     directory, old_name);
             return -4;
         }
@@ -644,18 +646,18 @@ static int rotateLogFiles(const char * const directory, const int maxfiles)
         if (foundlogs >= maxfiles) {
             goto rescan;
         }
-    }    
-    
+    }
+
     return 0;
 }
 
 static int writeLogLine(Output * const output, const char * const date,
                         const char * const prg, const char * const info)
-{    
+{
     size_t sizeof_prg;
     size_t sizeof_info;
-    time_t now;    
-    
+    time_t now;
+
     if (output == NULL || output->directory == NULL ||
         (sizeof_prg = strlen(prg)) <= (size_t) 0U ||
         (sizeof_info = strlen(info)) <= (size_t) 0U) {
@@ -667,7 +669,7 @@ static int writeLogLine(Output * const output, const char * const date,
     if (sizeof_prg > MAX_SIGNIFICANT_LENGTH) {
         sizeof_prg = MAX_SIGNIFICANT_LENGTH;
     }
-    
+
     if (sizeof_info == output->dt.previous_sizeof_info &&
         sizeof_prg == output->dt.previous_sizeof_prg &&
         memcmp(output->dt.previous_info, info, sizeof_info) == 0 &&
@@ -677,10 +679,10 @@ static int writeLogLine(Output * const output, const char * const date,
         }
         return 0;
     }
-    
+
     if (sizeof_info > output->dt.sizeof_previous_info) {
         char *pp = output->dt.previous_info;
-        
+
         if ((pp = realloc(output->dt.previous_info, sizeof_info)) != NULL) {
             output->dt.previous_info = pp;
             memcpy(output->dt.previous_info, info, sizeof_info);
@@ -692,7 +694,7 @@ static int writeLogLine(Output * const output, const char * const date,
     }
     if (sizeof_prg > output->dt.sizeof_previous_prg) {
         char *pp = output->dt.previous_prg;
-        
+
         if ((pp = realloc(output->dt.previous_prg, sizeof_prg)) != NULL) {
             output->dt.previous_prg = pp;
             memcpy(output->dt.previous_prg, prg, sizeof_prg);
@@ -702,20 +704,20 @@ static int writeLogLine(Output * const output, const char * const date,
         memcpy(output->dt.previous_prg, prg, sizeof_prg);
         output->dt.previous_sizeof_prg = sizeof_prg;
     }
-    now = time(NULL);    
+    now = time(NULL);
     if (output->fp == NULL) {
         struct stat st;
         FILE *fp;
         FILE *fp_ts;
         time_t creatime;
-        char path[MAXPATHLEN];    
-        
+        char path[MAXPATHLEN];
+
         testdir:
         if (stat(output->directory, &st) < 0) {
             if (mkdir(output->directory, OUTPUT_DIR_PERMS) < 0) {
                 fprintf(stderr, "Can't create [%s]\n", output->directory);
                 return -1;
-            }                
+            }
         } else if (!S_ISDIR(st.st_mode)) {
             if (unlink(output->directory) < 0) {
                 fprintf(stderr, "Can't unlink [%s]\n", output->directory);
@@ -725,7 +727,7 @@ static int writeLogLine(Output * const output, const char * const date,
         }
         if (snprintf(path, sizeof path, "%s/" OUTPUT_DIR_CURRENT,
                      output->directory) < 0) {
-            fprintf(stderr, "Path name too long for current in [%s]\n", 
+            fprintf(stderr, "Path name too long for current in [%s]\n",
                     output->directory);
             return -2;
         }
@@ -751,7 +753,7 @@ static int writeLogLine(Output * const output, const char * const date,
             fprintf(fp_ts, "%llu\n", (unsigned long long) creatime);
         } else {
             unsigned long long creatime_;
-            
+
             if (fscanf(fp_ts, "%llu", &creatime_) <= 0) {
                 fclose(fp_ts);
                 goto recreate_ts;
@@ -769,9 +771,9 @@ static int writeLogLine(Output * const output, const char * const date,
     if ((output->maxsize != 0) && (output->maxtime != 0)) {
         if (output->size >= output->maxsize ||
             now > (output->creatime + output->maxtime)) {
-            struct tm *time_gm;    
+            struct tm *time_gm;
             char path[MAXPATHLEN];
-            char newpath[MAXPATHLEN];            
+            char newpath[MAXPATHLEN];
 
             if (output->fp == NULL) {
                 fprintf(stderr, "Internal inconsistency line [%d]\n", __LINE__);
@@ -781,20 +783,20 @@ static int writeLogLine(Output * const output, const char * const date,
                 fprintf(stderr, "Unable to find the current date\n");
                 return -4;
             }
-            if (snprintf(newpath, sizeof newpath, 
-                        "%s/" OUTPUT_DIR_LOGFILES_PREFIX 
+            if (snprintf(newpath, sizeof newpath,
+                        "%s/" OUTPUT_DIR_LOGFILES_PREFIX
                         "%d-%02d-%02d-%02d:%02d:%02d",
                         output->directory, time_gm->tm_year + 1900,
                         time_gm->tm_mon + 1, time_gm->tm_mday,
                         time_gm->tm_hour + 1, time_gm->tm_min,
                         time_gm->tm_sec) < 0) {
-                fprintf(stderr, "Path name too long for new path in [%s]\n", 
+                fprintf(stderr, "Path name too long for new path in [%s]\n",
                     output->directory);
                 return -2;
             }
             if (snprintf(path, sizeof path, "%s/" OUTPUT_DIR_CURRENT,
                         output->directory) < 0) {
-                fprintf(stderr, "Path name too long for current in [%s]\n", 
+                fprintf(stderr, "Path name too long for current in [%s]\n",
                         output->directory);
                 return -2;
             }
@@ -811,7 +813,7 @@ static int writeLogLine(Output * const output, const char * const date,
                 fprintf(stderr, "Path name too long for timestamp in [%s]\n",
                         output->directory);
                 return -2;
-            }            
+            }
             unlink(path);
             goto testdir;
         }
@@ -822,7 +824,7 @@ static int writeLogLine(Output * const output, const char * const date,
             output->size += (off_t) (sizeof LAST_OUTPUT_TWICE - (size_t) 1U);
         } else {
             int fps;
-            
+
             fps = fprintf(output->fp, LAST_OUTPUT, output->dt.same_counter);
             if (fps >= (int) (sizeof LAST_OUTPUT - sizeof "%u")) {
                 output->size += (off_t) fps;
@@ -830,12 +832,12 @@ static int writeLogLine(Output * const output, const char * const date,
                 output->size += (off_t) (sizeof LAST_OUTPUT + (size_t) 10U);
             }
         }
-        output->dt.same_counter = 0U;        
+        output->dt.same_counter = 0U;
     }
     fprintf(output->fp, "%s [%s] %s\n", date, prg, info);
     output->size += (off_t) strlen(date);
     output->size += (off_t) (sizeof_prg + sizeof_info);
-    output->size += (off_t) 5;        
+    output->size += (off_t) 5;
     if (synchronous != (sig_atomic_t) 0) {
         fflush(output->fp);
     }
@@ -845,9 +847,9 @@ static int writeLogLine(Output * const output, const char * const date,
 static int processLogLine(const int logcode, const char * const date,
                           const char * const prg, char * const info);
 
-static int doLog(const char * fmt, ...)                                       
-{                                                                             
-    const char *months[] = {                                                  
+static int doLog(const char * fmt, ...)
+{
+    const char *months[] = {
         "Jan", "Feb", "Mar", "Apr", "May", "Jun",
         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     };
@@ -869,8 +871,8 @@ static int doLog(const char * fmt, ...)
     va_end(ap);
 
     return processLogLine(LOG_SYSLOG, datebuf, "metalog", infobuf);
-}                                                                             
-                                                                               
+}
+
 static int spawn_recursion = 0;
 
 static int spawnCommand(const char * const command, const char * const date,
@@ -899,14 +901,14 @@ static int processLogLine(const int logcode, const char * const date,
 {
     int ovector[16];
     ConfigBlock *block = config_blocks;
-    RegexWithSign *this_regex;    
+    RegexWithSign *this_regex;
     const int facility = LOG_FAC(logcode);
     const int priority = LOG_PRI(logcode);
     int nb_regexes;
     int info_len;
     int prg_len;
     int regex_result;
-            
+
     while (block != NULL) {
         if (block->facilities != NULL) {
             int nb = block->nb_facilities;
@@ -928,58 +930,58 @@ static int processLogLine(const int logcode, const char * const date,
             goto nextblock;
         }
         if ((nb_regexes = block->program_nb_regexes) > 0) {
-            regex_result = 0;            
+            regex_result = 0;
             if ((prg_len = (int) strlen(prg)) < 0) {
                 goto nextblock;
             }
             this_regex = block->program_regexeswithsign;
             do {
                 if (this_regex->sign == REGEX_SIGN_POSITIVE) {
-                    if (pcre_exec(this_regex->regex.pcre, 
+                    if (pcre_exec(this_regex->regex.pcre,
                                   this_regex->regex.pcre_extra,
                                   prg, prg_len, 0, 0, ovector,
                                   sizeof ovector / sizeof ovector[0]) >= 0) {
                         regex_result = 1;
                     }
                 } else {
-                    if (pcre_exec(this_regex->regex.pcre, 
+                    if (pcre_exec(this_regex->regex.pcre,
                                   this_regex->regex.pcre_extra,
                                   prg, prg_len, 0, 0, ovector,
                                   sizeof ovector / sizeof ovector[0]) < 0) {
                         regex_result = 1;
-                    }                    
+                    }
                 }
                 this_regex++;
-                nb_regexes--;                
+                nb_regexes--;
             } while (nb_regexes > 0);
             if (regex_result == 0) {
                 goto nextblock;
             }
-        }       
+        }
         if ((info_len = (int) strlen(info)) <= 0) {
             goto nextblock;
         }
         if ((nb_regexes = block->nb_regexes) > 0 && *info != 0) {
-            regex_result = 0;            
+            regex_result = 0;
             this_regex = block->regexeswithsign;
             do {
                 if (this_regex->sign == REGEX_SIGN_POSITIVE) {
-                    if (pcre_exec(this_regex->regex.pcre, 
+                    if (pcre_exec(this_regex->regex.pcre,
                                   this_regex->regex.pcre_extra,
                                   info, info_len, 0, 0, ovector,
                                   sizeof ovector / sizeof ovector[0]) >= 0) {
                         regex_result = 1;
                     }
                 } else {
-                    if (pcre_exec(this_regex->regex.pcre, 
+                    if (pcre_exec(this_regex->regex.pcre,
                                   this_regex->regex.pcre_extra,
                                   info, info_len, 0, 0, ovector,
                                   sizeof ovector / sizeof ovector[0]) < 0) {
                         regex_result = 1;
-                    }                    
+                    }
                 }
                 this_regex++;
-                nb_regexes--;                
+                nb_regexes--;
             } while (nb_regexes > 0);
             if (regex_result == 0) {
                 goto nextblock;
@@ -997,19 +999,19 @@ static int processLogLine(const int logcode, const char * const date,
             spawnCommand(block->command, date, prg, info);
 	    if (block->brk)
 		break;
-        }        
+        }
         nextblock:
-        
+
         block = block->next_block;
     }
-    
+
     return 0;
 }
 
 static void sanitize(char * const line_)
 {
     register unsigned char *line = (unsigned char *) line_;
-    
+
     while (*line != 0U) {
         if (ISCTRLCODE(*line)) {
             *line = NONPRINTABLE_SUSTITUTE_CHAR;
@@ -1024,7 +1026,7 @@ static int log_line( LogLineType loglinetype, char *buf)
   char *date;
   const char *prg;
   char *info;
-  
+
   sanitize( buf);
   if (parseLogLine( loglinetype, buf, &logcode, &date, &prg, &info) < 0) {
     return -1;
@@ -1088,13 +1090,13 @@ static int process(const int sockets[])
         ufds[nbufds].fd = sockets[1];
         ufds[nbufds].events = POLLIN | POLLERR | POLLHUP | POLLNVAL;
         ufds[nbufds].revents = 0;
-        nbufds++;        
+        nbufds++;
     }
 
     bpos = 0;
     for (;;) {
       while (poll(ufds, nbufds, -1) < 0 && errno == EINTR);
-      
+
       /* UDP socket (syslog) */
       if( ufds[0].revents != 0){
 	event = ufds[0].revents;
@@ -1104,7 +1106,7 @@ static int process(const int sockets[])
 	  close(ufds[0].fd);
 	  return -1;
 	}
-	
+
 	/* receive a single log line (UDP) and process it. receive one byte for '\0' */
 	while( ((rd = read(ufds[0].fd, buffer[0], sizeof(buffer[0])-1)) < 0) && (errno == EINTR));
 	if( rd == -1){
@@ -1128,7 +1130,7 @@ static int process(const int sockets[])
 	if( rd == -1){
 	  return -1;
 	}
-	
+
 	/* ... and process them line by line */
 	rd += bpos;
 	if( (ld = log_kernel( buffer[1], rd)) > 0){
@@ -1146,7 +1148,7 @@ static int process(const int sockets[])
 
 static int delete_pid_file(const char * const pid_file)
 {
-    if (pid_file != NULL) {        
+    if (pid_file != NULL) {
         return unlink(pid_file);
     }
     return 0;
@@ -1158,7 +1160,7 @@ static int update_pid_file(const char * const pid_file)
     int fd;
     size_t towrite;
     ssize_t written;
-    
+
     if (pid_file == NULL || *pid_file != '/') {
         return 0;
     }
@@ -1180,13 +1182,13 @@ static int update_pid_file(const char * const pid_file)
            errno == EINTR);
     if (written < (ssize_t) 0 || (size_t) written != towrite) {
         fprintf(stderr, "Error while writing the [%s] pid file : [%s]",
-                pid_file, strerror(errno));        
+                pid_file, strerror(errno));
         (void) ftruncate(fd, (off_t) 0);
         while (close(fd) != 0 && errno == EINTR);
         return -1;
     }
-    while (close(fd) != 0 && errno == EINTR);    
-    
+    while (close(fd) != 0 && errno == EINTR);
+
     return 0;
 }
 
@@ -1201,17 +1203,17 @@ static void exit_hook(void)
 static RETSIGTYPE sigkchld(int sig) __attribute__ ((noreturn));
 static RETSIGTYPE sigkchld(int sig)
 {
-    doLog("Process [%u] died with signal [%d]\n", 
+    doLog("Process [%u] died with signal [%d]\n",
             (unsigned int) getpid(), sig);
     exit(EXIT_FAILURE);
 }
 
 static RETSIGTYPE sigchld(int sig)
-{    
+{
     pid_t pid;
     signed char should_exit = 0;
     int child_status;
-    
+
     (void) sig;
 #ifdef HAVE_WAITPID
     while ((pid = waitpid((pid_t) -1, &child_status, WNOHANG)) > (pid_t) 0) {
@@ -1243,7 +1245,7 @@ static RETSIGTYPE sigchld(int sig)
 static RETSIGTYPE sigusr1(int sig)
 {
     (void) sig;
-    
+
     synchronous = (sig_atomic_t) 1;
     doLog("Got SIGUSR1 - enabling synchronous mode.");
 }
@@ -1251,7 +1253,7 @@ static RETSIGTYPE sigusr1(int sig)
 static RETSIGTYPE sigusr2(int sig)
 {
     (void) sig;
-    
+
     synchronous = (sig_atomic_t) 0;
     doLog("Got SIGUSR2 - disabling synchronous mode.");
 }
@@ -1261,18 +1263,18 @@ static void setsignals(void)
     atexit(exit_hook);
     signal(SIGCHLD, sigchld);
     signal(SIGPIPE, sigkchld);
-    signal(SIGHUP, sigkchld);        
+    signal(SIGHUP, sigkchld);
     signal(SIGTERM, sigkchld);
-    signal(SIGQUIT, sigkchld);        
+    signal(SIGQUIT, sigkchld);
     signal(SIGINT, sigkchld);
-    signal(SIGUSR1, sigusr1);    
+    signal(SIGUSR1, sigusr1);
     signal(SIGUSR2, sigusr2);
 }
 
 static int closedesc_all(const int closestdin)
 {
     int fodder;
-    
+
     if (closestdin != 0) {
         (void) close(0);
         if ((fodder = open("/dev/null", O_RDONLY)) == -1) {
@@ -1291,14 +1293,14 @@ static int closedesc_all(const int closestdin)
     if (fodder > 2) {
         (void) close(fodder);
     }
-    
+
     return 0;
 }
 
 static void dodaemonize(void)
 {
     pid_t child;
-    
+
     if (daemonize != 0) {
         if ((child = fork()) == (pid_t) -1) {
             perror("Daemonization failed - fork");
@@ -1310,31 +1312,31 @@ static void dodaemonize(void)
         }
         (void) chdir("/");
         (void) closedesc_all(1);
-    }    
+    }
 }
 
 static void help(void) __attribute__ ((noreturn));
 static void help(void)
 {
     const struct option *options = long_options;
-    
+
     puts("\n" PACKAGE " version " VERSION "\n");
     do {
         printf("-%c\t--%s\t%s\n", options->val, options->name,
                options->has_arg ? "<opt>" : "");
         options++;
     } while (options->name != NULL);
-    exit(EXIT_SUCCESS);   
+    exit(EXIT_SUCCESS);
 }
 
 static void parseOptions(int argc, char *argv[])
 {
     int fodder;
     int option_index = 0;
-    
-    while ((fodder =  getopt_long(argc, argv, GETOPT_OPTIONS, 
+
+    while ((fodder =  getopt_long(argc, argv, GETOPT_OPTIONS,
                                   long_options, &option_index)) != -1) {
-        switch (fodder) {            
+        switch (fodder) {
         case 'a' :
             synchronous = (sig_atomic_t) 0;
             break;
@@ -1344,7 +1346,7 @@ static void parseOptions(int argc, char *argv[])
 #ifdef HAVE_KLOGCTL
         case 'c' :
             console_level = atoi(optarg);
-            if (console_level < MIN_CONSOLE_LEVEL || 
+            if (console_level < MIN_CONSOLE_LEVEL ||
                 console_level > MAX_CONSOLE_LEVEL) {
                 fprintf(stderr, "Invalid console level\n");
                 exit(EXIT_FAILURE);
@@ -1402,6 +1404,6 @@ int main(int argc, char *argv[])
         return -1;
     }
     process(sockets);
-    
+
     return 0;
 }

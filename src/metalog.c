@@ -1360,6 +1360,9 @@ static void parseOptions(int argc, char *argv[])
                 exit(EXIT_FAILURE);
             }
             break;
+        case 'V' :
+            puts(PACKAGE " version " VERSION);
+            exit(EXIT_SUCCESS);
         case 'h' :
             help();
         case 'p' :
@@ -1370,8 +1373,14 @@ static void parseOptions(int argc, char *argv[])
             break;
         case 's' :
             break;
+        case ':' :
+            fprintf(stderr, "Option '%c' is missing parameter\n", optopt);
+            exit(EXIT_FAILURE);
+        case '?':
+            fprintf(stderr, "Unknown option '%c' or argument missing\n", optopt);
+            exit(EXIT_FAILURE);
         default :
-            fprintf(stderr, "Unknown option\n");
+            fprintf(stderr, "Unknown option '%c'\n", optopt);
             exit(EXIT_FAILURE);
         }
     }

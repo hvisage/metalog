@@ -2,23 +2,25 @@
 #define __METALOG_P_H__ 1
 
 #ifdef HAVE_KLOGCTL
-# define GETOPT_OPTIONS "aBc:C:hp:s"
+# define KLOGCTL_OPTIONS "c:"
 #else
-# define GETOPT_OPTIONS "aBC:hp:s"
+# define KLOGCTL_OPTIONS ""
 #endif
+#define GETOPT_OPTIONS KLOGCTL_OPTIONS "aBC:hp:sV"
 
 static struct option long_options[] = {
-    { "async", 0, NULL, 'a' },
-    { "daemonize", 0, NULL, 'B' },
+    { "async",        0, NULL, 'a' },
+    { "daemonize",    0, NULL, 'B' },
 #ifdef HAVE_KLOGCTL
     { "consolelevel", 1, NULL, 'c' },
 #endif
-    { "configfile", 1, NULL, 'C' },
-    { "help", 0, NULL, 'h' },
-    { "pidfile", 1, NULL, 'p' },
-    { "synchronous", 0, NULL, 's' },
-    { "sync", 0, NULL, 's' },
-    { NULL, 0, NULL, 0 }
+    { "configfile",   1, NULL, 'C' },
+    { "pidfile",      1, NULL, 'p' },
+    { "synchronous",  0, NULL, 's' },
+    { "sync",         0, NULL, 's' },
+    { "version",      0, NULL, 'V' },
+    { "help",         0, NULL, 'h' },
+    { NULL,           0, NULL,  0  }
 };
 
 #if defined(__linux__) && !defined(HAVE_SETPROCTITLE)

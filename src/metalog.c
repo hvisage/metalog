@@ -363,6 +363,7 @@ static void clearargs(int argc, char **argv)
 #endif
 }
 
+#ifndef HAVE_SETPROGNAME
 static void setprogname(const char * const title)
 {
 #ifndef NO_PROCNAME_CHANGE
@@ -384,6 +385,7 @@ static void setprogname(const char * const title)
 #endif
     (void) title;
 }
+#endif
 
 static int getDataSources(int sockets[])
 {

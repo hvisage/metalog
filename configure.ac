@@ -151,7 +151,7 @@ AC_FUNC_GETGROUPS
 
 AC_CHECK_FUNCS(initgroups setgroups)
 AC_CHECK_FUNCS(seteuid setreuid setresuid setegid setregid setresgid)
-AC_CHECK_FUNCS(setrlimit waitpid setproctitle)
+AC_CHECK_FUNCS(setrlimit waitpid setproctitle setprogname)
 AC_CHECK_FUNCS(memset strdup)
 AC_CHECK_FUNCS(strtoull strtoq)
 AC_CHECK_FUNCS(putenv klogctl)

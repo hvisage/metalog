@@ -1,6 +1,6 @@
 AC_PREREQ(2.50)
 AC_INIT
-AM_INIT_AUTOMAKE(metalog, 0.8-rc1)
+AM_INIT_AUTOMAKE(metalog, 0.8-rc2)
 AC_CONFIG_SRCDIR(src/metalog.c)
 AM_CONFIG_HEADER(config.h)
 

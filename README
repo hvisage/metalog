@@ -15,6 +15,7 @@ can be launched when specific patterns are found.
 Metalog is simple to configure, accepts unlimited number of rules and has
 (switchable) memory bufferization for maximal performance.
 
+http://metalog.sourceforge.net/
 
         ------------------------ COMPILATION ------------------------
         

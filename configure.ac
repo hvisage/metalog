@@ -1,6 +1,6 @@
 AC_PREREQ(2.50)
 AC_INIT
-AM_INIT_AUTOMAKE(metalog, 0.8-rc1)
+AM_INIT_AUTOMAKE(metalog, 0.8-rc2)
 AC_CONFIG_SRCDIR(src/metalog.c)
 AM_CONFIG_HEADER(config.h)
 
@@ -16,8 +16,11 @@ AC_AIX
 AC_ISC_POSIX
 AC_PROG_CC_STDC
 
-CFLAGS="$CFLAGS -D_GNU_SOURCE=1 -I/usr/local/include "
-LDFLAGS="$LDFLAGS -L/usr/local/lib "
+CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE=1"
+dnl Use -Wall if we have gcc.
+if test "x$GCC" = "xyes"; then
+	CFLAGS="$CFLAGS -Wall"
+fi
 
 dnl Checks for header files
 
@@ -148,7 +151,7 @@ AC_FUNC_GETGROUPS
 
 AC_CHECK_FUNCS(initgroups setgroups)
 AC_CHECK_FUNCS(seteuid setreuid setresuid setegid setregid setresgid)
-AC_CHECK_FUNCS(setrlimit waitpid setproctitle)
+AC_CHECK_FUNCS(setrlimit waitpid setproctitle setprogname)
 AC_CHECK_FUNCS(memset strdup)
 AC_CHECK_FUNCS(strtoull strtoq)
 AC_CHECK_FUNCS(putenv klogctl)
@@ -228,11 +231,8 @@ fi
 
 sysconfdir="$CONFDIR"
 AC_SUBST(sysconfdir)
-
-CPPFLAGS="$CPPFLAGS -DCONFDIR='\"$sysconfdir\"'"
+AC_DEFINE_UNQUOTED([CONFDIR], "$sysconfdir", [Configuration dir])
 
 AC_CONFIG_FILES(Makefile src/Makefile man/Makefile metalog.spec metalog.lsm)
 
 AC_OUTPUT
-
-

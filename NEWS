@@ -1,3 +1,14 @@
+* Version 0.8-rc2
+ - config file in package updated (pull fixes from Gentoo)
+ - cleanup code a bit
+ - make --help more [non-root] friendly
+ - change default 'command spawn' messages to off (use --verbose to
+   get back old noisy behavior)
+ - check for setprogname() so we build on FreeBSD 6.1 (#1557585, fix
+   from Diego Petteno)
+ - fix error in memory allocation when using multiple facilities #1217560
+ - queue up messages in signal handlers via a pipe so that we don't hit
+   deadlocks by using functions that are unsafe for use inside these states
 
 * Version 0.8-rc1
  - new keyword: break
@@ -9,22 +20,22 @@
 
 * Version 0.7
  - Logging is now synchronous by default. Use --async to get back to
-the asynchronous behavior.
+   the asynchronous behavior.
  - Duplicate messages are now only logged once.
  - Negative regexes were implemented and programs can now also be
-matched against regexes. See the new neg_regex, program_regex and
-program_neg_regex keywords.
+   matched against regexes. See the new neg_regex, program_regex and
+   program_neg_regex keywords.
  - The maximum urgency can now be specified for each block. A new
-keyword, "maximum" completes "minimum".
+   keyword, "maximum" completes "minimum".
  - A PID file is now created. It defaults to /var/run/metalog.pid but
-it can be changed with the --pidfile switch.
+   it can be changed with the --pidfile switch.
  - The location of the configuration file can now be changed with
---with-configfile.
+   --with-configfile.
  - The code was cleaned up.
 
 * Version 0.7-beta
  - This is a transitional version with new features contributed by
-Hendrick Visage.
+   Hendrick Visage.
 
 * Version 0.6
  - Metalog is now working on Linux, OpenBSD, FreeBSD and NetBSD.

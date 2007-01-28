@@ -6,7 +6,7 @@
 #else
 # define KLOGCTL_OPTIONS ""
 #endif
-#define GETOPT_OPTIONS KLOGCTL_OPTIONS "aBC:hp:sV"
+#define GETOPT_OPTIONS KLOGCTL_OPTIONS "aBC:hp:sVv"
 
 static struct option long_options[] = {
     { "async",        0, NULL, 'a' },

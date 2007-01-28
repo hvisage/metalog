@@ -7,6 +7,10 @@
 # include <dmalloc.h>
 #endif
 #include <string.h>
+#include <assert.h>
+
+static int dolog_queue[2];
+static void signal_doLog_dequeue(void);
 
 static int parseLine(char * const line, ConfigBlock **cur_block,
                      const ConfigBlock * const default_block,
@@ -466,6 +470,14 @@ static int getDataSources(int sockets[])
         sockets[1] = klogfd;
     }
 #endif
+
+    /* setup the signal handler pipe */
+    if (socketpair(AF_LOCAL, SOCK_STREAM, 0, dolog_queue) < 0) {
+        if (pipe(dolog_queue) < 0) {
+            perror("Unable to create a pipe");
+            return -4;
+        }
+    }
 
     return 0;
 }
@@ -1057,76 +1069,99 @@ static int log_kernel( char *buf, int bsize)
 
 static int process(const int sockets[])
 {
-    struct pollfd ufds[2];
-    int nbufds = 0;
+    struct pollfd fds[3], *siglog, *syslog, *klog;
+    int nfds;
     int event;
     ssize_t rd;
     int ld;
     char buffer[2][4096];
     int  bpos;
 
+    siglog = syslog = klog = NULL;
+    nfds = 0;
+
+    siglog = &fds[nfds];
+    fds[nfds].fd = dolog_queue[0];
+    fds[nfds].events = POLLIN | POLLERR | POLLHUP | POLLNVAL;
+    fds[nfds].revents = 0;
+    ++nfds;
     if (sockets[0] >= 0) {
-        ufds[0].fd = sockets[0];
-        ufds[0].events = POLLIN | POLLERR | POLLHUP | POLLNVAL;
-        ufds[0].revents = 0;
-        nbufds++;
+        syslog = &fds[nfds];
+        fds[nfds].fd = sockets[0];
+        fds[nfds].events = POLLIN | POLLERR | POLLHUP | POLLNVAL;
+        fds[nfds].revents = 0;
+        ++nfds;
     }
     if (sockets[1] >= 0) {
-        ufds[nbufds].fd = sockets[1];
-        ufds[nbufds].events = POLLIN | POLLERR | POLLHUP | POLLNVAL;
-        ufds[nbufds].revents = 0;
-        nbufds++;
+        klog = &fds[nfds];
+        fds[nfds].fd = sockets[1];
+        fds[nfds].events = POLLIN | POLLERR | POLLHUP | POLLNVAL;
+        fds[nfds].revents = 0;
+        ++nfds;
     }
 
     bpos = 0;
     for (;;) {
-      while (poll(ufds, nbufds, -1) < 0 && errno == EINTR);
+        while (poll(fds, nfds, -1) < 0 && errno == EINTR)
+            ;
 
-      /* UDP socket (syslog) */
-      if( ufds[0].revents != 0){
-        event = ufds[0].revents;
-        ufds[0].revents = 0;
-        if (event != POLLIN) {
-          fprintf(stderr, "Socket error - aborting\n");
-          close(ufds[0].fd);
-          return -1;
-        }
+        /* Signal queue */
+        if (siglog && siglog->revents) {
+            event = siglog->revents;
+            siglog->revents = 0;
+            if (event != POLLIN) {
+                fprintf(stderr, "Signal queue socket error - aborting\n");
+                close(siglog->fd);
+                return -1;
+            }
 
-        /* receive a single log line (UDP) and process it. receive one byte for '\0' */
-        while( ((rd = read(ufds[0].fd, buffer[0], sizeof(buffer[0])-1)) < 0) && (errno == EINTR));
-        if( rd == -1){
-          return -1;
-        }
-        log_udp( buffer[0], rd);
-      }
-
-      /* STREAM_SOCKET (klog) */
-      if( (nbufds > 1) && (ufds[1].revents != 0)){
-        event = ufds[1].revents;
-        ufds[1].revents = 0;
-        if (event != POLLIN) {
-          fprintf(stderr, "Socket error - aborting\n");
-          close(ufds[1].fd);
-          return -1;
+            signal_doLog_dequeue();
         }
 
-        /* receive a chunk of kernel log message... */
-        while( (rd = read(ufds[1].fd, &buffer[1][bpos], sizeof(buffer[1]) - bpos)) < 0 && errno == EINTR);
-        if( rd == -1){
-          return -1;
+        /* UDP socket (syslog) */
+        if (syslog && syslog->revents) {
+            event = syslog->revents;
+            syslog->revents = 0;
+            if (event != POLLIN) {
+                fprintf(stderr, "Syslog socket error - aborting\n");
+                close(syslog->fd);
+                return -1;
+            }
+
+            /* receive a single log line (UDP) and process it. receive one byte for '\0' */
+            while (((rd = read(syslog->fd, buffer[0], sizeof(buffer[0])-1)) < 0) && (errno == EINTR))
+                ;
+            if (rd == -1)
+                return -1;
+            log_udp(buffer[0], rd);
         }
 
-        /* ... and process them line by line */
-        rd += bpos;
-        if( (ld = log_kernel( buffer[1], rd)) > 0){
-          /* move remainder of a message to the beginning of the buffer
-           it'll be logged once we can read the whole line into buffer[1] */
-          memmove( buffer[1], &buffer[1][ld], bpos = rd - ld);
+        /* STREAM_SOCKET (klog) */
+        if (klog && klog->revents) {
+            event = klog->revents;
+            klog->revents = 0;
+            if (event != POLLIN) {
+                fprintf(stderr, "Klog socket error - aborting\n");
+                close(klog->fd);
+                return -1;
+            }
+
+            /* receive a chunk of kernel log message... */
+            while ((rd = read(klog->fd, &buffer[1][bpos], sizeof(buffer[1]) - bpos)) < 0 && errno == EINTR)
+                ;
+            if (rd == -1)
+                return -1;
+
+            /* ... and process them line by line */
+            rd += bpos;
+            if ((ld = log_kernel(buffer[1], rd)) > 0) {
+                /* move remainder of a message to the beginning of the buffer
+                   it'll be logged once we can read the whole line into buffer[1] */
+                memmove(buffer[1], &buffer[1][ld], bpos = rd - ld);
+            } else {
+                bpos = 0;
+            }
         }
-        else{
-          bpos = 0;
-        }
-      }
     }
     return 0;
 }
@@ -1185,11 +1220,48 @@ static void exit_hook(void)
     (void) delete_pid_file(pid_file);
 }
 
+static void signal_doLog_queue(const char *fmt, const unsigned int pid, const int status)
+{
+    ssize_t ret;
+    unsigned int fmt_len = (unsigned int)strlen(fmt);
+    char buf[sizeof(pid) + sizeof(status) + sizeof(fmt_len)];
+    memcpy(buf, &pid, sizeof(pid));
+    memcpy(buf+sizeof(pid), &status, sizeof(status));
+    memcpy(buf+sizeof(pid)+sizeof(status), &fmt_len, sizeof(fmt_len));
+    ret = write(dolog_queue[1], buf, sizeof(buf));
+    assert(ret == sizeof(buf));
+    ret = write(dolog_queue[1], fmt, fmt_len);
+    assert(ret == fmt_len);
+}
+
+static void signal_doLog_dequeue(void)
+{
+    unsigned int pid, fmt_len;
+    int status;
+    char *buf;
+    ssize_t ret;
+
+    ret = read(dolog_queue[0], &pid, sizeof(pid));
+    assert(ret == sizeof(pid));
+    ret = read(dolog_queue[0], &status, sizeof(status));
+    assert(ret == sizeof(status));
+    ret = read(dolog_queue[0], &fmt_len, sizeof(fmt_len));
+    assert(ret == sizeof(fmt_len));
+
+    buf = malloc(fmt_len+1);
+    ret = read(dolog_queue[0], buf, fmt_len);
+    assert(ret == fmt_len);
+    buf[fmt_len] = '\0';
+
+    ++spawn_recursion;
+    doLog(buf, pid, status);
+    --spawn_recursion;
+}
+
 static RETSIGTYPE sigkchld(int sig) __attribute__ ((noreturn));
 static RETSIGTYPE sigkchld(int sig)
 {
-    doLog("Process [%u] died with signal [%d]\n",
-            (unsigned int) getpid(), sig);
+    signal_doLog_queue("Process [%u] died with signal [%d]\n", (unsigned int) getpid(), sig);
     exit(EXIT_FAILURE);
 }
 
@@ -1206,19 +1278,17 @@ static RETSIGTYPE sigchld(int sig)
     while ((pid = wait3(&child_status, WNOHANG, NULL)) > (pid_t) 0) {
 #endif
         if (pid == child) {
-            doLog("Klog child [%u] died.", (unsigned) pid);
+            signal_doLog_queue("Klog child [%u] died.", (unsigned) pid, 0);
             should_exit = 1;
         } else {
-            spawn_recursion++;
-            if ( WIFEXITED(child_status) && WEXITSTATUS(child_status) )
-                doLog("Child [%u] exited with return code %u.",
+            if (WIFEXITED(child_status) && WEXITSTATUS(child_status))
+                signal_doLog_queue("Child [%u] exited with return code %u.",
                       (unsigned) pid, WEXITSTATUS(child_status));
-            else if ( !WIFEXITED(child_status) )
-                doLog("Child [%u] caught signal %u.",
+            else if (!WIFEXITED(child_status))
+                signal_doLog_queue("Child [%u] caught signal %u.",
                       (unsigned) pid, WTERMSIG(child_status));
             else if (verbose)
-                doLog("Child [%u] exited successfully.", (unsigned) pid);
-            spawn_recursion--;
+                signal_doLog_queue("Child [%u] exited successfully.", (unsigned) pid, 0);
         }
     }
     if (should_exit != 0) {
@@ -1232,7 +1302,7 @@ static RETSIGTYPE sigusr1(int sig)
     (void) sig;
 
     synchronous = (sig_atomic_t) 1;
-    doLog("Got SIGUSR1 - enabling synchronous mode.");
+    signal_doLog_queue("Got SIGUSR1 - enabling synchronous mode.", 0, 0);
 }
 
 static RETSIGTYPE sigusr2(int sig)
@@ -1240,7 +1310,7 @@ static RETSIGTYPE sigusr2(int sig)
     (void) sig;
 
     synchronous = (sig_atomic_t) 0;
-    doLog("Got SIGUSR2 - disabling synchronous mode.");
+    signal_doLog_queue("Got SIGUSR2 - disabling synchronous mode.", 0, 0);
 }
 
 static void setsignals(void)

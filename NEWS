@@ -7,6 +7,8 @@
  - check for setprogname() so we build on FreeBSD 6.1 (#1557585, fix
    from Diego Petteno)
  - fix error in memory allocation when using multiple facilities #1217560
+ - queue up messages in signal handlers via a pipe so that we don't hit
+   deadlocks by using functions that are unsafe for use inside these states
 
 * Version 0.8-rc1
  - new keyword: break

@@ -6,3 +6,5 @@ EXTRA_DIST = \
 SUBDIRS = \
 	src \
 	man
+
+AUTOMAKE_OPTIONS = dist-bzip2 no-dist-gzip

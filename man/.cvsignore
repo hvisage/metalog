@@ -1,9 +1,0 @@
-*~
-*.bak
-*.o
-Makefile
-Makefile.in
-.deps
-cscope.out
-.libs
-*.s

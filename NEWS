@@ -1,3 +1,7 @@
+* Version 0.8-rc4
+ - fix typo in previous change when checking the return of strftime()
+   as reported by Mark Wagner.
+
 * Version 0.8-rc3
  - use strftime() rather than printing out time values ourself so we get
    localization for free via the system libc and so we don't have to

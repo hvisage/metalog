@@ -785,7 +785,7 @@ static int writeLogLine(Output * const output, const char * const date,
                     output->directory);
                 return -2;
             }
-            if (!strftime(newpath + strlen(newpath), sizeof newpath - strlen(newpath),
+            if (strftime(newpath + strlen(newpath), sizeof newpath - strlen(newpath),
                         "%Y-%m-%d-%H:%m:%S", time_gm) == 0)
             {
                 fprintf(stderr, "Path name too long for new path in [%s]\n",

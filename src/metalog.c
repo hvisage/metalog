@@ -510,10 +510,6 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
 #endif
 
     if (loglinetype == LOGLINETYPE_KLOG) {
-        const char *months[] = {
-                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-        };
         const time_t now = time(NULL);
         struct tm *tm;
         static char datebuf[100];
@@ -524,9 +520,7 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
         if ((tm = localtime(&now)) == NULL) {
             *datebuf = 0;
         } else {
-            snprintf(datebuf, sizeof datebuf, "%s %2d %02d:%02d:%02d",
-                     months[tm->tm_mon], tm->tm_mday,
-                     tm->tm_hour, tm->tm_min, tm->tm_sec);
+            strftime(datebuf, sizeof datebuf, "%b %d %T", tm);
         }
         *date = datebuf;
 
@@ -784,13 +778,16 @@ static int writeLogLine(Output * const output, const char * const date,
                 fprintf(stderr, "Unable to find the current date\n");
                 return -4;
             }
-            if (snprintf(newpath, sizeof newpath,
-                        "%s/" OUTPUT_DIR_LOGFILES_PREFIX
-                        "%d-%02d-%02d-%02d:%02d:%02d",
-                        output->directory, time_gm->tm_year + 1900,
-                        time_gm->tm_mon + 1, time_gm->tm_mday,
-                        time_gm->tm_hour + 1, time_gm->tm_min,
-                        time_gm->tm_sec) < 0) {
+            if (snprintf(newpath, sizeof newpath, "%s/" OUTPUT_DIR_LOGFILES_PREFIX,
+                output->directory) < 0)
+            {
+                fprintf(stderr, "Path name too long for new path in [%s]\n",
+                    output->directory);
+                return -2;
+            }
+            if (strftime(newpath + strlen(newpath), sizeof newpath - strlen(newpath),
+                        "%Y-%m-%d-%H:%m:%S", time_gm) == 0)
+            {
                 fprintf(stderr, "Path name too long for new path in [%s]\n",
                     output->directory);
                 return -2;
@@ -850,10 +847,6 @@ static int processLogLine(const int logcode, const char * const date,
 
 static int doLog(const char * fmt, ...)
 {
-    const char *months[] = {
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    };
     const time_t now = time(NULL);
     struct tm *tm;
     static char datebuf[100];
@@ -863,9 +856,7 @@ static int doLog(const char * fmt, ...)
     if ((tm = localtime(&now)) == NULL) {
         *datebuf = 0;
     } else {
-        snprintf(datebuf, sizeof datebuf, "%s %2d %02d:%02d:%02d",
-                 months[tm->tm_mon], tm->tm_mday,
-                 tm->tm_hour, tm->tm_min, tm->tm_sec);
+        strftime(datebuf, sizeof datebuf, "%b %d %T", tm);
     }
     va_start(ap, fmt);
     vsnprintf (infobuf, sizeof infobuf, fmt, ap);

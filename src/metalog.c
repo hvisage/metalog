@@ -792,7 +792,9 @@ static int writeLogLine(Output * const output, const char * const date,
             fprintf(stderr, "Unable to close [%s]\n", path);
             return -3;
         }
-        output->creatime = creatime - (creatime % output->maxtime);
+        output->creatime = creatime;
+        if (output->maxtime)
+            output->creatime -= (creatime % output->maxtime);
         output->size = (off_t) ftell(fp);
         output->fp = fp;
     }

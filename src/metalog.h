@@ -151,6 +151,7 @@ typedef struct Output_ {
     time_t creatime;
     DuplicateTracker dt;
     struct Output_ *next_output;
+    char *postrotate_cmd;
 } Output;
 
 typedef enum RegexSign_ {
@@ -185,6 +186,7 @@ typedef struct ConfigBlock_ {
     RegexWithSign *program_regexeswithsign;
     int program_nb_regexes;
     struct ConfigBlock_ *next_block;
+    char *postrotate_cmd;
 } ConfigBlock;
 
 typedef enum LogLineType_ {

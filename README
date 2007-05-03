@@ -242,6 +242,37 @@ echo "$3" | mail -s "Password failure (program : $2)" root
 
   Don't forget to properly quote arguments to avoid security problems.
   
+* postrotate_cmd = <path/to/script> : run a script after rotating
+If specified, the postrotate_cmd is run after log-files are rotated.
+The following parameters are provided, environments are not cleared:
+  date : date of the last message received
+  prog : program name of the last message received
+  file : file name with path of the rotated log-file
+
+Example : compress rotated log files
+
+  postrotate_cmd = /usr/local/bin/compress.sh
+
+  "/usr/local/bin/compress.sh" provides bzip2 compression:
+#!/bin/sh
+#*
+#* Copyright (c) 2006 by Lukas Ruf (lukas.ruf@lpr.ch),
+#* Computer Engineering and Networks Laboratory (TIK),
+#* Swiss Federal Institute of Technology (ETH) Zurich
+#*
+
+DATE="$1"
+PRG="$2"
+FILE="$3"
+
+# tests to run bzip2
+# parameter file is provided
+# file exists
+# file has a size greater than zero
+if [ -n "${FILE}" -a -f "${FILE}" -a -s "${FILE}" ]; then
+  bzip2 -9 ${FILE}
+fi
+
   
          ------------------------ LOG FILES ------------------------
          

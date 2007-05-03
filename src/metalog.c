@@ -9,8 +9,11 @@
 #include <string.h>
 #include <assert.h>
 
+static int spawn_recursion = 0;
 static int dolog_queue[2];
 static void signal_doLog_dequeue(void);
+
+static int doLog(const char * fmt, ...);
 
 static int parseLine(char * const line, ConfigBlock **cur_block,
                      const ConfigBlock * const default_block,
@@ -241,6 +244,14 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 perror("Oh no! More memory!");
                 return -3;
             }
+        } else if (strcasecmp(keyword, "postrotate_cmd") == 0) {
+            if (((*cur_block)->postrotate_cmd = strdup(value)) == NULL) {
+               perror("Oh no! More memory!");
+               return -3;
+            }
+            if ((*cur_block)->output != NULL) {
+                (*cur_block)->output->postrotate_cmd = (*cur_block)->postrotate_cmd;
+            }
         } else if (strcasecmp(keyword, "break") == 0) {
             (*cur_block)->brk = atoi(value);
         }
@@ -275,7 +286,8 @@ static int configParser(const char * const file)
             0,                         /* break flag */
             NULL,                      /* program_regexes */
             0,                         /* program_nb_regexes */
-            NULL                       /* next_block */
+            NULL,                      /* next_block */
+            NULL                       /* postrotate_cmd */
     };
     ConfigBlock *cur_block = &default_block;
 
@@ -479,6 +491,27 @@ static int getDataSources(int sockets[])
         }
     }
 
+    return 0;
+}
+
+static int spawnCommand(const char * const command, const char * const date,
+                        const char * const prg, const char * const info)
+{
+    pid_t pid;
+
+    if (spawn_recursion) return 1;
+    spawn_recursion++;
+
+    pid = fork();
+    if (pid == 0) {
+        execl(command, command, date, prg, info, (char *) NULL);
+        _exit(127);
+    }
+
+    if (verbose)
+        doLog("Forked command \"%s \"%s\" \"%s\" \"%s\" [%u].",
+              command, date, prg, info, (unsigned) pid);
+    spawn_recursion--;
     return 0;
 }
 
@@ -806,6 +839,8 @@ static int writeLogLine(Output * const output, const char * const date,
                         path, newpath);
                 return -5;
             }
+            if (output->postrotate_cmd != NULL)
+                spawnCommand(output->postrotate_cmd, date, prg, newpath);
             if (snprintf(path, sizeof path, "%s/" OUTPUT_DIR_TIMESTAMP,
                         output->directory) < 0) {
                 fprintf(stderr, "Path name too long for timestamp in [%s]\n",
@@ -839,52 +874,6 @@ static int writeLogLine(Output * const output, const char * const date,
     if (synchronous != (sig_atomic_t) 0) {
         fflush(output->fp);
     }
-    return 0;
-}
-
-static int processLogLine(const int logcode, const char * const date,
-                          const char * const prg, char * const info);
-
-static int doLog(const char * fmt, ...)
-{
-    const time_t now = time(NULL);
-    struct tm *tm;
-    static char datebuf[100];
-    char infobuf[512];
-    va_list ap;
-
-    if ((tm = localtime(&now)) == NULL) {
-        *datebuf = 0;
-    } else {
-        strftime(datebuf, sizeof datebuf, "%b %d %T", tm);
-    }
-    va_start(ap, fmt);
-    vsnprintf (infobuf, sizeof infobuf, fmt, ap);
-    va_end(ap);
-
-    return processLogLine(LOG_SYSLOG, datebuf, "metalog", infobuf);
-}
-
-static int spawn_recursion = 0;
-
-static int spawnCommand(const char * const command, const char * const date,
-                        const char * const prg, const char * const info)
-{
-    pid_t pid;
-
-    if (spawn_recursion) return 1;
-    spawn_recursion++;
-
-    pid = fork();
-    if (pid == (pid_t) 0) {
-        execl(command, command, date, prg, info, (char *) NULL);
-        _exit(127);
-    }
-
-    if (verbose)
-        doLog("Forked command \"%s \"%s\" \"%s\" \"%s\" [%u].",
-              command, date, prg, info, (unsigned) pid);
-    spawn_recursion--;
     return 0;
 }
 
@@ -998,6 +987,26 @@ static int processLogLine(const int logcode, const char * const date,
     }
 
     return 0;
+}
+
+static int doLog(const char * fmt, ...)
+{
+    const time_t now = time(NULL);
+    struct tm *tm;
+    static char datebuf[100];
+    char infobuf[512];
+    va_list ap;
+
+    if ((tm = localtime(&now)) == NULL) {
+        *datebuf = 0;
+    } else {
+        strftime(datebuf, sizeof datebuf, "%b %d %T", tm);
+    }
+    va_start(ap, fmt);
+    vsnprintf (infobuf, sizeof infobuf, fmt, ap);
+    va_end(ap);
+
+    return processLogLine(LOG_SYSLOG, datebuf, "metalog", infobuf);
 }
 
 static void sanitize(char * const line_)

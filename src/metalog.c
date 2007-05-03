@@ -1240,6 +1240,8 @@ static void signal_doLog_dequeue(void)
     assert(ret == sizeof(fmt_len));
 
     buf = malloc(fmt_len+1);
+    if (!buf)
+        return;
     ret = read(dolog_queue[0], buf, fmt_len);
     assert(ret == fmt_len);
     buf[fmt_len] = '\0';

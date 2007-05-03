@@ -189,6 +189,11 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->maxtime = (*cur_block)->maxtime;
             }
+        } else if (strcasecmp(keyword, "showrepeats") == 0) {
+            (*cur_block)->showrepeats = atoi(value);
+            if ((*cur_block)->output != NULL) {
+                (*cur_block)->output->showrepeats = (*cur_block)->showrepeats;
+            }
         } else if (strcasecmp(keyword, "logdir") == 0) {
             char *logdir;
             Output *outputs_scan = outputs;
@@ -218,6 +223,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             new_output->maxsize = (*cur_block)->maxsize;
             new_output->maxfiles = (*cur_block)->maxfiles;
             new_output->maxtime = (*cur_block)->maxtime;
+            new_output->showrepeats = (*cur_block)->showrepeats;
             new_output->dt.previous_prg = NULL;
             new_output->dt.previous_info = NULL;
             new_output->dt.sizeof_previous_prg = (size_t) 0U;
@@ -287,7 +293,8 @@ static int configParser(const char * const file)
             NULL,                      /* program_regexes */
             0,                         /* program_nb_regexes */
             NULL,                      /* next_block */
-            NULL                       /* postrotate_cmd */
+            NULL,                      /* postrotate_cmd */
+            0                          /* showrepeats */
     };
     ConfigBlock *cur_block = &default_block;
 
@@ -698,7 +705,8 @@ static int writeLogLine(Output * const output, const char * const date,
         sizeof_prg = MAX_SIGNIFICANT_LENGTH;
     }
 
-    if (sizeof_info == output->dt.previous_sizeof_info &&
+    if (output->showrepeats == 0 &&
+        sizeof_info == output->dt.previous_sizeof_info &&
         sizeof_prg == output->dt.previous_sizeof_prg &&
         memcmp(output->dt.previous_info, info, sizeof_info) == 0 &&
         memcmp(output->dt.previous_prg, prg, sizeof_prg) == 0) {

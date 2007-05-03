@@ -214,6 +214,13 @@ every day, and keep only 3 history files :
   maxtime  = 86400
   maxfiles = 3
 
+* showrepeats = 0|1 : disable printing the "last message repeated N times"
+summary messages.  When showrepeats is set to 1, messages will be printed
+directly to the log, without summarizing them based on number received (which
+can cause problems for some log monitoring programs, as well as delaying
+repeated messages if another unique message isn't received promptyly).  
+Defaults to 0 (i.e. repeated messages will be summarized)
+
 * logdir = <directory> : record messages in the specified directory. If the
 directory doesn't exist, it will be automatically created when the first
 matching message will be logged (the parent directory has to exist, though) .

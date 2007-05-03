@@ -1208,7 +1208,7 @@ static void exit_hook(void)
     if (child > (pid_t) 0) {
         kill(child, SIGTERM);
     }
-    (void) delete_pid_file(pid_file);
+    delete_pid_file(pid_file);
 }
 
 static void signal_doLog_queue(const char *fmt, const unsigned int pid, const int status)
@@ -1251,11 +1251,18 @@ static void signal_doLog_dequeue(void)
     --spawn_recursion;
 }
 
-static RETSIGTYPE sigkchld(int sig) __attribute__ ((noreturn));
+__attribute__ ((noreturn))
+static void metalog_signal_exit(int exit_status)
+{
+    exit_hook();
+    _exit(exit_status);
+}
+
+__attribute__ ((noreturn))
 static RETSIGTYPE sigkchld(int sig)
 {
     signal_doLog_queue("Process [%u] died with signal [%d]\n", (unsigned int) getpid(), sig);
-    exit(EXIT_FAILURE);
+    metalog_signal_exit(EXIT_FAILURE);
 }
 
 static RETSIGTYPE sigchld(int sig)
@@ -1286,7 +1293,7 @@ static RETSIGTYPE sigchld(int sig)
     }
     if (should_exit != 0) {
         child = (pid_t) 0;
-        exit(EXIT_FAILURE);
+        metalog_signal_exit(EXIT_FAILURE);
     }
 }
 

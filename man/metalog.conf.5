@@ -1,62 +1,52 @@
 .TH "metalog.conf" "5" "0.8" "Frank DENIS" "Metalog configuration file"
 .SH "NAME"
-metalog.conf
+metalog.conf \- configuration file for metalog
 .SH "SYNTAX"
+.nf
 [default values]
 
-.br
 <section title :>
-.br
 <section values>
 
-.br
 <section 2 title :>
-.br
 <section 2 values>
 
-.br
 <etc.>
-.br
+.fi
 .SH "DESCRIPTION"
-.LP 
 [default values] will be used if you do not redefine them in a section.
 You can choose <section title> as you wish. It doesn't mean anything, just
 allow you to keep an easy to read config file.
 
 Values names can be one of the following:
-.LP
 .TP
-\fBmaxsize\fR
+.B maxsize
 maxsize = <value>. Once a logfile has exceeded the value defined (in bytes), it
 will be rotated. If maxfile is equal to zero, it disables log rotation. Defining
 a default value is a good idea.
-.LP
 .TP
-\fBmaxtime\fR
+.B maxtime
 maxtime = <value>. Once a logfile is older than the value defined (in seconds),
 it will be rotated. Defining a default value is a good idea. 
 .br
 
 NB: a logfile is rotated when either maxsize or maxtime limit is
 reached. If either one or both is equal 0, then log rotation is disabled.
-.LP
 .TP
-\fBmaxfiles\fR
+.B maxfiles
 maxfiles = <value>. This value indicates the maximum number of rotated files
 kept. So you'll have x rotated files (log-date-string filename type), plus the
 file named current.
-.LP
 .TP
-\fBfacility\fR
+.B facility
 facility = "name". Only records a message if the application that issued it
 uses syslog facility <facility>. Facility names are : "auth", "authpriv",
 "cron", "daemon", "ftp", "kern", "lpr", "mail", "news", "security", "syslog",
 "user", "uucp", "local0", "local1" ... "local7" . All kernel messages are logged
 with facility "kern". A section can have several "facility = ..." lines to match
 more than one facility. If <facility> is "*", it'll match all the facilities.
-.LP
 .TP
-\fBbreak\fR
+.B break
 break = <value>. Default is 0.If set to 1 and a section is matched, perform
 action, but don't consider any more possible section matches below this one in
 the config file. This is useful for creating a config where specific types of
@@ -65,56 +55,46 @@ bottom of the config file handles the default case.  Using break=0 would cause
 messages to be potentially handled by multiple sections, causing message
 duplication, while using break = 1 on the sections above the "catch-all" would
 avoid duplication.
-.LP
 .TP
-\fBminimum\fR
+.B minimum
 minimum = <level> : Only record a message if its urgency is inferior or equal to
 <level> . Level '0' is the most critical one, while level '7' is for debugging
 messages. 'minimum = 5' will strip all non-important messages. The default
 minimum level is 7 (ie. keep all messages).
-.LP
 .TP
-\fBmaximum\fR
+.B maximum
 maximum = <level> : don't log if the message level exceeds that value. By
 default, maximum is the largest possible level.
-.LP
 .TP
-\fBlogdir\fR
+.B logdir
 logdir = "/path/where/logs/will/be/written" : files will be written in
 /path/where/logs/will/be/written.
-.LP
 .TP
-\fBprogram\fR
+.B program
 program = "name". Can be used when a facility is useless. Remember to use
 the executable name.
-.LP
 .TP
-\fBregex\fR
+.B regex
 regex = "perl compatible regular expression". Can be used when you want to log
 given patterns, like invalid, fail etc to get in a given directory everything
 that failed or was invalid. Several regex can be defined in a section.
-.LP
 .TP
-\fBneg_regex\fR
+.B neg_regex
 neg_regex = "perl compatible regular expression". Can be used when you want to log
 the opposite of given patterns. Several neg_regex can be defined in a section.
-.LP
 .TP
-\fBprogram_regex\fR
+.B program_regex
 program_regex = "perl compatible regular expression". Can be used when you have,
 for example a familly of programs having the same pattern in their names, and
 you want to get logs centralized in a given path.
-.LP
 .TP
-\fBcommand\fR
+.B command
 command = "/path/to/program/to/execute". If something is logged in a given section,
 you can automatically launch a program.
 .SH "FILES"
-.LP 
-\fI/etc/metalog.conf\fP 
+.I /etc/metalog.conf
 .br
 .SH "AUTHORS"
-.LP
 .nf
 Laurent Wandrebeck (low) <wandre.l@free.fr>
 Leo Lipelis <aeoo@gentoo.org>

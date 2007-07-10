@@ -90,7 +90,9 @@ you want to get logs centralized in a given path.
 .TP
 .B command
 command = "/path/to/program/to/execute". If something is logged in a given section,
-you can automatically launch a program.
+you can automatically launch a program. The log message is passed as the arguments
+to the program. The argv[1] is the date, argv[2] is the program, and argv[3] is the
+actual log message.
 .SH "FILES"
 .I /etc/metalog.conf
 .br

@@ -560,7 +560,7 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
         if ((tm = localtime(&now)) == NULL) {
             *datebuf = 0;
         } else {
-            strftime(datebuf, sizeof datebuf, "%b %d %T", tm);
+            strftime(datebuf, sizeof datebuf, "%b %e %T", tm);
         }
         *date = datebuf;
 
@@ -1010,7 +1010,7 @@ static int doLog(const char * fmt, ...)
     if ((tm = localtime(&now)) == NULL) {
         *datebuf = 0;
     } else {
-        strftime(datebuf, sizeof datebuf, "%b %d %T", tm);
+        strftime(datebuf, sizeof datebuf, "%b %e %T", tm);
     }
     va_start(ap, fmt);
     vsnprintf (infobuf, sizeof infobuf, fmt, ap);

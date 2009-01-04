@@ -13,6 +13,7 @@
 # include <stdlib.h>
 # include <stddef.h>
 # include <stdarg.h>
+# include <stdbool.h>
 #else
 # if HAVE_STDLIB_H
 #  include <stdlib.h>

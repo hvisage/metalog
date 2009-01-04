@@ -428,6 +428,24 @@ static int getDataSources(int sockets[])
     }
     chmod(sa.sun_path, 0666);
     sockets[1] = -1;
+
+    /* setup the signal handler pipe */
+    if (socketpair(AF_LOCAL, SOCK_STREAM, 0, dolog_queue) < 0) {
+        if (pipe(dolog_queue) < 0) {
+            perror("Unable to create a pipe");
+            return -4;
+        }
+    }
+
+    if (!do_kernel_log) {
+        /*
+         * This will avoid reading from the kernel socket in the process()
+         * function, which only takes into account valid descriptors.
+         */
+        sockets[1] = -1;
+        return 0;
+    }
+
 #ifdef HAVE_KLOGCTL
     /* larger buffers compared to a pipe() */
     if(socketpair(AF_UNIX, SOCK_STREAM, 0, fdpipe) < 0) {
@@ -489,14 +507,6 @@ static int getDataSources(int sockets[])
         sockets[1] = klogfd;
     }
 #endif
-
-    /* setup the signal handler pipe */
-    if (socketpair(AF_LOCAL, SOCK_STREAM, 0, dolog_queue) < 0) {
-        if (pipe(dolog_queue) < 0) {
-            perror("Unable to create a pipe");
-            return -4;
-        }
-    }
 
     return 0;
 }
@@ -1435,6 +1445,9 @@ static void parseOptions(int argc, char *argv[])
             break;
         case 'v' :
             ++verbose;
+            break;
+        case 'N' :
+            do_kernel_log = false;
             break;
         case 'V' :
             puts(PACKAGE " version " VERSION);

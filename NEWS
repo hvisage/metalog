@@ -1,3 +1,7 @@
+* Version 0.9
+ - add --no-kernel option by Adrian Perez de Castro to disable kernel message
+   monitoring (#1727129 and #1751757)
+
 * Version 0.8
  - tweak signal handlers some more (#1655169)
  - when dequeuing messages from the signal pipe, abort if malloc() failed

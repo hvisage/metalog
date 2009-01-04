@@ -15,13 +15,13 @@ static struct option long_options[] = {
     { "consolelevel", 1, NULL, 'c' },
 #endif
     { "configfile",   1, NULL, 'C' },
-    { "pidfile",      1, NULL, 'p' },
+    { "help",         0, NULL, 'h' },
     { "no-kernel",    0, NULL, 'N' },
+    { "pidfile",      1, NULL, 'p' },
     { "synchronous",  0, NULL, 's' },
     { "sync",         0, NULL, 's' },
     { "verbose",      0, NULL, 'v' },
     { "version",      0, NULL, 'V' },
-    { "help",         0, NULL, 'h' },
     { NULL,           0, NULL,  0  }
 };
 

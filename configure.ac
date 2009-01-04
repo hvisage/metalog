@@ -89,24 +89,6 @@ AC_ARG_WITH(debug,
     CFLAGS="$CFLAGS -DDEBUG=1 -g -Wall -W -Wcast-qual -Wcast-align -Wmissing-noreturn -Wbad-function-cast -Wstrict-prototypes -Wwrite-strings -Wreturn-type "
   fi ])
 
-if test "x$sysconfdir" = 'xNONE' || test "x$sysconfdir" = 'x'; then
-  CONFDIR='/etc'
-else
-  if test "x$sysconfdir" = 'x${prefix}/etc'; then
-    if test "x$prefix" = 'xNONE' || test "x$prefix" = 'x/usr'; then
-      CONFDIR='/etc'
-    else
-      CONFDIR="$sysconfdir"
-    fi
-  else
-    CONFDIR="$sysconfdir"
-  fi
-fi  
-
-sysconfdir="$CONFDIR"
-AC_SUBST(sysconfdir)
-AC_DEFINE_UNQUOTED([CONFDIR], "$sysconfdir", [Configuration dir])
-
 AC_CONFIG_FILES(Makefile lib/Makefile src/Makefile man/Makefile metalog.spec metalog.lsm)
 
 AC_OUTPUT

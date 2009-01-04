@@ -1,6 +1,7 @@
 sbin_PROGRAMS = \
 	metalog
 
+AM_CPPFLAGS = -DCONFDIR=\"$(sysconfdir)\"
 INCLUDES = -I$(top_srcdir)/lib
 
 metalog_SOURCES = \

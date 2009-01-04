@@ -4,8 +4,6 @@ AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR(src/metalog.c)
 AM_CONFIG_HEADER(config.h)
 
-AC_SUBST(VERSION)
-
 dnl Lie about crap we dont care about
 
 gl_cv_func_printf_infinite_long_double=yes

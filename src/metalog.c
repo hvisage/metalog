@@ -1391,7 +1391,7 @@ static void dodaemonize(void)
     }
 }
 
-static void help(void) __attribute__ ((noreturn));
+__attribute__ ((noreturn))
 static void help(void)
 {
     const struct option *options = long_options;

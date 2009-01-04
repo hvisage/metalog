@@ -89,6 +89,15 @@ AC_ARG_WITH(debug,
     CFLAGS="$CFLAGS -DDEBUG=1 -g -Wall -W -Wcast-qual -Wcast-align -Wmissing-noreturn -Wbad-function-cast -Wstrict-prototypes -Wwrite-strings -Wreturn-type "
   fi ])
 
-AC_CONFIG_FILES(Makefile lib/Makefile src/Makefile man/Makefile metalog.spec metalog.lsm)
+AC_CONFIG_FILES([ \
+	Makefile \
+	lib/Makefile \
+	src/Makefile \
+	man/Makefile \
+	man/metalog.8 \
+	man/metalog.conf.5 \
+	metalog.spec \
+	metalog.lsm \
+])
 
 AC_OUTPUT

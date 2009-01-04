@@ -1,4 +1,4 @@
-.TH "metalog" "8" "0.9" "Frank DENIS" "Syslog daemon"
+.TH "metalog" "8" "@VERSION@" "Frank DENIS" "Syslog daemon"
 .SH "NAME"
 .LP
 metalog \- an alternative syslog daemon

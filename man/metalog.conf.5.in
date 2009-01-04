@@ -1,4 +1,4 @@
-.TH "metalog.conf" "5" "0.9" "Frank DENIS" "Metalog configuration file"
+.TH "metalog.conf" "5" "@VERSION@" "Frank DENIS" "Metalog configuration file"
 .SH "NAME"
 .LP
 metalog.conf \- configuration file for metalog

@@ -54,6 +54,7 @@
 #else
 # define KLOG_FILE "/dev/klog"
 #endif
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
 typedef struct PCREInfo_ {
     pcre *pcre;

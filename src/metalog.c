@@ -38,13 +38,13 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         line[--line_size] = 0;
     }
     if (pcre_exec(re_null, NULL, line, line_size,
-                  0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0 ||
+                  0, 0, ovector, ARRAY_SIZE(ovector)) >= 0 ||
         pcre_exec(re_comment, NULL, line, line_size,
-                  0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0) {
+                  0, 0, ovector, ARRAY_SIZE(ovector)) >= 0) {
         return 0;
     }
     if (pcre_exec(re_newblock, NULL, line, line_size,
-                  0, 0, ovector, sizeof ovector / sizeof ovector[0]) >= 0) {
+                  0, 0, ovector, ARRAY_SIZE(ovector)) >= 0) {
         ConfigBlock *previous_block = *cur_block;
 
         if ((*cur_block = malloc(sizeof **cur_block)) == NULL) {
@@ -61,8 +61,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
     }
     if ((stcount =
          pcre_exec(re_newstmt, NULL, line, line_size,
-                   0, 0, ovector,
-                   sizeof ovector / sizeof ovector[0])) >= 3) {
+                   0, 0, ovector, ARRAY_SIZE(ovector))) >= 3) {
         pcre_get_substring(line, ovector, stcount, 1, &keyword);
         pcre_get_substring(line, ovector, stcount, 2, &value);
         if (strcasecmp(keyword, "minimum") == 0) {
@@ -944,14 +943,14 @@ static int processLogLine(const int logcode, const char * const date,
                     if (pcre_exec(this_regex->regex.pcre,
                                   this_regex->regex.pcre_extra,
                                   prg, prg_len, 0, 0, ovector,
-                                  sizeof ovector / sizeof ovector[0]) >= 0) {
+                                  ARRAY_SIZE(ovector)) >= 0) {
                         regex_result = 1;
                     }
                 } else {
                     if (pcre_exec(this_regex->regex.pcre,
                                   this_regex->regex.pcre_extra,
                                   prg, prg_len, 0, 0, ovector,
-                                  sizeof ovector / sizeof ovector[0]) < 0) {
+                                  ARRAY_SIZE(ovector)) < 0) {
                         regex_result = 1;
                     }
                 }
@@ -973,14 +972,14 @@ static int processLogLine(const int logcode, const char * const date,
                     if (pcre_exec(this_regex->regex.pcre,
                                   this_regex->regex.pcre_extra,
                                   info, info_len, 0, 0, ovector,
-                                  sizeof ovector / sizeof ovector[0]) >= 0) {
+                                  ARRAY_SIZE(ovector)) >= 0) {
                         regex_result = 1;
                     }
                 } else {
                     if (pcre_exec(this_regex->regex.pcre,
                                   this_regex->regex.pcre_extra,
                                   info, info_len, 0, 0, ovector,
-                                  sizeof ovector / sizeof ovector[0]) < 0) {
+                                  ARRAY_SIZE(ovector)) < 0) {
                         regex_result = 1;
                     }
                 }

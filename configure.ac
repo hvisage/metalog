@@ -1,22 +1,17 @@
-AC_PREREQ(2.50)
-AC_INIT
-AM_INIT_AUTOMAKE(metalog, 0.8)
+AC_PREREQ(2.61)
+AC_INIT([metalog], [0.9], [metalog-users@lists.sourceforge.net])
+AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR(src/metalog.c)
 AM_CONFIG_HEADER(config.h)
 
 AC_SUBST(VERSION)
 
-ISODATE=`date +%Y-%m-%d`
-AC_SUBST(ISODATE)
-
 dnl Checks for programs.
 AC_PROG_INSTALL
+AC_USE_SYSTEM_EXTENSIONS
 AC_PROG_CC
-AC_AIX
-AC_ISC_POSIX
 AC_PROG_CC_STDC
 
-CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE=1"
 dnl Use -Wall if we have gcc.
 if test "x$GCC" = "xyes"; then
 	CFLAGS="$CFLAGS -Wall"

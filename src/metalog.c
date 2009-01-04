@@ -1299,11 +1299,7 @@ static RETSIGTYPE sigchld(int sig)
     int child_status;
 
     (void) sig;
-#ifdef HAVE_WAITPID
     while ((pid = waitpid((pid_t) -1, &child_status, WNOHANG)) > (pid_t) 0) {
-#else
-    while ((pid = wait3(&child_status, WNOHANG, NULL)) > (pid_t) 0) {
-#endif
         if (pid == child) {
             signal_doLog_queue("Klog child [%u] died.", (unsigned) pid, 0);
             should_exit = 1;

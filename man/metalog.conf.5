@@ -1,7 +1,9 @@
-.TH "metalog.conf" "5" "0.8" "Frank DENIS" "Metalog configuration file"
+.TH "metalog.conf" "5" "0.9" "Frank DENIS" "Metalog configuration file"
 .SH "NAME"
+.LP
 metalog.conf \- configuration file for metalog
 .SH "SYNTAX"
+.LP
 .nf
 [default values]
 
@@ -14,6 +16,7 @@ metalog.conf \- configuration file for metalog
 <etc.>
 .fi
 .SH "DESCRIPTION"
+.LP
 [default values] will be used if you do not redefine them in a section.
 You can choose <section title> as you wish. It doesn't mean anything, just
 allow you to keep an easy to read config file.
@@ -27,8 +30,7 @@ a default value is a good idea.
 .TP
 .B maxtime
 maxtime = <value>. Once a logfile is older than the value defined (in seconds),
-it will be rotated. Defining a default value is a good idea. 
-.br
+it will be rotated. Defining a default value is a good idea.
 
 NB: a logfile is rotated when either maxsize or maxtime limit is
 reached. If either one or both is equal 0, then log rotation is disabled.
@@ -47,7 +49,7 @@ with facility "kern". A section can have several "facility = ..." lines to match
 more than one facility. If <facility> is "*", it'll match all the facilities.
 .TP
 .B break
-break = <value>. Default is 0.If set to 1 and a section is matched, perform
+break = <value>. Default is 0. If set to 1 and a section is matched, perform
 action, but don't consider any more possible section matches below this one in
 the config file. This is useful for creating a config where specific types of
 log messages are matched and dispatched, while a "catch-all" section at the
@@ -94,10 +96,16 @@ you can automatically launch a program. The log message is passed as the argumen
 to the program. The argv[1] is the date, argv[2] is the program, and argv[3] is the
 actual log message.
 .SH "FILES"
-.I /etc/metalog.conf
-.br
-.SH "AUTHORS"
+.LP
+Note that the exact paths depend on the build settings.  These are the standard paths.
+
 .nf
+.I /etc/metalog.conf
+.fi
+.SH "AUTHORS"
+.LP
+.nf
+Mike Frysinger <vapier@gentoo.org>
 Laurent Wandrebeck (low) <wandre.l@free.fr>
 Leo Lipelis <aeoo@gentoo.org>
 Hendrik Visage <hvisage@users.sourceforge.net>

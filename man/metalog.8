@@ -1,54 +1,66 @@
-.TH "metalog" "8" "0.8" "Frank DENIS" "Syslog daemon"
+.TH "metalog" "8" "0.9" "Frank DENIS" "Syslog daemon"
 .SH "NAME"
-.LP 
+.LP
 metalog \- an alternative syslog daemon
 .SH "SYNTAX"
-.LP 
-metalog [\fI\-\-async\fP] [\fI\-\-daemonize\fP] [\fI\-\-consolelevel=0..7\fP] [\fI\-\-configfile=config file\fP] [\fI\-\-help\fP] [\fI\-\-pidfile=pid file\fP] [\fI\-\-sync\fP]
+.LP
+metalog [\fIoptions\fR]
 .SH "DESCRIPTION"
-.LP 
+.LP
 Metalog is a modern replacement for syslogd and klogd. The logged messages
 can be dispatched according to their facility, urgency, program name and/or
 Perl\-compatible regular expressions. Log files can be automatically rotated
 when they exceed a certain size or age. External shell scripts (ex: mail)
 can be launched when specific patterns are found.
-.br 
+
 Metalog is easier to configure than syslogd and syslog\-ng, accepts unlimited
 number of rules and has (switchable) memory bufferisation for maximal
 performance.
 .SH "OPTIONS"
-.LP 
-.TP 
-\fB\-\-async\fR
-Improve performance by using buffers (bug log files won't get updated in real time)
-.TP 
-\fB\-\-daemonize\fR
-have the server start in background (daemonization) .
-.TP 
-\fB\-\-consolelevel=0..7\fR
+.LP
+.TP
+.BR \-a ", " \-\-async
+Improve performance by using buffers (bug log files won't get updated in real time).
+.TP
+.BR \-B ", " \-\-daemonize
+have the server start in background (daemonization).
+.TP
+.BR \-c ", " \-\-consolelevel=0..7
 Set the console log level (Linux only).
-.TP 
-\fB\-\-configfile=config file\fR
+.TP
+.BR \-C ", " \-\-configfile=file
 Use an alternate configuration file.
-.TP 
-\fB\-\-help\fR
+.TP
+.BR \-h ", " \-\-help
 Output help information and exit.
-.TP 
-\fB\-\-pidfile=pid file\fR
+.TP
+.BR \-N ", " \-\-no\-kernel
+Do not attempt to log messages from the kernel.
+.TP
+.BR \-P ", " \-\-pidfile=pid file
 Use an alternate file to store the process number.
-.TP 
-\fB\-\-sync\fR
+.TP
+.BR \-s ", " \-\-sync ", " \-\-synchronous
 Start in synchronous mode, with no bufferization.
+.TP
+.BR \-v ", " \-\-verbose
+Run in verbose mode (useful for debugging behavior).
+.TP
+.BR \-V ", " \-\-version
+Display metalog version information.
 .SH "FILES"
-.LP 
-\fI/etc/metalog.conf\fP 
-.br
-\fI/var/run/metalog.pid\fP 
-.br
-\fI/dev/log\fP 
+.LP
+Note that the exact paths depend on the build settings.  These are the standard paths.
+
+.nf
+.I /etc/metalog.conf
+.I /var/run/metalog.pid
+.I /dev/log
+.fi
 .SH "AUTHORS"
 .LP
 .nf
+Mike Frysinger <vapier@gentoo.org>
 Laurent Wandrebeck (low) <wandre.l@free.fr>
 Leo Lipelis <aeoo@gentoo.org>
 Hendrik Visage <hvisage@users.sourceforge.net>

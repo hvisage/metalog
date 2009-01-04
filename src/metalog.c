@@ -260,6 +260,9 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             }
         } else if (strcasecmp(keyword, "break") == 0) {
             (*cur_block)->brk = atoi(value);
+        } else {
+            fprintf(stderr, "Unknown keyword '%s'!\nline: %s\n", keyword, line);
+            exit(15);
         }
     }
     return 0;

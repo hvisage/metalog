@@ -8,109 +8,41 @@
 # define __attribute__(a)
 #endif
 
-#include <stdio.h>
-#ifdef STDC_HEADERS
-# include <stdlib.h>
-# include <stddef.h>
-# include <stdarg.h>
-# include <stdbool.h>
-#else
-# if HAVE_STDLIB_H
-#  include <stdlib.h>
-# endif
-#endif
-#if HAVE_STRING_H
-# if !STDC_HEADERS && HAVE_MEMORY_H
-#  include <memory.h>
-# endif
-# include <string.h>
-#else
-# if HAVE_STRINGS_H
-#  include <strings.h>
-# endif
-#endif
-#if HAVE_INTTYPES_H
-# include <inttypes.h>
-#endif
-#include <limits.h>
-#include <errno.h>
-#include <ctype.h>
-#include <signal.h>
-#ifdef HAVE_UNISTD_H
-# include <unistd.h>
-#endif
-#if TIME_WITH_SYS_TIME
-# include <sys/time.h>
-# include <time.h>
-#else
-# if HAVE_SYS_TIME_H
-#  include <sys/time.h>
-# else
-#  include <time.h>
-# endif
-#endif
-#include <sys/types.h>
-#include <sys/stat.h>
-#ifdef HAVE_FCNTL_H
-# include <fcntl.h>
-#elif defined(HAVE_SYS_FCNTL_H)
-# include <sys/fcntl.h>
-#endif
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/poll.h>
-#include <sys/stat.h>
+#include <alloca.h>
 #include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <getopt.h>
+#include <inttypes.h>
+#include <limits.h>
+#include <poll.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
+#include <time.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/un.h>
+#include <sys/wait.h>
+#include "c-ctype.h"
+#include "pathmax.h"
+
 #ifndef HAVE_SYSLOG_NAMES
 # include "syslognames.h"
-#endif
-#ifndef HAVE_GETOPT_LONG
-# include "bsd-getopt_long.h"
-#else
-# include <getopt.h>
-#endif
-#ifdef HAVE_SYS_WAIT_H
-# include <sys/wait.h>
-#endif
-#ifndef WEXITSTATUS
-# define WEXITSTATUS(st) ((unsigned) (st) >> 8)
-#endif
-#ifndef WIFEXITED
-# define WIFEXITED(st) (((st) & 0xff) == 0)
 #endif
 #ifdef HAVE_SYS_KLOG_H
 # include <sys/klog.h>
 #endif
 #include <pcre.h>
-
-#ifdef HAVE_ALLOCA
-# ifdef HAVE_ALLOCA_H
-#  include <alloca.h>
-# endif
-# define ALLOCA(X) alloca(X)
-# define ALLOCA_FREE(X) do { } while (0)
-#else
-# define ALLOCA(X) malloc(X)
-# define ALLOCA_FREE(X) free(X)
-#endif
-
-#include "mysnprintf.h"
-
-#ifndef MAXPATHLEN
-# ifdef PATH_MAX
-#  define MAXPATHLEN PATH_MAX
-# else
-#  define MAXPATHLEN 65536U
-Warning: neither PATH_MAX nor MAXPAHLEN were found.
-Remove these lines if you really want to compile the server, but
-the server may be insecure if a wrong value is set here.
-# endif
-#endif
-#if (MAXPATHLEN) >= (INT_MAX)
-Your platform has a very large maximum path len, we should not trust it.
-#endif
 
 #ifdef _PATH_LOG
 # define SOCKNAME _PATH_LOG
@@ -121,10 +53,6 @@ Your platform has a very large maximum path len, we should not trust it.
 # define KLOG_FILE _PATH_KLOG
 #else
 # define KLOG_FILE "/dev/klog"
-#endif
-
-#ifndef errno
-extern int errno;
 #endif
 
 typedef struct PCREInfo_ {
@@ -219,14 +147,6 @@ typedef enum LogLineType_ {
 #define LAST_OUTPUT_TWICE "                - Last output repeated twice -\n"
 #define MAX_SIGNIFICANT_LENGTH 512U
 #define MAX_LOG_LENGTH 8192U          /* must be < (INT_MAX / 2) */
-
-#ifndef HAVE_STRTOULL
-# ifdef HAVE_STRTOQ
-#  define strtoull(X, Y, Z) strtoq(X, Y, Z)
-# else
-#  define strtoull(X, Y, Z) strtoul(X, Y, Z)
-# endif
-#endif
 
 #ifdef ACCEPT_UNICODE_CONTROL_CHARS
 # define ISCTRLCODE(X) ((X) == 0x7f || ((unsigned char) (X)) < 32U)

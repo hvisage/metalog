@@ -584,7 +584,7 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
         line++;
     }
     line++;
-    while (isspace(*line) == 0) {
+    while (c_isspace(*line) == 0) {
         if (*line == 0) {
             return -1;
         }
@@ -617,7 +617,7 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
         *line = 0;
     }
     line++;
-    while (isspace(*line) != 0) {
+    while (c_isspace(*line) != 0) {
         if (*line == 0) {
             return -1;
         }
@@ -630,8 +630,8 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
 
 static int rotateLogFiles(const char * const directory, const int maxfiles)
 {
-    char path[MAXPATHLEN];
-    char old_name[MAXPATHLEN];
+    char path[PATH_MAX];
+    char old_name[PATH_MAX];
     const char *name;
     DIR *dir;
     struct dirent *dirent;
@@ -756,7 +756,7 @@ static int writeLogLine(Output * const output, const char * const date,
         FILE *fp;
         FILE *fp_ts;
         time_t creatime;
-        char path[MAXPATHLEN];
+        char path[PATH_MAX];
 
         testdir:
         if (stat(output->directory, &st) < 0) {
@@ -820,8 +820,8 @@ static int writeLogLine(Output * const output, const char * const date,
         if (output->size >= output->maxsize ||
             now > (output->creatime + output->maxtime)) {
             struct tm *time_gm;
-            char path[MAXPATHLEN];
-            char newpath[MAXPATHLEN];
+            char path[PATH_MAX];
+            char newpath[PATH_MAX];
 
             if (output->fp == NULL) {
                 fprintf(stderr, "Internal inconsistency line [%d]\n", __LINE__);
@@ -1204,8 +1204,7 @@ static int update_pid_file(const char * const pid_file)
     if (pid_file == NULL || *pid_file != '/') {
         return 0;
     }
-    if (SNCHECK(snprintf(buf, sizeof buf, "%lu\n",
-                         (unsigned long) getpid()), sizeof buf)) {
+    if (snprintf(buf, sizeof buf, "%lu\n", (unsigned long) getpid()) >= sizeof buf) {
         return -1;
     }
     if (unlink(pid_file) != 0 && errno != ENOENT) {

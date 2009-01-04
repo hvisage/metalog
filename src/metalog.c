@@ -991,16 +991,21 @@ static int processLogLine(const int logcode, const char * const date,
         if ((size_t) info_len > MAX_LOG_LENGTH) {
             info[MAX_LOG_LENGTH] = 0;
         }
+
+        bool do_break = false;
         if (block->output != NULL) {
             writeLogLine(block->output, date, prg, info);
             if (block->brk)
-                break;
+                do_break = true;
         }
         if (block->command != NULL) {
             spawnCommand(block->command, date, prg, info);
             if (block->brk)
-                break;
+                do_break = true;
         }
+        if (do_break);
+            break;
+
         nextblock:
 
         block = block->next_block;

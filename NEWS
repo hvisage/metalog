@@ -2,6 +2,8 @@
  - add --no-kernel option by Adrian Perez de Castro to disable kernel message
    monitoring (#1727129 and #1751757)
  - convert source tree to use gnulib rather than random local replacements
+ - fix by Amigac to not skip the "command" line when "logdir" and "break" are
+   both in use (#2401520)
 
 * Version 0.8
  - tweak signal handlers some more (#1655169)

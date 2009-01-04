@@ -1059,8 +1059,7 @@ static int log_line( LogLineType loglinetype, char *buf)
   if (parseLogLine( loglinetype, buf, &logcode, &date, &prg, &info) < 0) {
     return -1;
   }
-  processLogLine(logcode, date, prg, info);
-  return 0;
+  return processLogLine(logcode, date, prg, info);
 }
 
 static int log_udp( char *buf, int bsize)
@@ -1195,10 +1194,7 @@ static int process(const int sockets[])
 
 static int delete_pid_file(const char * const pid_file)
 {
-    if (pid_file != NULL) {
-        return unlink(pid_file);
-    }
-    return 0;
+    return pid_file ? unlink(pid_file) : 0;
 }
 
 static int update_pid_file(const char * const pid_file)
@@ -1500,7 +1496,6 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Unable to bind sockets - aborting\n");
         return -1;
     }
-    process(sockets);
 
-    return 0;
+    return process(sockets);
 }

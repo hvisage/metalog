@@ -4,6 +4,8 @@ EXTRA_DIST = \
 	metalog.lsm.in \
 	m4/gnulib-cache.m4
 
+sysconf_DATA = metalog.conf
+
 SUBDIRS = \
 	lib \
 	src \

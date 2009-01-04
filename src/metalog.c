@@ -1203,39 +1203,34 @@ static int delete_pid_file(const char * const pid_file)
 
 static int update_pid_file(const char * const pid_file)
 {
-    char buf[42];
     int fd;
-    size_t towrite;
-    ssize_t written;
+    FILE *fp;
 
-    if (pid_file == NULL || *pid_file != '/') {
+    if (pid_file == NULL || *pid_file != '/')
         return 0;
-    }
-    if (snprintf(buf, sizeof buf, "%lu\n", (unsigned long) getpid()) >= sizeof buf) {
-        return -1;
-    }
-    if (unlink(pid_file) != 0 && errno != ENOENT) {
-        return -1;
-    }
-    if ((fd = open(pid_file, O_CREAT | O_WRONLY | O_TRUNC |
-                   O_NOFOLLOW, (mode_t) 0644)) == -1) {
-        fprintf(stderr, "Unable to create the [%s] pid file : [%s]",
-                pid_file, strerror(errno));
-        return -1;
-    }
-    towrite = strlen(buf);
-    while ((written = write(fd, buf, towrite)) < (ssize_t) 0 &&
-           errno == EINTR);
-    if (written < (ssize_t) 0 || (size_t) written != towrite) {
-        fprintf(stderr, "Error while writing the [%s] pid file : [%s]",
-                pid_file, strerror(errno));
-        (void) ftruncate(fd, (off_t) 0);
-        while (close(fd) != 0 && errno == EINTR);
-        return -1;
-    }
-    while (close(fd) != 0 && errno == EINTR);
+
+    fd = open(pid_file, O_CREAT | O_WRONLY | O_TRUNC | O_NOFOLLOW, 0644);
+    if (fd == -1)
+        goto err;
+    if (fchmod(fd, 0644))
+        goto err;
+
+    fp = fdopen(fd, "w");
+    if (!fp)
+        goto err;
+    if (fprintf(fp, "%lu\n", (unsigned long)getpid()) <= 0)
+        goto err;
+    if (ferror(fp))
+        goto err;
+    if (fclose(fp))
+        goto err;
 
     return 0;
+
+ err:
+    fprintf(stderr, "pid file creation failed: %s: %s\n",
+            pid_file, strerror(errno));
+    return -1;
 }
 
 static void exit_hook(void)
@@ -1497,7 +1492,8 @@ int main(int argc, char *argv[])
     }
     dodaemonize();
     setsignals();
-    (void) update_pid_file(pid_file);
+    if (update_pid_file(pid_file))
+        return -1;
     clearargs(argc, argv);
     setprogname(PROGNAME_MASTER);
     if (getDataSources(sockets) < 0) {

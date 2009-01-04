@@ -85,10 +85,23 @@ that failed or was invalid. Several regex can be defined in a section.
 neg_regex = "perl compatible regular expression". Can be used when you want to log
 the opposite of given patterns. Several neg_regex can be defined in a section.
 .TP
+.B postrotate_cmd
+postrotate_cmd = "/path/to/a/program". Run specified program after a log file
+has been rotated. The program is passed the date, the program name ("metalog"),
+and the new logfile name.
+.TP
 .B program_regex
 program_regex = "perl compatible regular expression". Can be used when you have,
 for example a familly of programs having the same pattern in their names, and
 you want to get logs centralized in a given path.
+.TP
+.B program_neg_regex
+program_neg_regex = "perl compatible regular expression". Can be used when you
+want to log programs which do not match a pattern in their names. Several
+program_neg_regex can be defined in a section.
+.TP
+.B showrepeats
+showrepeats = <value>. Set to 0 to filter out repeat log messages.
 .TP
 .B command
 command = "/path/to/program/to/execute". If something is logged in a given section,

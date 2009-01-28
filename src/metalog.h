@@ -83,6 +83,7 @@ typedef struct Output_ {
     struct Output_ *next_output;
     char *postrotate_cmd;
     int showrepeats;
+    const char *stamp_fmt;
 } Output;
 
 typedef enum RegexSign_ {
@@ -119,6 +120,7 @@ typedef struct ConfigBlock_ {
     struct ConfigBlock_ *next_block;
     char *postrotate_cmd;
     int showrepeats;
+    const char *stamp_fmt;
 } ConfigBlock;
 
 typedef enum LogLineType_ {
@@ -148,6 +150,7 @@ typedef enum LogLineType_ {
 #define LAST_OUTPUT_TWICE "                - Last output repeated twice -\n"
 #define MAX_SIGNIFICANT_LENGTH 512U
 #define MAX_LOG_LENGTH 8192U          /* must be < (INT_MAX / 2) */
+#define DEFAULT_STAMP_FMT "%b %d %T"
 
 #ifdef ACCEPT_UNICODE_CONTROL_CHARS
 # define ISCTRLCODE(X) ((X) == 0x7f || ((unsigned char) (X)) < 32U)

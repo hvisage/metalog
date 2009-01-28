@@ -223,6 +223,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             new_output->maxfiles = (*cur_block)->maxfiles;
             new_output->maxtime = (*cur_block)->maxtime;
             new_output->showrepeats = (*cur_block)->showrepeats;
+            new_output->stamp_fmt = (*cur_block)->stamp_fmt;
             new_output->dt.previous_prg = NULL;
             new_output->dt.previous_info = NULL;
             new_output->dt.sizeof_previous_prg = (size_t) 0U;
@@ -259,6 +260,14 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             }
         } else if (strcasecmp(keyword, "break") == 0) {
             (*cur_block)->brk = atoi(value);
+        } else if (strcasecmp(keyword, "stamp_fmt") == 0) {
+            if (((*cur_block)->stamp_fmt = strdup(value)) == NULL) {
+               perror("Oh no! More memory!");
+               return -3;
+            }
+            if ((*cur_block)->output != NULL) {
+                (*cur_block)->output->stamp_fmt = (*cur_block)->stamp_fmt;
+            }
         } else {
             fprintf(stderr, "Unknown keyword '%s'!\nline: %s\n", keyword, line);
             exit(15);
@@ -296,7 +305,8 @@ static int configParser(const char * const file)
             0,                         /* program_nb_regexes */
             NULL,                      /* next_block */
             NULL,                      /* postrotate_cmd */
-            0                          /* showrepeats */
+            0,                         /* showrepeats */
+            DEFAULT_STAMP_FMT,         /* stamp_fmt */
     };
     ConfigBlock *cur_block = &default_block;
 
@@ -305,7 +315,7 @@ static int configParser(const char * const file)
         return -2;
     }
     re_newblock = pcre_compile(":\\s*$", 0, &errptr, &erroffset, NULL);
-    re_newstmt = pcre_compile("^\\s*(.+?)\\s*=\\s*\"?(.+?)\"?\\s*$", 0,
+    re_newstmt = pcre_compile("^\\s*(.+?)\\s*=\\s*\"?([^\"]*)\"?\\s*$", 0,
                               &errptr, &erroffset, NULL);
     re_comment = pcre_compile("^\\s*#", 0, &errptr, &erroffset, NULL);
     re_null = pcre_compile("^\\s*$", 0, &errptr, &erroffset, NULL);
@@ -535,7 +545,7 @@ static int spawnCommand(const char * const command, const char * const date,
 }
 
 static int parseLogLine(const LogLineType loglinetype, char *line,
-                        int * const logcode, char ** const date,
+                        int * const logcode,
                         const char ** const prg, char ** const info)
 {
 #ifndef HAVE_KLOGCTL
@@ -562,23 +572,11 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
 #endif
 
     if (loglinetype == LOGLINETYPE_KLOG) {
-        const time_t now = time(NULL);
-        struct tm *tm;
-        static char datebuf[100];
-
         *logcode |= LOG_KERN;
         *prg = CF_PROGNAME_KERNEL;
         *info = line;
-        if ((tm = localtime(&now)) == NULL) {
-            *datebuf = 0;
-        } else {
-            strftime(datebuf, sizeof datebuf, "%b %e %T", tm);
-        }
-        *date = datebuf;
-
         return 0;
     }
-    *date = line;
     while (*line != ':') {
         if (*line == 0) {
             return -1;
@@ -889,7 +887,9 @@ static int writeLogLine(Output * const output, const char * const date,
         }
         output->dt.same_counter = 0U;
     }
-    fprintf(output->fp, "%s [%s] %s\n", date, prg, info);
+    if (date[0])
+        fprintf(output->fp, "%s ", date);
+    fprintf(output->fp, "[%s] %s\n", prg, info);
     output->size += (off_t) strlen(date);
     output->size += (off_t) (sizeof_prg + sizeof_info);
     output->size += (off_t) 5;
@@ -899,7 +899,7 @@ static int writeLogLine(Output * const output, const char * const date,
     return 0;
 }
 
-static int processLogLine(const int logcode, const char * const date,
+static int processLogLine(const int logcode,
                           const char * const prg, char * const info)
 {
     int ovector[16];
@@ -994,14 +994,22 @@ static int processLogLine(const int logcode, const char * const date,
             info[MAX_LOG_LENGTH] = 0;
         }
 
+        char datebuf[100] = { '\0' };
+        if (block->output && block->output->stamp_fmt[0]) {
+            const time_t now = time(NULL);
+            struct tm *tm = localtime(&now);
+            if (tm)
+                strftime(datebuf, sizeof datebuf, block->output->stamp_fmt, tm);
+        }
+
         bool do_break = false;
         if (block->output != NULL) {
-            writeLogLine(block->output, date, prg, info);
+            writeLogLine(block->output, datebuf, prg, info);
             if (block->brk)
                 do_break = true;
         }
         if (block->command != NULL) {
-            spawnCommand(block->command, date, prg, info);
+            spawnCommand(block->command, datebuf, prg, info);
             if (block->brk)
                 do_break = true;
         }
@@ -1018,22 +1026,14 @@ static int processLogLine(const int logcode, const char * const date,
 
 static int doLog(const char * fmt, ...)
 {
-    const time_t now = time(NULL);
-    struct tm *tm;
-    static char datebuf[100];
     char infobuf[512];
     va_list ap;
 
-    if ((tm = localtime(&now)) == NULL) {
-        *datebuf = 0;
-    } else {
-        strftime(datebuf, sizeof datebuf, "%b %e %T", tm);
-    }
     va_start(ap, fmt);
     vsnprintf (infobuf, sizeof infobuf, fmt, ap);
     va_end(ap);
 
-    return processLogLine(LOG_SYSLOG, datebuf, "metalog", infobuf);
+    return processLogLine(LOG_SYSLOG, "metalog", infobuf);
 }
 
 static void sanitize(char * const line_)
@@ -1051,15 +1051,14 @@ static void sanitize(char * const line_)
 static int log_line( LogLineType loglinetype, char *buf)
 {
   int logcode;
-  char *date;
   const char *prg;
   char *info;
 
   sanitize( buf);
-  if (parseLogLine( loglinetype, buf, &logcode, &date, &prg, &info) < 0) {
+  if (parseLogLine( loglinetype, buf, &logcode, &prg, &info) < 0) {
     return -1;
   }
-  return processLogLine(logcode, date, prg, info);
+  return processLogLine(logcode, prg, info);
 }
 
 static int log_udp( char *buf, int bsize)
@@ -1481,11 +1480,11 @@ int main(int argc, char *argv[])
     int sockets[2];
 
     parseOptions(argc, argv);
-    checkRoot();
     if (configParser(config_file) < 0) {
         fprintf(stderr, "Bad configuration file - aborting\n");
         return -1;
     }
+    checkRoot();
     dodaemonize();
     setsignals();
     if (update_pid_file(pid_file))

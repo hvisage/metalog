@@ -4,6 +4,9 @@
  - convert source tree to use gnulib rather than random local replacements
  - fix by Amigac to not skip the "command" line when "logdir" and "break" are
    both in use (#2401520)
+ - add "stamp_fmt" keyword to control the timestamp format in messages (based
+   partially on work from cJ #1910360 and Philip White #1690349, and for
+   #1232638)
 
 * Version 0.8
  - tweak signal handlers some more (#1655169)

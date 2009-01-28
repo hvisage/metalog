@@ -56,7 +56,7 @@ AC_DEFUN([gl_INIT],
   fi
   gl_SYS_SOCKET_MODULE_INDICATOR([connect])
   gl_DIRENT_H
-  gl_HEADER_ERRNO_H
+  AC_REQUIRE([gl_HEADER_ERRNO_H])
   gl_FCNTL_H
   gl_FLOAT_H
   gl_FUNC_FREXP_NO_LIBM
@@ -77,7 +77,7 @@ AC_DEFUN([gl_INIT],
   gl_FUNC_MEMCPY
   gl_FUNC_MEMMOVE
   gl_FUNC_MEMSET
-  gl_MULTIARCH
+  AC_REQUIRE([gl_MULTIARCH])
   gl_PATHMAX
   gl_FUNC_POLL
   gl_FUNC_PRINTF_FREXP
@@ -347,6 +347,7 @@ AC_DEFUN([gl_FILE_LIST], [
   lib/w32sock.h
   lib/wchar.in.h
   lib/xsize.h
+  m4/00gnulib.m4
   m4/alloca.m4
   m4/dirent_h.m4
   m4/errno_h.m4

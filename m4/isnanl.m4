@@ -1,5 +1,5 @@
-# isnanl.m4 serial 9
-dnl Copyright (C) 2007-2008 Free Software Foundation, Inc.
+# isnanl.m4 serial 11
+dnl Copyright (C) 2007-2009 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -47,7 +47,7 @@ AC_DEFUN([gl_FUNC_ISNANL_NO_LIBM],
     esac
   fi
   if test $gl_func_isnanl_no_libm = yes; then
-    AC_DEFINE([HAVE_ISNANL_IN_LIBC], 1,
+    AC_DEFINE([HAVE_ISNANL_IN_LIBC], [1],
       [Define if the isnan(long double) function is available in libc.])
   else
     gl_BUILD_ISNANL
@@ -114,7 +114,7 @@ dnl - for pseudo-zeroes, unnormalized numbers, and pseudo-denormals on ia64.
 AC_DEFUN([gl_FUNC_ISNANL_WORKS],
 [
   AC_REQUIRE([AC_PROG_CC])
-  AC_REQUIRE([AC_C_BIGENDIAN])
+  AC_REQUIRE([gl_BIGENDIAN])
   AC_REQUIRE([AC_CANONICAL_HOST]) dnl for cross-compiles
   AC_CACHE_CHECK([whether isnanl works], [gl_cv_func_isnanl_works],
     [

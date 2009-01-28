@@ -1,5 +1,5 @@
-# gnulib-common.m4 serial 6
-dnl Copyright (C) 2007-2008 Free Software Foundation, Inc.
+# gnulib-common.m4 serial 9
+dnl Copyright (C) 2007-2009 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -8,6 +8,7 @@ dnl with or without modifications, as long as this notice is preserved.
 # is expanded unconditionally through gnulib-tool magic.
 AC_DEFUN([gl_COMMON], [
   dnl Use AC_REQUIRE here, so that the code is expanded once only.
+  AC_REQUIRE([gl_00GNULIB])
   AC_REQUIRE([gl_COMMON_BODY])
 ])
 AC_DEFUN([gl_COMMON_BODY], [
@@ -63,7 +64,7 @@ m4_ifdef([AC_PROG_MKDIR_P], [], [
 # works.
 # This definition can be removed once autoconf >= 2.62 can be assumed.
 AC_DEFUN([AC_C_RESTRICT],
-[AC_CACHE_CHECK([for C/C++ restrict keyword], ac_cv_c_restrict,
+[AC_CACHE_CHECK([for C/C++ restrict keyword], [ac_cv_c_restrict],
   [ac_cv_c_restrict=no
    # The order here caters to the fact that C++ does not require restrict.
    for ac_kw in __restrict __restrict__ _Restrict restrict; do
@@ -98,4 +99,13 @@ AC_DEFUN([AC_C_RESTRICT],
    no) AC_DEFINE([restrict], []) ;;
    *)  AC_DEFINE_UNQUOTED([restrict], [$ac_cv_c_restrict]) ;;
  esac
+])
+
+# gl_BIGENDIAN
+# is like AC_C_BIGENDIAN, except that it can be AC_REQUIREd.
+# Note that AC_REQUIRE([AC_C_BIGENDIAN]) does not work reliably because some
+# macros invoke AC_C_BIGENDIAN with arguments.
+AC_DEFUN([gl_BIGENDIAN],
+[
+  AC_C_BIGENDIAN
 ])

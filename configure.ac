@@ -1,5 +1,5 @@
 AC_PREREQ(2.61)
-AC_INIT([metalog], [0.9], [metalog-users@lists.sourceforge.net])
+AC_INIT([metalog], [1], [metalog-users@lists.sourceforge.net])
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR(src/metalog.c)
 AM_CONFIG_HEADER(config.h)

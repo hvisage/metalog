@@ -1230,6 +1230,16 @@ static int update_pid_file(const char * const pid_file)
 
 static void exit_hook(void)
 {
+    /* Flush all buffers if need be */
+    if (!synchronous) {
+        synchronous = (sig_atomic_t) 1;
+        ConfigBlock *block = config_blocks;
+        while (block) {
+            if (block->output && block->output->fp)
+                fflush_unlocked(block->output->fp);
+            block = block->next_block;
+        }
+    }
     if (child > (pid_t) 0) {
         kill(child, SIGTERM);
     }

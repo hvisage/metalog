@@ -7,6 +7,8 @@
  - add "stamp_fmt" keyword to control the timestamp format in messages (based
    partially on work from cJ #1910360 and Philip White #1690349, and for
    #1232638)
+ - make sure to flush all buffers on exit in buffered mode as pointed out by
+   Ingo Bormuth (Gentoo Bug #233794)
 
 * Version 0.8
  - tweak signal handlers some more (#1655169)

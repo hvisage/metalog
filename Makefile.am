@@ -14,3 +14,6 @@ SUBDIRS = \
 AUTOMAKE_OPTIONS = dist-lzma no-dist-gzip
 
 ACLOCAL_AMFLAGS = -I m4
+
+sf_upload:
+	rsync -v --progress $(PACKAGE)-$(VERSION).tar.lzma frs.sourceforge.net:uploads/

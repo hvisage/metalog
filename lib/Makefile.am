@@ -27,6 +27,7 @@ DISTCLEANFILES =
 MAINTAINERCLEANFILES =
 
 AM_CPPFLAGS =
+AM_CFLAGS =
 
 noinst_LIBRARIES += libgnu.a
 
@@ -495,6 +496,15 @@ EXTRA_libgnu_a_SOURCES += putenv.c
 
 ## end   gnulib module putenv
 
+## begin gnulib module select
+
+
+EXTRA_DIST += select.c
+
+EXTRA_libgnu_a_SOURCES += select.c
+
+## end   gnulib module select
+
 ## begin gnulib module signal
 
 BUILT_SOURCES += signal.h
@@ -918,6 +928,7 @@ sys/select.h: sys_select.in.h
 	      -e 's|@''HAVE_SYS_SELECT_H''@|$(HAVE_SYS_SELECT_H)|g' \
 	      -e 's|@''GNULIB_SELECT''@|$(GNULIB_SELECT)|g' \
 	      -e 's|@''HAVE_WINSOCK2_H''@|$(HAVE_WINSOCK2_H)|g' \
+	      -e 's|@''REPLACE_SELECT''@|$(REPLACE_SELECT)|g' \
 	      -e '/definition of GL_LINK_WARNING/r $(LINK_WARNING_H)' \
 	      < $(srcdir)/sys_select.in.h; \
 	} > $@-t

@@ -72,8 +72,8 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/00gnulib.m4 \
 	$(top_srcdir)/m4/printf-frexpl.m4 \
 	$(top_srcdir)/m4/printf-posix-rpl.m4 \
 	$(top_srcdir)/m4/printf.m4 $(top_srcdir)/m4/putenv.m4 \
-	$(top_srcdir)/m4/signal_h.m4 $(top_srcdir)/m4/signbit.m4 \
-	$(top_srcdir)/m4/size_max.m4 \
+	$(top_srcdir)/m4/select.m4 $(top_srcdir)/m4/signal_h.m4 \
+	$(top_srcdir)/m4/signbit.m4 $(top_srcdir)/m4/size_max.m4 \
 	$(top_srcdir)/m4/snprintf-posix.m4 \
 	$(top_srcdir)/m4/snprintf.m4 $(top_srcdir)/m4/socklen.m4 \
 	$(top_srcdir)/m4/stdarg.m4 $(top_srcdir)/m4/stdbool.m4 \
@@ -560,6 +560,7 @@ REPLACE_PUTENV = @REPLACE_PUTENV@
 REPLACE_ROUND = @REPLACE_ROUND@
 REPLACE_ROUNDF = @REPLACE_ROUNDF@
 REPLACE_ROUNDL = @REPLACE_ROUNDL@
+REPLACE_SELECT = @REPLACE_SELECT@
 REPLACE_SIGNBIT = @REPLACE_SIGNBIT@
 REPLACE_SIGNBIT_USING_GCC = @REPLACE_SIGNBIT_USING_GCC@
 REPLACE_SNPRINTF = @REPLACE_SNPRINTF@
@@ -676,14 +677,14 @@ EXTRA_DIST = alloca.c alloca.in.h connect.c w32sock.h dirent.in.h \
 	$(top_srcdir)/./link-warning.h malloc.c math.in.h memcmp.c \
 	memcpy.c memmove.c memset.c pathmax.h poll.c poll.in.h \
 	printf-frexp.h printf-frexp.c printf-frexpl.h printf.c \
-	putenv.c signal.in.h float+.h signbitd.c signbitf.c signbitl.c \
-	snprintf.c socket.c w32sock.h stdarg.in.h stdbool.in.h \
-	stdint.in.h stdio-write.c stdio.in.h stdlib.in.h strdup.c \
-	string.in.h strtol.c strtoul.c strtoull.c sys_select.in.h \
-	sys_socket.in.h sys_stat.in.h sys_time.in.h sys_wait.in.h \
-	time.in.h unistd.in.h asnprintf.c float+.h printf-args.c \
-	printf-args.h printf-parse.c printf-parse.h vasnprintf.c \
-	vasnprintf.h vfprintf.c vsnprintf.c wchar.in.h
+	putenv.c select.c signal.in.h float+.h signbitd.c signbitf.c \
+	signbitl.c snprintf.c socket.c w32sock.h stdarg.in.h \
+	stdbool.in.h stdint.in.h stdio-write.c stdio.in.h stdlib.in.h \
+	strdup.c string.in.h strtol.c strtoul.c strtoull.c \
+	sys_select.in.h sys_socket.in.h sys_stat.in.h sys_time.in.h \
+	sys_wait.in.h time.in.h unistd.in.h asnprintf.c float+.h \
+	printf-args.c printf-args.h printf-parse.c printf-parse.h \
+	vasnprintf.c vasnprintf.h vfprintf.c vsnprintf.c wchar.in.h
 BUILT_SOURCES = $(ALLOCA_H) $(DIRENT_H) $(ERRNO_H) $(FCNTL_H) \
 	$(FLOAT_H) $(GETOPT_H) $(INTTYPES_H) math.h $(POLL_H) signal.h \
 	$(STDARG_H) $(STDBOOL_H) $(STDINT_H) stdio.h stdlib.h string.h \
@@ -704,6 +705,7 @@ CLEANFILES =
 DISTCLEANFILES = 
 MAINTAINERCLEANFILES = 
 AM_CPPFLAGS = 
+AM_CFLAGS = 
 libgnu_a_SOURCES = c-ctype.h c-ctype.c fseterr.c gettext.h \
 	printf-frexp.c printf-frexpl.c size_max.h xsize.h
 libgnu_a_LIBADD = $(gl_LIBOBJS) @ALLOCA@
@@ -711,10 +713,11 @@ libgnu_a_DEPENDENCIES = $(gl_LIBOBJS) @ALLOCA@
 EXTRA_libgnu_a_SOURCES = alloca.c connect.c frexp.c frexp.c frexpl.c \
 	getopt.c getopt1.c isnan.c isnand.c isnan.c isnanf.c isnan.c \
 	isnanl.c malloc.c memcmp.c memcpy.c memmove.c memset.c poll.c \
-	printf-frexp.c printf.c putenv.c signbitd.c signbitf.c \
-	signbitl.c snprintf.c socket.c stdio-write.c strdup.c strtol.c \
-	strtoul.c strtoull.c asnprintf.c printf-args.c printf-parse.c \
-	vasnprintf.c vfprintf.c vsnprintf.c
+	printf-frexp.c printf.c putenv.c select.c signbitd.c \
+	signbitf.c signbitl.c snprintf.c socket.c stdio-write.c \
+	strdup.c strtol.c strtoul.c strtoull.c asnprintf.c \
+	printf-args.c printf-parse.c vasnprintf.c vfprintf.c \
+	vsnprintf.c
 LINK_WARNING_H = $(top_srcdir)/./link-warning.h
 all: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
@@ -799,6 +802,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/printf-parse.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/printf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/putenv.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/select.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/signbitd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/signbitf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/signbitl.Po@am__quote@
@@ -1586,6 +1590,7 @@ sys/select.h: sys_select.in.h
 	      -e 's|@''HAVE_SYS_SELECT_H''@|$(HAVE_SYS_SELECT_H)|g' \
 	      -e 's|@''GNULIB_SELECT''@|$(GNULIB_SELECT)|g' \
 	      -e 's|@''HAVE_WINSOCK2_H''@|$(HAVE_WINSOCK2_H)|g' \
+	      -e 's|@''REPLACE_SELECT''@|$(REPLACE_SELECT)|g' \
 	      -e '/definition of GL_LINK_WARNING/r $(LINK_WARNING_H)' \
 	      < $(srcdir)/sys_select.in.h; \
 	} > $@-t

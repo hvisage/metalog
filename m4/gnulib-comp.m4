@@ -87,6 +87,8 @@ AC_DEFUN([gl_INIT],
   m4_divert_text([INIT_PREPARE], [gl_printf_safe=yes])
   gl_FUNC_PUTENV
   gl_STDLIB_MODULE_INDICATOR([putenv])
+  gl_FUNC_SELECT
+  gl_SYS_SELECT_MODULE_INDICATOR([select])
   gl_SIGNAL_H
   gl_SIGNBIT
   gl_MATH_MODULE_INDICATOR([signbit])
@@ -314,6 +316,7 @@ AC_DEFUN([gl_FILE_LIST], [
   lib/printf-parse.h
   lib/printf.c
   lib/putenv.c
+  lib/select.c
   lib/signal.in.h
   lib/signbitd.c
   lib/signbitf.c
@@ -387,6 +390,7 @@ AC_DEFUN([gl_FILE_LIST], [
   m4/printf-posix-rpl.m4
   m4/printf.m4
   m4/putenv.m4
+  m4/select.m4
   m4/signal_h.m4
   m4/signbit.m4
   m4/size_max.m4

@@ -71,6 +71,10 @@ typedef struct DuplicateTracker_ {
     unsigned int same_counter;
 } DuplicateTracker;
 
+typedef enum FlushMode_ {
+    FLUSH_DEFAULT, FLUSH_ALWAYS, FLUSH_NEVER
+} FlushMode;
+
 typedef struct Output_ {
     char *directory;
     FILE *fp;
@@ -84,6 +88,7 @@ typedef struct Output_ {
     char *postrotate_cmd;
     int showrepeats;
     const char *stamp_fmt;
+    FlushMode flush;
 } Output;
 
 typedef enum RegexSign_ {
@@ -121,6 +126,7 @@ typedef struct ConfigBlock_ {
     char *postrotate_cmd;
     int showrepeats;
     const char *stamp_fmt;
+    FlushMode flush;
 } ConfigBlock;
 
 typedef enum LogLineType_ {

@@ -115,6 +115,12 @@ log messages. This format string is passed literally to the
 .BR strftime (3)
 function. An empty string is used to disable timestamping (for cases where the
 logger already does its own timestamping).
+.TP
+.B flush
+flush = <value>. If set to 0, matching log messages will always be
+buffered. If set to 1, they will always be written to the file system
+immediately. Both settings override the global default given through
+command line parameters (\fB\-a\fR/\fB\-s\fR) or signals.
 .SH "FILES"
 .LP
 Note that the exact paths depend on the build settings.  These are the standard paths.

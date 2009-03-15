@@ -224,6 +224,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             new_output->maxtime = (*cur_block)->maxtime;
             new_output->showrepeats = (*cur_block)->showrepeats;
             new_output->stamp_fmt = (*cur_block)->stamp_fmt;
+            new_output->flush = (*cur_block)->flush;
             new_output->dt.previous_prg = NULL;
             new_output->dt.previous_info = NULL;
             new_output->dt.sizeof_previous_prg = (size_t) 0U;
@@ -268,6 +269,13 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->stamp_fmt = (*cur_block)->stamp_fmt;
             }
+        } else if (strcasecmp(keyword, "flush") == 0) {
+            if (atoi(value))
+                (*cur_block)->flush = FLUSH_ALWAYS;
+            else
+                (*cur_block)->flush = FLUSH_NEVER;
+            if ((*cur_block)->output != NULL)
+                (*cur_block)->output->flush = (*cur_block)->flush;
         } else {
             fprintf(stderr, "Unknown keyword '%s'!\nline: %s\n", keyword, line);
             exit(15);
@@ -307,6 +315,7 @@ static int configParser(const char * const file)
             NULL,                      /* postrotate_cmd */
             0,                         /* showrepeats */
             DEFAULT_STAMP_FMT,         /* stamp_fmt */
+            FLUSH_DEFAULT,             /* flush */
     };
     ConfigBlock *cur_block = &default_block;
 
@@ -893,10 +902,21 @@ static int writeLogLine(Output * const output, const char * const date,
     output->size += (off_t) strlen(date);
     output->size += (off_t) (sizeof_prg + sizeof_info);
     output->size += (off_t) 5;
-    if (synchronous != (sig_atomic_t) 0) {
+    if (output->flush == FLUSH_ALWAYS ||
+        (output->flush == FLUSH_DEFAULT && synchronous != (sig_atomic_t) 0)) {
         fflush(output->fp);
     }
     return 0;
+}
+
+static void flushAll(void)
+{
+    ConfigBlock *block = config_blocks;
+    while (block) {
+        if (block->output && block->output->fp)
+            fflush_unlocked(block->output->fp);
+        block = block->next_block;
+    }
 }
 
 static int processLogLine(const int logcode,
@@ -1230,16 +1250,9 @@ static int update_pid_file(const char * const pid_file)
 
 static void exit_hook(void)
 {
-    /* Flush all buffers if need be */
-    if (!synchronous) {
-        synchronous = (sig_atomic_t) 1;
-        ConfigBlock *block = config_blocks;
-        while (block) {
-            if (block->output && block->output->fp)
-                fflush_unlocked(block->output->fp);
-            block = block->next_block;
-        }
-    }
+    /* Flush all buffers just to be sure */
+    synchronous = (sig_atomic_t) 1;
+    flushAll();
     if (child > (pid_t) 0) {
         kill(child, SIGTERM);
     }
@@ -1333,6 +1346,7 @@ static RETSIGTYPE sigusr1(int sig)
 
     synchronous = (sig_atomic_t) 1;
     signal_doLog_queue("Got SIGUSR1 - enabling synchronous mode.", 0, 0);
+    flushAll();
 }
 
 static RETSIGTYPE sigusr2(int sig)

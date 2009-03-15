@@ -21,6 +21,7 @@ performance.
 .TP
 .BR \-a ", " \-\-async
 Improve performance by using buffers (bug log files won't get updated in real time).
+Can be overridden for individual logs.
 .TP
 .BR \-B ", " \-\-daemonize
 have the server start in background (daemonization).
@@ -42,12 +43,21 @@ Use an alternate file to store the process number.
 .TP
 .BR \-s ", " \-\-sync ", " \-\-synchronous
 Start in synchronous mode, with no bufferization.
+Can be overridden for individual logs.
 .TP
 .BR \-v ", " \-\-verbose
 Run in verbose mode (useful for debugging behavior).
 .TP
 .BR \-V ", " \-\-version
 Display metalog version information.
+.SH "SIGNALS"
+.TP
+.B SIGUSR1
+Enable synchronous mode.
+.TP
+.B SIGUSR2
+Disable synchronous mode.
+.fi
 .SH "FILES"
 .LP
 Note that the exact paths depend on the build settings.  These are the standard paths.

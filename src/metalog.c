@@ -1356,6 +1356,7 @@ static void setsignals(void)
     signal(SIGUSR2, sigusr2);
 }
 
+#ifndef HAVE_DAEMON
 static int closedesc_all(const int closestdin)
 {
     int fodder;
@@ -1381,12 +1382,13 @@ static int closedesc_all(const int closestdin)
 
     return 0;
 }
+#endif
 
 static void dodaemonize(void)
 {
-    pid_t child;
-
     if (daemonize != 0) {
+#ifndef HAVE_DAEMON
+        pid_t child;
         if ((child = fork()) == (pid_t) -1) {
             perror("Daemonization failed - fork");
             return;
@@ -1397,6 +1399,12 @@ static void dodaemonize(void)
         }
         (void) chdir("/");
         (void) closedesc_all(1);
+#else
+        if (daemon(0, 0)) {
+            perror("Daemonization failed");
+            exit(EXIT_FAILURE);
+        }
+#endif
     }
 }
 

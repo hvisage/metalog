@@ -69,8 +69,12 @@ AC_FUNC_STAT
 AC_FUNC_VPRINTF
 AC_FUNC_GETGROUPS
 
-AC_CHECK_FUNCS(setproctitle setprogname)
-AC_CHECK_FUNCS(klogctl)
+AC_CHECK_FUNCS_ONCE([ \
+	daemon \
+	klogctl \
+	setproctitle \
+	setprogname \
+])
 
 dnl PCRE
 

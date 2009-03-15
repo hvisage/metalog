@@ -91,6 +91,12 @@ AC_ARG_WITH(debug,
     CFLAGS="$CFLAGS -DDEBUG=1 -g -Wall -W -Wcast-qual -Wcast-align -Wmissing-noreturn -Wbad-function-cast -Wstrict-prototypes -Wwrite-strings -Wreturn-type "
   fi ])
 
+AC_ARG_WITH(unicode,
+[AC_HELP_STRING([--with-unicode],[Enable unicode support (default no)])],
+[ if test "x$withval" = "xyes" ; then
+    AC_DEFINE([ACCEPT_UNICODE_CONTROL_CHARS],[1],[Don't scramble unicode])
+  fi ])
+
 AC_CONFIG_FILES([ \
 	Makefile \
 	lib/Makefile \

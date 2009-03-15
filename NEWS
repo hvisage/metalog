@@ -1,3 +1,10 @@
+* Version 1
+ - switch over to using daemon() by default
+ - fix stupid semicolon typo causing breaks on all lines (Gentoo Bug #258830)
+ - add "flush" keyword to control flushing per log output (by Martin von
+   Gagern #2549231)
+ - add --with-unicode option to control unicode mangling #2669923
+
 * Version 0.9
  - add --no-kernel option by Adrian Perez de Castro to disable kernel message
    monitoring (#1727129 and #1751757)

@@ -1013,7 +1013,7 @@ static int processLogLine(const int logcode,
             if (block->brk)
                 do_break = true;
         }
-        if (do_break);
+        if (do_break)
             break;
 
         nextblock:

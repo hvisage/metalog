@@ -1,3 +1,7 @@
+* Version 2
+ - fix long standing typo where the minute field in the rotated log was
+   replaced with the current month: %m instead of %M (by dorian33 #3027782)
+
 * Version 1
  - switch over to using daemon() by default
  - fix stupid semicolon typo causing breaks on all lines (Gentoo Bug #258830)

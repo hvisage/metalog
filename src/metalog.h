@@ -146,7 +146,8 @@ typedef enum LogLineType_ {
 #define OUTPUT_DIR_TIMESTAMP ".timestamp"
 #define OUTPUT_DIR_CURRENT "current"
 #define OUTPUT_DIR_PERMS 0700
-#define OUTPUT_DIR_LOGFILES_PREFIX "log-"   /* log-YYYY-MM-DD-HH:MM:SS */
+#define OUTPUT_DIR_LOGFILES_PREFIX "log-"
+#define OUTPUT_DIR_LOGFILES_SUFFIX "%Y-%m-%d-%H:%M:%S"
 #define DEFAULT_CONFIG_FILE CONFDIR "/metalog.conf"
 #define DEFAULT_PID_FILE "/var/run/metalog.pid"
 #define NONPRINTABLE_SUSTITUTE_CHAR '_'

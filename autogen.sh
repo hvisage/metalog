@@ -8,12 +8,8 @@ gnulib-tool --import \
 	dirent \
 	errno \
 	fcntl \
-	getopt \
+	getopt-gnu \
 	inttypes \
-	memcmp \
-	memcpy \
-	memmove \
-	memset \
 	pathmax \
 	poll \
 	printf-posix \
@@ -35,5 +31,6 @@ gnulib-tool --import \
 	unistd \
 	vfprintf-posix \
 	vsnprintf-posix
+rm -f m4/*~ lib/*~
 
 autoreconf -i -f

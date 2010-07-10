@@ -1,5 +1,5 @@
 # putenv.m4 serial 16
-dnl Copyright (C) 2002-2009 Free Software Foundation, Inc.
+dnl Copyright (C) 2002-2010 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -28,11 +28,11 @@ AC_DEFUN([gl_FUNC_PUTENV],
       return 1;
 
     return 0;
-	      ]])],
-	     gl_cv_func_svid_putenv=yes,
-	     gl_cv_func_svid_putenv=no,
-	     dnl When crosscompiling, assume putenv is broken.
-	     gl_cv_func_svid_putenv=no)
+              ]])],
+             gl_cv_func_svid_putenv=yes,
+             gl_cv_func_svid_putenv=no,
+             dnl When crosscompiling, assume putenv is broken.
+             gl_cv_func_svid_putenv=no)
    ])
   if test $gl_cv_func_svid_putenv = no; then
     REPLACE_PUTENV=1

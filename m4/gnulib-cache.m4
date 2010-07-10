@@ -1,4 +1,4 @@
-# Copyright (C) 2002-2009 Free Software Foundation, Inc.
+# Copyright (C) 2002-2010 Free Software Foundation, Inc.
 #
 # This file is free software, distributed under the terms of the GNU
 # General Public License.  As a special exception to the GNU General
@@ -15,7 +15,7 @@
 
 
 # Specification in the form of a command-line invocation:
-#   gnulib-tool --import --dir=. --lib=libgnu --source-base=lib --m4-base=m4 --doc-base=doc --tests-base=tests --aux-dir=. --no-libtool --macro-prefix=gl alloca c-ctype connect dirent errno fcntl getopt inttypes memcmp memcpy memmove memset pathmax poll printf-posix putenv signal snprintf-posix socket socklen stdarg stdbool stdint strdup-posix string strtoull sys_stat sys_time sys_wait time unistd vfprintf-posix vsnprintf-posix
+#   gnulib-tool --import --dir=. --lib=libgnu --source-base=lib --m4-base=m4 --doc-base=doc --tests-base=tests --aux-dir=. --no-libtool --macro-prefix=gl alloca c-ctype connect dirent errno fcntl getopt-gnu inttypes pathmax poll printf-posix putenv signal snprintf-posix socket socklen stdarg stdbool stdint strdup-posix string strtoull sys_stat sys_time sys_wait time unistd vfprintf-posix vsnprintf-posix
 
 # Specification in the form of a few gnulib-tool.m4 macro invocations:
 gl_LOCAL_DIR([])
@@ -26,12 +26,8 @@ gl_MODULES([
   dirent
   errno
   fcntl
-  getopt
+  getopt-gnu
   inttypes
-  memcmp
-  memcpy
-  memmove
-  memset
   pathmax
   poll
   printf-posix

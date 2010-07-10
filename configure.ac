@@ -1,6 +1,7 @@
 AC_PREREQ(2.61)
 AC_INIT([metalog], [2], [metalog-users@lists.sourceforge.net])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([1.11 dist-xz no-dist-gzip silent-rules -Wall])
+AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR(src/metalog.c)
 AM_CONFIG_HEADER(config.h)
 

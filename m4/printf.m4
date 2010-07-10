@@ -1,5 +1,5 @@
-# printf.m4 serial 33
-dnl Copyright (C) 2003, 2007-2009 Free Software Foundation, Inc.
+# printf.m4 serial 34
+dnl Copyright (C) 2003, 2007-2010 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -1101,7 +1101,7 @@ dnl     }
 dnl     ---------------------------------------------------------------------
 dnl Result is gl_cv_func_snprintf_retval_c99.
 
-AC_DEFUN([gl_SNPRINTF_RETVAL_C99],
+AC_DEFUN_ONCE([gl_SNPRINTF_RETVAL_C99],
 [
   AC_REQUIRE([AC_PROG_CC])
   AC_REQUIRE([AC_CANONICAL_HOST]) dnl for cross-compiles

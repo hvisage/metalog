@@ -1,7 +1,7 @@
 /* Emulation for select(2)
    Contributed by Paolo Bonzini.
 
-   Copyright 2008-2009 Free Software Foundation, Inc.
+   Copyright 2008-2010 Free Software Foundation, Inc.
 
    This file is part of gnulib.
 
@@ -21,6 +21,7 @@
 
 #include <config.h>
 #include <alloca.h>
+#include <assert.h>
 
 #if (defined _WIN32 || defined __WIN32__) && ! defined __CYGWIN__
 /* Native Win32.  */
@@ -70,17 +71,34 @@ typedef enum _FILE_INFORMATION_CLASS {
 } FILE_INFORMATION_CLASS, *PFILE_INFORMATION_CLASS;
 
 typedef DWORD (WINAPI *PNtQueryInformationFile)
-	 (HANDLE, IO_STATUS_BLOCK *, VOID *, ULONG, FILE_INFORMATION_CLASS);
+         (HANDLE, IO_STATUS_BLOCK *, VOID *, ULONG, FILE_INFORMATION_CLASS);
 
 #ifndef PIPE_BUF
-#define PIPE_BUF	512
+#define PIPE_BUF        512
 #endif
+
+#define IsConsoleHandle(h) (((long) (h) & 3) == 3)
+
+static BOOL
+IsSocketHandle (HANDLE h)
+{
+  WSANETWORKEVENTS ev;
+
+  if (IsConsoleHandle (h))
+    return FALSE;
+
+  /* Under Wine, it seems that getsockopt returns 0 for pipes too.
+     WSAEnumNetworkEvents instead distinguishes the two correctly.  */
+  ev.lNetworkEvents = 0xDEADBEEF;
+  WSAEnumNetworkEvents ((SOCKET) h, NULL, &ev);
+  return ev.lNetworkEvents != 0xDEADBEEF;
+}
 
 /* Compute output fd_sets for libc descriptor FD (whose Win32 handle is H).  */
 
 static int
 win32_poll_handle (HANDLE h, int fd, struct bitset *rbits, struct bitset *wbits,
-		   struct bitset *xbits)
+                   struct bitset *xbits)
 {
   BOOL read, write, except;
   int i, ret;
@@ -102,60 +120,78 @@ win32_poll_handle (HANDLE h, int fd, struct bitset *rbits, struct bitset *wbits,
 
     case FILE_TYPE_PIPE:
       if (!once_only)
-	{
-	  NtQueryInformationFile = (PNtQueryInformationFile)
-	    GetProcAddress (GetModuleHandle ("ntdll.dll"),
-			    "NtQueryInformationFile");
-	  once_only = TRUE;
-	}
+        {
+          NtQueryInformationFile = (PNtQueryInformationFile)
+            GetProcAddress (GetModuleHandle ("ntdll.dll"),
+                            "NtQueryInformationFile");
+          once_only = TRUE;
+        }
 
       if (PeekNamedPipe (h, NULL, 0, NULL, &avail, NULL) != 0)
-	{
-	  if (avail)
-	    read = TRUE;
-	}
+        {
+          if (avail)
+            read = TRUE;
+        }
 
       else
-	{
-	  /* It was the write-end of the pipe.  Check if it is writable.
-	     If NtQueryInformationFile fails, optimistically assume the pipe is
-	     writable.  This could happen on Win9x, where NtQueryInformationFile
-	     is not available, or if we inherit a pipe that doesn't permit
-	     FILE_READ_ATTRIBUTES access on the write end (I think this should
-	     not happen since WinXP SP2; WINE seems fine too).  Otherwise,
-	     ensure that enough space is available for atomic writes.  */
+        {
+          /* It was the write-end of the pipe.  Check if it is writable.
+             If NtQueryInformationFile fails, optimistically assume the pipe is
+             writable.  This could happen on Win9x, where NtQueryInformationFile
+             is not available, or if we inherit a pipe that doesn't permit
+             FILE_READ_ATTRIBUTES access on the write end (I think this should
+             not happen since WinXP SP2; WINE seems fine too).  Otherwise,
+             ensure that enough space is available for atomic writes.  */
           memset (&iosb, 0, sizeof (iosb));
           memset (&fpli, 0, sizeof (fpli));
 
           if (!NtQueryInformationFile
               || NtQueryInformationFile (h, &iosb, &fpli, sizeof (fpli),
-				         FilePipeLocalInformation)
-	      || fpli.WriteQuotaAvailable >= PIPE_BUF
-	      || (fpli.OutboundQuota < PIPE_BUF &&
-	          fpli.WriteQuotaAvailable == fpli.OutboundQuota))
-	    write = TRUE;
-	}
+                                         FilePipeLocalInformation)
+              || fpli.WriteQuotaAvailable >= PIPE_BUF
+              || (fpli.OutboundQuota < PIPE_BUF &&
+                  fpli.WriteQuotaAvailable == fpli.OutboundQuota))
+            write = TRUE;
+        }
       break;
 
     case FILE_TYPE_CHAR:
-      ret = WaitForSingleObject (h, 0);
       write = TRUE;
+      if (!(rbits->in[fd / CHAR_BIT] & (1 << (fd & (CHAR_BIT - 1)))))
+        break;
+
+      ret = WaitForSingleObject (h, 0);
       if (ret == WAIT_OBJECT_0)
         {
-	  nbuffer = avail = 0;
-	  bRet = GetNumberOfConsoleInputEvents (h, &nbuffer);
-	  if (!bRet || nbuffer == 0)
-	    except = TRUE;
+          if (!IsConsoleHandle (h))
+            {
+              read = TRUE;
+              break;
+            }
 
-	  irbuffer = (INPUT_RECORD *) alloca (nbuffer * sizeof (INPUT_RECORD));
-	  bRet = PeekConsoleInput (h, irbuffer, nbuffer, &avail);
-	  if (!bRet || avail == 0)
-	    except = TRUE;
+          nbuffer = avail = 0;
+          bRet = GetNumberOfConsoleInputEvents (h, &nbuffer);
 
-	  for (i = 0; i < avail; i++)
-	    if (irbuffer[i].EventType == KEY_EVENT)
-	      read = TRUE;
-	}
+          /* Screen buffers handles are filtered earlier.  */
+          assert (bRet);
+          if (nbuffer == 0)
+            {
+              except = TRUE;
+              break;
+            }
+
+          irbuffer = (INPUT_RECORD *) alloca (nbuffer * sizeof (INPUT_RECORD));
+          bRet = PeekConsoleInput (h, irbuffer, nbuffer, &avail);
+          if (!bRet || avail == 0)
+            {
+              except = TRUE;
+              break;
+            }
+
+          for (i = 0; i < avail; i++)
+            if (irbuffer[i].EventType == KEY_EVENT)
+              read = TRUE;
+        }
       break;
 
     default:
@@ -199,7 +235,7 @@ rpl_select (int nfds, fd_set *rfds, fd_set *wfds, fd_set *xfds,
   fd_set handle_rfds, handle_wfds, handle_xfds;
   struct bitset rbits, wbits, xbits;
   unsigned char anyfds_in[FD_SETSIZE / CHAR_BIT];
-  DWORD ret, wait_timeout, nhandles, nsock;
+  DWORD ret, wait_timeout, nhandles, nsock, nbuffer;
   MSG msg;
   int i, fd, rc;
 
@@ -210,7 +246,7 @@ rpl_select (int nfds, fd_set *rfds, fd_set *wfds, fd_set *xfds,
     wait_timeout = INFINITE;
   else
     {
-      wait_timeout = timeout->tv_sec + timeout->tv_usec / 1000;
+      wait_timeout = timeout->tv_sec * 1000 + timeout->tv_usec / 1000;
 
       /* select is also used as a portable usleep.  */
       if (!rfds && !wfds && !xfds)
@@ -227,7 +263,10 @@ rpl_select (int nfds, fd_set *rfds, fd_set *wfds, fd_set *xfds,
   nhandles = 1;
   nsock = 0;
 
-  /* Copy descriptors to bitsets.  */
+  /* Copy descriptors to bitsets.  At the same time, eliminate
+     bits in the "wrong" direction for console input buffers
+     and screen buffers, because screen buffers are waitable
+     and they will block until a character is available.  */
   memset (&rbits, 0, sizeof (rbits));
   memset (&wbits, 0, sizeof (wbits));
   memset (&xbits, 0, sizeof (xbits));
@@ -236,6 +275,11 @@ rpl_select (int nfds, fd_set *rfds, fd_set *wfds, fd_set *xfds,
     for (i = 0; i < rfds->fd_count; i++)
       {
         fd = rfds->fd_array[i];
+        h = (HANDLE) _get_osfhandle (fd);
+        if (IsConsoleHandle (h)
+            && !GetNumberOfConsoleInputEvents (h, &nbuffer))
+          continue;
+
         rbits.in[fd / CHAR_BIT] |= 1 << (fd & (CHAR_BIT - 1));
         anyfds_in[fd / CHAR_BIT] |= 1 << (fd & (CHAR_BIT - 1));
       }
@@ -246,6 +290,11 @@ rpl_select (int nfds, fd_set *rfds, fd_set *wfds, fd_set *xfds,
     for (i = 0; i < wfds->fd_count; i++)
       {
         fd = wfds->fd_array[i];
+        h = (HANDLE) _get_osfhandle (fd);
+        if (IsConsoleHandle (h)
+            && GetNumberOfConsoleInputEvents (h, &nbuffer))
+          continue;
+
         wbits.in[fd / CHAR_BIT] |= 1 << (fd & (CHAR_BIT - 1));
         anyfds_in[fd / CHAR_BIT] |= 1 << (fd & (CHAR_BIT - 1));
       }
@@ -273,58 +322,52 @@ rpl_select (int nfds, fd_set *rfds, fd_set *wfds, fd_set *xfds,
   /* Classify handles.  Create fd sets for sockets, poll the others. */
   for (i = 0; i < nfds; i++)
     {
-      WSANETWORKEVENTS ev;
-
       if ((anyfds_in[i / CHAR_BIT] & (1 << (i & (CHAR_BIT - 1)))) == 0)
-	continue;
+        continue;
 
       h = (HANDLE) _get_osfhandle (i);
       if (!h)
         {
-	  errno = EBADF;
-	  return -1;
+          errno = EBADF;
+          return -1;
         }
 
-      /* Under Wine, it seems that getsockopt returns 0 for pipes too.
-	 WSAEnumNetworkEvents instead distinguishes the two correctly.  */
-      ev.lNetworkEvents = 0xDEADBEEF;
-      WSAEnumNetworkEvents ((SOCKET) h, NULL, &ev);
-      if (ev.lNetworkEvents != 0xDEADBEEF)
+      if (IsSocketHandle (h))
         {
           int requested = FD_CLOSE;
 
           /* See above; socket handles are mapped onto select, but we
-	     need to map descriptors to handles.  */
+             need to map descriptors to handles.  */
           if (rbits.in[i / CHAR_BIT] & (1 << (i & (CHAR_BIT - 1))))
-	    {
+            {
               requested |= FD_READ | FD_ACCEPT;
-	      FD_SET ((SOCKET) h, rfds);
-	      FD_SET ((SOCKET) h, &handle_rfds);
-	    }
+              FD_SET ((SOCKET) h, rfds);
+              FD_SET ((SOCKET) h, &handle_rfds);
+            }
           if (wbits.in[i / CHAR_BIT] & (1 << (i & (CHAR_BIT - 1))))
-	    {
+            {
               requested |= FD_WRITE | FD_CONNECT;
-	      FD_SET ((SOCKET) h, wfds);
-	      FD_SET ((SOCKET) h, &handle_wfds);
-	    }
+              FD_SET ((SOCKET) h, wfds);
+              FD_SET ((SOCKET) h, &handle_wfds);
+            }
           if (xbits.in[i / CHAR_BIT] & (1 << (i & (CHAR_BIT - 1))))
-	    {
+            {
               requested |= FD_OOB;
-	      FD_SET ((SOCKET) h, xfds);
-	      FD_SET ((SOCKET) h, &handle_xfds);
-	    }
+              FD_SET ((SOCKET) h, xfds);
+              FD_SET ((SOCKET) h, &handle_xfds);
+            }
 
           WSAEventSelect ((SOCKET) h, hEvent, requested);
-	  nsock++;
+          nsock++;
         }
       else
         {
           handle_array[nhandles++] = h;
 
-	  /* Poll now.  If we get an event, do not wait below.  */
+          /* Poll now.  If we get an event, do not wait below.  */
           if (wait_timeout != 0
-	      && win32_poll_handle (h, i, &rbits, &wbits, &xbits))
-	    wait_timeout = 0;
+              && win32_poll_handle (h, i, &rbits, &wbits, &xbits))
+            wait_timeout = 0;
         }
     }
 
@@ -337,12 +380,12 @@ rpl_select (int nfds, fd_set *rfds, fd_set *wfds, fd_set *xfds,
          no need to call select again.  */
       rc = select (0, &handle_rfds, &handle_wfds, &handle_xfds, &tv0);
       if (rc == 0)
-	{
-	  /* Restore the fd_sets for the other select we do below.  */
+        {
+          /* Restore the fd_sets for the other select we do below.  */
           memcpy (&handle_rfds, rfds, sizeof (fd_set));
           memcpy (&handle_wfds, wfds, sizeof (fd_set));
           memcpy (&handle_xfds, xfds, sizeof (fd_set));
-	}
+        }
       else
         wait_timeout = 0;
     }
@@ -350,20 +393,20 @@ rpl_select (int nfds, fd_set *rfds, fd_set *wfds, fd_set *xfds,
   for (;;)
     {
       ret = MsgWaitForMultipleObjects (nhandles, handle_array, FALSE,
-				       wait_timeout, QS_ALLINPUT);
+                                       wait_timeout, QS_ALLINPUT);
 
       if (ret == WAIT_OBJECT_0 + nhandles)
-	{
+        {
           /* new input of some other kind */
-	  BOOL bRet;
+          BOOL bRet;
           while ((bRet = PeekMessage (&msg, NULL, 0, 0, PM_REMOVE)) != 0)
             {
               TranslateMessage (&msg);
               DispatchMessage (&msg);
             }
-	}
+        }
       else
-	break;
+        break;
     }
 
   /* If we haven't done it yet, check the status of the sockets.  */
@@ -381,13 +424,13 @@ rpl_select (int nfds, fd_set *rfds, fd_set *wfds, fd_set *xfds,
   for (i = 0; i < nfds; i++)
     {
       if ((anyfds_in[i / CHAR_BIT] & (1 << (i & (CHAR_BIT - 1)))) == 0)
-	continue;
+        continue;
 
       h = (HANDLE) _get_osfhandle (i);
       if (h != handle_array[nhandles])
-	{
-	  /* Perform handle->descriptor mapping.  Don't update rc, as these
-	     results are counted in the return value of Winsock's select.  */
+        {
+          /* Perform handle->descriptor mapping.  Don't update rc, as these
+             results are counted in the return value of Winsock's select.  */
           WSAEventSelect ((SOCKET) h, NULL, 0);
           if (FD_ISSET (h, &handle_rfds))
             FD_SET (i, rfds);
@@ -395,7 +438,7 @@ rpl_select (int nfds, fd_set *rfds, fd_set *wfds, fd_set *xfds,
             FD_SET (i, wfds);
           if (FD_ISSET (h, &handle_xfds))
             FD_SET (i, xfds);
-	}
+        }
       else
         {
           /* Not a socket.  */
@@ -403,19 +446,19 @@ rpl_select (int nfds, fd_set *rfds, fd_set *wfds, fd_set *xfds,
           win32_poll_handle (h, i, &rbits, &wbits, &xbits);
           if (rbits.out[i / CHAR_BIT] & (1 << (i & (CHAR_BIT - 1))))
             {
-	      rc++;
-	      FD_SET (i, rfds);
-	    }
+              rc++;
+              FD_SET (i, rfds);
+            }
           if (wbits.out[i / CHAR_BIT] & (1 << (i & (CHAR_BIT - 1))))
             {
-	      rc++;
-	      FD_SET (i, wfds);
-	    }
+              rc++;
+              FD_SET (i, wfds);
+            }
           if (xbits.out[i / CHAR_BIT] & (1 << (i & (CHAR_BIT - 1))))
             {
-	      rc++;
-	      FD_SET (i, xfds);
-	    }
+              rc++;
+              FD_SET (i, xfds);
+            }
         }
     }
 

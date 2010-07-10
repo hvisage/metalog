@@ -15,6 +15,13 @@ static void signal_doLog_dequeue(void);
 
 static int doLog(const char * fmt, ...);
 
+/* Return values:
+ *   0 - success
+ *  -3 - memory failure
+ * <-3 - parse error on specific lines
+ *
+ * Caller only cares about success; the rest are for developers while debugging
+ */
 static int parseLine(char * const line, ConfigBlock **cur_block,
                      const ConfigBlock * const default_block,
                      const char ** const errptr, int * const erroffset,
@@ -232,6 +239,10 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             new_output->dt.previous_sizeof_prg = (size_t) 0U;
             new_output->dt.previous_sizeof_info = (size_t) 0U;
             new_output->dt.same_counter = 0U;
+            new_output->rate.usec_between_msgs = (*cur_block)->usec_between_msgs;
+            new_output->rate.bucket_size = (*cur_block)->burst_length;
+            new_output->rate.token_bucket = (*cur_block)->burst_length;
+            new_output->rate.last_tick = 0;
             new_output->next_output = NULL;
             if (previous_scan != NULL) {
                 previous_scan->next_output = new_output;
@@ -276,6 +287,54 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 (*cur_block)->flush = FLUSH_NEVER;
             if ((*cur_block)->output != NULL)
                 (*cur_block)->output->flush = (*cur_block)->flush;
+        } else if (strcasecmp(keyword, "ratelimit") == 0) {
+            int64_t usec_between_msgs;
+            char *end;
+
+            usec_between_msgs = strtoll(value, &end, 10);
+            if (end == value) {
+                fprintf(stderr, "Missing number : [%s]\n", value);
+                return -6;
+            }
+            if (usec_between_msgs < 0) {
+                fprintf(stderr, "Negative number : [%s]\n", value);
+                return -6;
+            }
+
+            if (usec_between_msgs) {
+                double usec;
+                if (end[0] != '/') {
+                    fprintf(stderr, "Missing unit of time : [%s]\n", value);
+                    return -6;
+                }
+                switch (end[1]) {
+                case 's': usec = 1000000; break;
+                case 'm': usec = 1000000 * 60; break;
+                case 'h': usec = 1000000 * 60 * 60; break;
+                case 'd': usec = 1000000 * 60 * 60 * 24; break;
+                default:
+                    fprintf(stderr, "Invalid unit of time : [%s]\n", end + 1);
+                    return -6;
+                }
+                usec_between_msgs = usec / (double)usec_between_msgs;
+            }
+
+            assert(usec_between_msgs >= 0);
+            (*cur_block)->usec_between_msgs = usec_between_msgs;
+            if ((*cur_block)->output != NULL)
+                (*cur_block)->output->rate.usec_between_msgs =
+                    usec_between_msgs;
+        } else if (strcasecmp(keyword, "ratelimit_burst") == 0) {
+            int burst_length = atoi(value);
+            if (burst_length < 1) {
+                fprintf(stderr, "Non-positive bust length : [%s]\n", value);
+                return -6;
+            }
+            (*cur_block)->burst_length = burst_length;
+            if ((*cur_block)->output != NULL) {
+                (*cur_block)->output->rate.bucket_size = burst_length;
+                (*cur_block)->output->rate.token_bucket = burst_length;
+            }
         } else {
             fprintf(stderr, "Unknown keyword '%s'!\nline: %s\n", keyword, line);
             exit(15);
@@ -316,6 +375,8 @@ static int configParser(const char * const file)
             0,                         /* showrepeats */
             DEFAULT_STAMP_FMT,         /* stamp_fmt */
             FLUSH_DEFAULT,             /* flush */
+            0,                         /* usec_between_msgs */
+            1,                         /* max_burst_length */
     };
     ConfigBlock *cur_block = &default_block;
 
@@ -705,6 +766,36 @@ static int rotateLogFiles(const char * const directory, const int maxfiles)
     return 0;
 }
 
+static int rateLimit(RateLimiter * const rl)
+{
+    struct timeval tv;
+    int64_t current_tick, diff_ticks;
+
+    if (rl->usec_between_msgs == 0)
+        return 0; /* output channel is not limited */
+    if (gettimeofday(&tv, NULL))
+        return 0; /* if in doubt, never limit */
+
+    /* Fill up bucket with one token every usec_between_msgs microseconds */
+    current_tick = tv.tv_sec * (int64_t)1000000 + tv.tv_usec;
+    current_tick /= rl->usec_between_msgs;
+    diff_ticks = current_tick - rl->last_tick;
+    if (diff_ticks > 0) {
+        diff_ticks += rl->token_bucket;
+        if (diff_ticks < rl->bucket_size)
+            rl->token_bucket = (int)diff_ticks;
+        else /* bucket overflow */
+            rl->token_bucket = rl->bucket_size;
+    }
+    rl->last_tick = current_tick;
+
+    /* Log message only if token available to pay for it */
+    if (rl->token_bucket <= 0)
+        return 1; /* suppress this message due to rate limit */
+    --rl->token_bucket;
+    return 0; /* message is within limit */
+}
+
 static int writeLogLine(Output * const output, const char * const date,
                         const char * const prg, const char * const info)
 {
@@ -724,6 +815,9 @@ static int writeLogLine(Output * const output, const char * const date,
         sizeof_prg = MAX_SIGNIFICANT_LENGTH;
     }
 
+    if (rateLimit(&output->rate)) {
+        return 0;
+    }
     if (output->showrepeats == 0 &&
         sizeof_info == output->dt.previous_sizeof_info &&
         sizeof_prg == output->dt.previous_sizeof_prg &&

@@ -75,6 +75,13 @@ typedef enum FlushMode_ {
     FLUSH_DEFAULT, FLUSH_ALWAYS, FLUSH_NEVER
 } FlushMode;
 
+typedef struct RateLimiter_ {
+    int64_t usec_between_msgs;
+    int bucket_size;
+    int token_bucket;
+    int64_t last_tick;
+} RateLimiter;
+
 typedef struct Output_ {
     char *directory;
     FILE *fp;
@@ -89,6 +96,7 @@ typedef struct Output_ {
     int showrepeats;
     const char *stamp_fmt;
     FlushMode flush;
+    RateLimiter rate;
 } Output;
 
 typedef enum RegexSign_ {
@@ -127,6 +135,8 @@ typedef struct ConfigBlock_ {
     int showrepeats;
     const char *stamp_fmt;
     FlushMode flush;
+    int64_t usec_between_msgs;
+    int burst_length;
 } ConfigBlock;
 
 typedef enum LogLineType_ {

@@ -1,6 +1,7 @@
 * Version 2
  - fix long standing typo where the minute field in the rotated log was
    replaced with the current month: %m instead of %M (by dorian33 #3027782)
+ - add support for rate limiting of messages (by Martin von Gagern #2777251)
 
 * Version 1
  - switch over to using daemon() by default

@@ -121,6 +121,20 @@ flush = <value>. If set to 0, matching log messages will always be
 buffered. If set to 1, they will always be written to the file system
 immediately. Both settings override the global default given through
 command line parameters (\fB\-a\fR/\fB\-s\fR) or signals.
+.TP
+.B ratelimit
+ratelimit = "5/m". Limits the rate of logged messages to the specified number
+of messages per unit of time. Valid units of time are \fIs\fRecond,
+\fIm\fRinute, \fIh\fRour and \fId\fRay, each identified by its first letter.
+A limit of zero (the default) may be used to disable any rate limit handling.
+In this case, the unit of time may be omitted.
+.TP
+.B ratelimit_burst
+ratelimit_burst = <value>. Up to this number of lines will be printed at the
+beginning of a burst of message, if the rate of messages has been well below
+the limit before. The specified message rate will not be exceeded.  The default
+value of 1 disables special treatment for bursts. Values less than 1 are
+invalid and will be rejected.
 .SH "FILES"
 .LP
 Note that the exact paths depend on the build settings.  These are the standard paths.

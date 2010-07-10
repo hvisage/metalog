@@ -308,10 +308,10 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                     return -6;
                 }
                 switch (end[1]) {
-                case 's': usec = 1000000; break;
-                case 'm': usec = 1000000 * 60; break;
-                case 'h': usec = 1000000 * 60 * 60; break;
-                case 'd': usec = 1000000 * 60 * 60 * 24; break;
+                case 's': usec = 1000000.; break;
+                case 'm': usec = 1000000. * 60; break;
+                case 'h': usec = 1000000. * 60 * 60; break;
+                case 'd': usec = 1000000. * 60 * 60 * 24; break;
                 default:
                     fprintf(stderr, "Invalid unit of time : [%s]\n", end + 1);
                     return -6;

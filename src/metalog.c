@@ -288,20 +288,21 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             if ((*cur_block)->output != NULL)
                 (*cur_block)->output->flush = (*cur_block)->flush;
         } else if (strcasecmp(keyword, "ratelimit") == 0) {
+            double base_rate;
             int64_t usec_between_msgs;
             char *end;
 
-            usec_between_msgs = strtoll(value, &end, 10);
+            base_rate = strtod(value, &end);
             if (end == value) {
                 fprintf(stderr, "Missing number : [%s]\n", value);
                 return -6;
             }
-            if (usec_between_msgs < 0) {
+            if (base_rate < 0.) {
                 fprintf(stderr, "Negative number : [%s]\n", value);
                 return -6;
             }
 
-            if (usec_between_msgs) {
+            if (base_rate) {
                 double usec;
                 if (end[0] != '/') {
                     fprintf(stderr, "Missing unit of time : [%s]\n", value);
@@ -316,8 +317,9 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                     fprintf(stderr, "Invalid unit of time : [%s]\n", end + 1);
                     return -6;
                 }
-                usec_between_msgs = usec / (double)usec_between_msgs;
-            }
+                usec_between_msgs = usec / base_rate;
+            } else
+                usec_between_msgs = base_rate;
 
             assert(usec_between_msgs >= 0);
             (*cur_block)->usec_between_msgs = usec_between_msgs;

@@ -9,6 +9,7 @@
 #endif
 
 #include <alloca.h>
+#include <assert.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -44,6 +45,8 @@
 #endif
 #include <pcre.h>
 
+#include "helpers.h"
+
 #ifdef _PATH_LOG
 # define SOCKNAME _PATH_LOG
 #else
@@ -54,7 +57,6 @@
 #else
 # define KLOG_FILE "/dev/klog"
 #endif
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
 typedef struct PCREInfo_ {
     pcre *pcre;

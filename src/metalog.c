@@ -6,8 +6,6 @@
 #ifdef WITH_DMALLOC
 # include <dmalloc.h>
 #endif
-#include <string.h>
-#include <assert.h>
 
 static int spawn_recursion = 0;
 static int dolog_queue[2];
@@ -24,7 +22,6 @@ static int doLog(const char * fmt, ...);
  */
 static int parseLine(char * const line, ConfigBlock **cur_block,
                      const ConfigBlock * const default_block,
-                     const char ** const errptr, int * const erroffset,
                      pcre * const re_newblock, pcre * const re_newstmt,
                      pcre * const re_comment, pcre * const re_null)
 {
@@ -54,10 +51,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                   0, 0, ovector, ARRAY_SIZE(ovector)) >= 0) {
         ConfigBlock *previous_block = *cur_block;
 
-        if ((*cur_block = malloc(sizeof **cur_block)) == NULL) {
-            perror("Oh no! More memory!");
+        if ((*cur_block = wmalloc(sizeof **cur_block)) == NULL)
             return -3;
-        }
         **cur_block = *default_block;
         if (config_blocks == NULL) {
             config_blocks = *cur_block;
@@ -91,16 +86,14 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 n++;
             }
             if (facilitynames[n].c_name == NULL) {
-                fprintf(stderr, "Unknown facility : [%s]\n", value);
+                warn("Unknown facility : [%s]", value);
                 return -4;
             }
-            (*cur_block)->facilities = realloc((*cur_block)->facilities,
-                                               ((*cur_block)->nb_facilities + 1) *
-                                               sizeof(*(*cur_block)->facilities));
-            if ((*cur_block)->facilities == NULL) {
-                perror("Oh no! More memory!");
+            (*cur_block)->facilities = wrealloc((*cur_block)->facilities,
+                                                ((*cur_block)->nb_facilities + 1) *
+                                                sizeof(*(*cur_block)->facilities));
+            if ((*cur_block)->facilities == NULL)
                 return -3;
-            }
             (*cur_block)->facilities[(*cur_block)->nb_facilities] =
                 LOG_FAC(facilitynames[n].c_val);
             (*cur_block)->nb_facilities++;
@@ -109,25 +102,18 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             const char *regex;
             RegexWithSign *new_regexeswithsign;
 
-            if ((regex = strdup(value)) == NULL) {
-                perror("Oh no! More memory!");
+            if ((regex = wstrdup(value)) == NULL)
                 return -3;
-            }
             if ((new_regexeswithsign =
-                 realloc((*cur_block)->regexeswithsign,
-                         ((*cur_block)->nb_regexes + 1) *
-                         sizeof *((*cur_block)->regexeswithsign))) == NULL) {
-                perror("Oh no! More memory!");
+                 wrealloc((*cur_block)->regexeswithsign,
+                          ((*cur_block)->nb_regexes + 1) *
+                          sizeof *((*cur_block)->regexeswithsign))) == NULL)
                 return -3;
-            }
             (*cur_block)->regexeswithsign = new_regexeswithsign;
-            if ((new_regex = pcre_compile(regex, PCRE_CASELESS,
-                                          errptr, erroffset, NULL))
-                == NULL) {
-                fprintf(stderr, "Invalid regex : [%s]\n", regex);
+            if ((new_regex = wpcre_compile(regex, PCRE_CASELESS)) == NULL)
                 return -5;
-            }
             {
+                const char *errptr;
                 RegexWithSign * const this_regex =
                     &((*cur_block)->regexeswithsign[(*cur_block)->nb_regexes]);
 
@@ -138,7 +124,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 }
                 this_regex->regex.pcre = new_regex;
                 this_regex->regex.pcre_extra =
-                    pcre_study(new_regex, 0, errptr);
+                    pcre_study(new_regex, 0, &errptr);
             }
             (*cur_block)->nb_regexes++;
         } else if (strcasecmp(keyword, "program_regex") == 0 ||
@@ -146,26 +132,19 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             const char *regex;
             RegexWithSign *new_regexeswithsign;
 
-            if ((regex = strdup(value)) == NULL) {
-                perror("Oh no! More memory!");
+            if ((regex = wstrdup(value)) == NULL)
                 return -3;
-            }
             if ((new_regexeswithsign =
-                 realloc((*cur_block)->program_regexeswithsign,
-                         ((*cur_block)->program_nb_regexes + 1) *
-                         sizeof *((*cur_block)->program_regexeswithsign)))
-                == NULL) {
-                perror("Oh no! More memory!");
+                 wrealloc((*cur_block)->program_regexeswithsign,
+                          ((*cur_block)->program_nb_regexes + 1) *
+                          sizeof *((*cur_block)->program_regexeswithsign)))
+                == NULL)
                 return -3;
-            }
             (*cur_block)->program_regexeswithsign = new_regexeswithsign;
-            if ((new_regex = pcre_compile(regex, PCRE_CASELESS,
-                                          errptr, erroffset, NULL))
-                == NULL) {
-                fprintf(stderr, "Invalid program regex : [%s]\n", regex);
+            if ((new_regex = wpcre_compile(regex, PCRE_CASELESS)) == NULL)
                 return -5;
-            }
             {
+                const char *errptr;
                 RegexWithSign * const this_regex =
                     &((*cur_block)->program_regexeswithsign
                       [(*cur_block)->program_nb_regexes]);
@@ -177,7 +156,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 }
                 this_regex->regex.pcre = new_regex;
                 this_regex->regex.pcre_extra =
-                    pcre_study(new_regex, 0, errptr);
+                    pcre_study(new_regex, 0, &errptr);
             }
             (*cur_block)->program_nb_regexes++;
         } else if (strcasecmp(keyword, "maxsize") == 0) {
@@ -215,12 +194,9 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 previous_scan = outputs_scan;
                 outputs_scan = outputs_scan->next_output;
             }
-            if ((new_output = malloc(sizeof *new_output)) == NULL ||
-                (logdir = strdup(value)) == NULL) {
-                if (new_output != NULL) {
-                    free(new_output);
-                }
-                perror("Oh no! More memory!");
+            if ((new_output = wmalloc(sizeof *new_output)) == NULL ||
+                (logdir = wstrdup(value)) == NULL) {
+                free(new_output);
                 return -3;
             }
             new_output->directory = logdir;
@@ -253,30 +229,22 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             duplicate_output:
             (void) 0;
         } else if (strcasecmp(keyword, "command") == 0) {
-            if (((*cur_block)->command = strdup(value)) == NULL) {
-                perror("Oh no! More memory!");
+            if (((*cur_block)->command = wstrdup(value)) == NULL)
                 return -3;
-            }
         } else if (strcasecmp(keyword, "program") == 0) {
-            if (((*cur_block)->program = strdup(value)) == NULL) {
-                perror("Oh no! More memory!");
+            if (((*cur_block)->program = wstrdup(value)) == NULL)
                 return -3;
-            }
         } else if (strcasecmp(keyword, "postrotate_cmd") == 0) {
-            if (((*cur_block)->postrotate_cmd = strdup(value)) == NULL) {
-               perror("Oh no! More memory!");
+            if (((*cur_block)->postrotate_cmd = wstrdup(value)) == NULL)
                return -3;
-            }
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->postrotate_cmd = (*cur_block)->postrotate_cmd;
             }
         } else if (strcasecmp(keyword, "break") == 0) {
             (*cur_block)->brk = atoi(value);
         } else if (strcasecmp(keyword, "stamp_fmt") == 0) {
-            if (((*cur_block)->stamp_fmt = strdup(value)) == NULL) {
-               perror("Oh no! More memory!");
+            if (((*cur_block)->stamp_fmt = wstrdup(value)) == NULL)
                return -3;
-            }
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->stamp_fmt = (*cur_block)->stamp_fmt;
             }
@@ -294,18 +262,18 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
 
             base_rate = strtod(value, &end);
             if (end == value) {
-                fprintf(stderr, "Missing number : [%s]\n", value);
+                warnp("Missing number : [%s]", value);
                 return -6;
             }
             if (base_rate < 0.) {
-                fprintf(stderr, "Negative number : [%s]\n", value);
+                warn("Negative number : [%s]", value);
                 return -6;
             }
 
             if (base_rate) {
                 double usec;
                 if (end[0] != '/') {
-                    fprintf(stderr, "Missing unit of time : [%s]\n", value);
+                    warn("Missing unit of time : [%s]", value);
                     return -6;
                 }
                 switch (end[1]) {
@@ -314,7 +282,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 case 'h': usec = 1000000. * 60 * 60; break;
                 case 'd': usec = 1000000. * 60 * 60 * 24; break;
                 default:
-                    fprintf(stderr, "Invalid unit of time : [%s]\n", end + 1);
+                    warn("Invalid unit of time : [%s]", end + 1);
                     return -6;
                 }
                 usec_between_msgs = usec / base_rate;
@@ -329,7 +297,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         } else if (strcasecmp(keyword, "ratelimit_burst") == 0) {
             int burst_length = atoi(value);
             if (burst_length < 1) {
-                fprintf(stderr, "Non-positive bust length : [%s]\n", value);
+                warn("Non-positive bust length : [%s]", value);
                 return -6;
             }
             (*cur_block)->burst_length = burst_length;
@@ -337,10 +305,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 (*cur_block)->output->rate.bucket_size = burst_length;
                 (*cur_block)->output->rate.token_bucket = burst_length;
             }
-        } else {
-            fprintf(stderr, "Unknown keyword '%s'!\nline: %s\n", keyword, line);
-            exit(15);
-        }
+        } else
+            err("Unknown keyword '%s'! line: %s", keyword, line);
     }
     return 0;
 }
@@ -349,13 +315,11 @@ static int configParser(const char * const file)
 {
     char line[LINE_MAX];
     FILE *fp;
-    const char *errptr;
     pcre *re_newblock;
     pcre *re_newstmt;
     pcre *re_comment;
     pcre *re_null;
     int retcode = 0;
-    int erroffset;
     ConfigBlock default_block = {
             DEFAULT_MINIMUM,           /* minimum */
             DEFAULT_MAXIMUM,           /* maximum */
@@ -383,29 +347,25 @@ static int configParser(const char * const file)
     ConfigBlock *cur_block = &default_block;
 
     if ((fp = fopen(file, "r")) == NULL) {
-        perror("Can't open the configuration file");
+        warnp("Can't open the configuration file");
         return -2;
     }
-    re_newblock = pcre_compile(":\\s*$", 0, &errptr, &erroffset, NULL);
-    re_newstmt = pcre_compile("^\\s*(.+?)\\s*=\\s*\"?([^\"]*)\"?\\s*$", 0,
-                              &errptr, &erroffset, NULL);
-    re_comment = pcre_compile("^\\s*#", 0, &errptr, &erroffset, NULL);
-    re_null = pcre_compile("^\\s*$", 0, &errptr, &erroffset, NULL);
-    if (re_newblock == NULL || re_newstmt == NULL ||
-        re_comment == NULL || re_null == NULL) {
-        fprintf(stderr, "Internal error : can't compile parser regexes\n");
+    re_newblock = wpcre_compile(":\\s*$", 0);
+    re_newstmt = wpcre_compile("^\\s*(.+?)\\s*=\\s*\"?([^\"]*)\"?\\s*$", 0);
+    re_comment = wpcre_compile("^\\s*#", 0);
+    re_null = wpcre_compile("^\\s*$", 0);
+    if (!re_newblock || !re_newstmt || !re_comment || !re_null) {
         retcode = -1;
         goto rtn;
     }
     while (fgets(line, sizeof line, fp) != NULL) {
         if ((retcode = parseLine(line, &cur_block, &default_block,
-                                 &errptr, &erroffset,
                                  re_newblock, re_newstmt,
                                  re_comment, re_null)) != 0) {
             break;
         }
     }
-    rtn:
+ rtn:
     if (re_newblock != NULL) {
         pcre_free(re_newblock);
     }
@@ -450,7 +410,7 @@ static void clearargs(int argc, char **argv)
         while (env_nb > 0U) {
             env_nb--;
             /* Can any bad thing happen if strdup() ever fails? */
-            new_environ[env_nb] = strdup(environ[env_nb]);
+            new_environ[env_nb] = xstrdup(environ[env_nb]);
         }
         environ = new_environ;
     }
@@ -495,18 +455,18 @@ static int getDataSources(int sockets[])
 #endif
 
     if ((sockets[0] = socket(PF_UNIX, SOCK_DGRAM, 0)) < 0) {
-        perror("Unable to create a local socket");
+        warnp("Unable to create a local socket");
         return -1;
     }
     sa.sun_family = AF_UNIX;
     if (snprintf(sa.sun_path, sizeof sa.sun_path, "%s", SOCKNAME) < 0) {
-        fprintf(stderr, "Socket name too long");
+        warnp("Socket name too long");
         close(sockets[0]);
         return -2;
     }
     unlink(sa.sun_path);
     if (bind(sockets[0], (struct sockaddr *) &sa, (socklen_t) sizeof sa) < 0) {
-        perror("Unable to bind a local socket");
+        warnp("Unable to bind a local socket");
         close(sockets[0]);
         return -1;
     }
@@ -516,7 +476,7 @@ static int getDataSources(int sockets[])
     /* setup the signal handler pipe */
     if (socketpair(AF_LOCAL, SOCK_STREAM, 0, dolog_queue) < 0) {
         if (pipe(dolog_queue) < 0) {
-            perror("Unable to create a pipe");
+            warnp("Unable to create a pipe");
             return -4;
         }
     }
@@ -533,13 +493,13 @@ static int getDataSources(int sockets[])
 #ifdef HAVE_KLOGCTL
     /* larger buffers compared to a pipe() */
     if(socketpair(AF_UNIX, SOCK_STREAM, 0, fdpipe) < 0) {
-        perror("Unable to create a pipe");
+        warnp("Unable to create a pipe");
         close(sockets[0]);
         return -3;
     }
     pgid = getpgrp();
     if ((child = fork()) < (pid_t) 0) {
-        perror("Unable to create the klogd child");
+        warnp("Unable to create the klogd child");
         close(sockets[0]);
         return -3;
     } else if (child == (pid_t) 0) {
@@ -553,7 +513,7 @@ static int getDataSources(int sockets[])
         if (klogctl(1, NULL, 0) < 0 ||
             klogctl(8, NULL, console_level) < 0 ||
             klogctl(6, NULL, 0) < 0) {
-            perror("Unable to control the kernel logging device");
+            warnp("Unable to control the kernel logging device");
             return -4;
         }
 
@@ -717,7 +677,7 @@ static int rotateLogFiles(const char * const directory, const int maxfiles)
     *old_name = 0;
     older_year = INT_MAX;
     if ((dir = opendir(directory)) == NULL) {
-        fprintf(stderr, "Unable to rotate [%s]\n", directory);
+        warnp("Unable to rotate [%s]", directory);
         return -1;
     }
     while ((dirent = readdir(dir)) != NULL) {
@@ -752,8 +712,7 @@ static int rotateLogFiles(const char * const directory, const int maxfiles)
             return -3;
         }
         if (snprintf(path, sizeof path, "%s/%s", directory, old_name) < 0) {
-            fprintf(stderr, "Path to long to unlink [%s/%s]\n",
-                    directory, old_name);
+            warnp("Path too long to unlink [%s/%s]", directory, old_name);
             return -4;
         }
         if (unlink(path) < 0) {
@@ -834,7 +793,7 @@ static int writeLogLine(Output * const output, const char * const date,
     if (sizeof_info > output->dt.sizeof_previous_info) {
         char *pp = output->dt.previous_info;
 
-        if ((pp = realloc(output->dt.previous_info, sizeof_info)) != NULL) {
+        if ((pp = wrealloc(output->dt.previous_info, sizeof_info)) != NULL) {
             output->dt.previous_info = pp;
             memcpy(output->dt.previous_info, info, sizeof_info);
             output->dt.sizeof_previous_info = sizeof_info;
@@ -846,7 +805,7 @@ static int writeLogLine(Output * const output, const char * const date,
     if (sizeof_prg > output->dt.sizeof_previous_prg) {
         char *pp = output->dt.previous_prg;
 
-        if ((pp = realloc(output->dt.previous_prg, sizeof_prg)) != NULL) {
+        if ((pp = wrealloc(output->dt.previous_prg, sizeof_prg)) != NULL) {
             output->dt.previous_prg = pp;
             memcpy(output->dt.previous_prg, prg, sizeof_prg);
             output->dt.sizeof_previous_prg = sizeof_prg;
@@ -866,30 +825,28 @@ static int writeLogLine(Output * const output, const char * const date,
         testdir:
         if (stat(output->directory, &st) < 0) {
             if (mkdir(output->directory, OUTPUT_DIR_PERMS) < 0) {
-                fprintf(stderr, "Can't create [%s]\n", output->directory);
+                warnp("Can't create [%s]", output->directory);
                 return -1;
             }
         } else if (!S_ISDIR(st.st_mode)) {
             if (unlink(output->directory) < 0) {
-                fprintf(stderr, "Can't unlink [%s]\n", output->directory);
+                warnp("Can't unlink [%s]", output->directory);
                 return -1;
             }
             goto testdir;
         }
         if (snprintf(path, sizeof path, "%s/" OUTPUT_DIR_CURRENT,
                      output->directory) < 0) {
-            fprintf(stderr, "Path name too long for current in [%s]\n",
-                    output->directory);
+            warnp("Path name too long for current in [%s]", output->directory);
             return -2;
         }
         if ((fp = fopen(path, "a")) == NULL) {
-            fprintf(stderr, "Unable to access [%s]\n", path);
+            warnp("Unable to access [%s]", path);
             return -3;
         }
         if (snprintf(path, sizeof path, "%s/" OUTPUT_DIR_TIMESTAMP,
                      output->directory) < 0) {
-            fprintf(stderr, "Path name too long for timestamp in [%s]\n",
-                    output->directory);
+            warnp("Path name too long for timestamp in [%s]", output->directory);
             fclose(fp);
             return -2;
         }
@@ -897,7 +854,7 @@ static int writeLogLine(Output * const output, const char * const date,
             recreate_ts:
             creatime = time(NULL);
             if ((fp_ts = fopen(path, "w")) == NULL) {
-                fprintf(stderr, "Unable to write the timestamp [%s]\n", path);
+                warnp("Unable to write the timestamp [%s]", path);
                 fclose(fp);
                 return -3;
             }
@@ -912,7 +869,7 @@ static int writeLogLine(Output * const output, const char * const date,
             creatime = (time_t) creatime_;
         }
         if (fclose(fp_ts) != 0) {
-            fprintf(stderr, "Unable to close [%s]\n", path);
+            warnp("Unable to close [%s]", path);
             return -3;
         }
         output->creatime = creatime;
@@ -929,47 +886,42 @@ static int writeLogLine(Output * const output, const char * const date,
             char newpath[PATH_MAX];
 
             if (output->fp == NULL) {
-                fprintf(stderr, "Internal inconsistency line [%d]\n", __LINE__);
+                warnf("Internal inconsistency");
                 return -6;
             }
             if ((time_gm = gmtime(&now)) == NULL) {
-                fprintf(stderr, "Unable to find the current date\n");
+                warnp("Unable to find the current date");
                 return -4;
             }
             if (snprintf(newpath, sizeof newpath, "%s/" OUTPUT_DIR_LOGFILES_PREFIX,
                 output->directory) < 0)
             {
-                fprintf(stderr, "Path name too long for new path in [%s]\n",
-                    output->directory);
+                warnp("Path name too long for new path in [%s]", output->directory);
                 return -2;
             }
             if (strftime(newpath + strlen(newpath), sizeof newpath - strlen(newpath),
                         OUTPUT_DIR_LOGFILES_SUFFIX, time_gm) == 0)
             {
-                fprintf(stderr, "Path name too long for new path in [%s]\n",
-                    output->directory);
+                warnp("Path name too long for new path in [%s]", output->directory);
                 return -2;
             }
             if (snprintf(path, sizeof path, "%s/" OUTPUT_DIR_CURRENT,
                         output->directory) < 0) {
-                fprintf(stderr, "Path name too long for current in [%s]\n",
-                        output->directory);
+                warnp("Path name too long for current in [%s]", output->directory);
                 return -2;
             }
             rotateLogFiles(output->directory, output->maxfiles);
             fclose(output->fp);
             output->fp = NULL;
             if (rename(path, newpath) < 0 && unlink(path) < 0) {
-                fprintf(stderr, "Unable to rename [%s] to [%s]\n",
-                        path, newpath);
+                warnp("Unable to rename [%s] to [%s]", path, newpath);
                 return -5;
             }
             if (output->postrotate_cmd != NULL)
                 spawnCommand(output->postrotate_cmd, date, prg, newpath);
             if (snprintf(path, sizeof path, "%s/" OUTPUT_DIR_TIMESTAMP,
                         output->directory) < 0) {
-                fprintf(stderr, "Path name too long for timestamp in [%s]\n",
-                        output->directory);
+                warnp("Path name too long for timestamp in [%s]", output->directory);
                 return -2;
             }
             unlink(path);
@@ -1251,7 +1203,7 @@ static int process(const int sockets[])
             event = siglog->revents;
             siglog->revents = 0;
             if (event != POLLIN) {
-                fprintf(stderr, "Signal queue socket error - aborting\n");
+                warn("Signal queue socket error - aborting");
                 close(siglog->fd);
                 return -1;
             }
@@ -1264,7 +1216,7 @@ static int process(const int sockets[])
             event = syslog->revents;
             syslog->revents = 0;
             if (event != POLLIN) {
-                fprintf(stderr, "Syslog socket error - aborting\n");
+                warn("Syslog socket error - aborting");
                 close(syslog->fd);
                 return -1;
             }
@@ -1282,7 +1234,7 @@ static int process(const int sockets[])
             event = klog->revents;
             klog->revents = 0;
             if (event != POLLIN) {
-                fprintf(stderr, "Klog socket error - aborting\n");
+                warn("Klog socket error - aborting");
                 close(klog->fd);
                 return -1;
             }
@@ -1339,8 +1291,7 @@ static int update_pid_file(const char * const pid_file)
     return 0;
 
  err:
-    fprintf(stderr, "pid file creation failed: %s: %s\n",
-            pid_file, strerror(errno));
+    warnp("pid file creation failed: %s", pid_file);
     return -1;
 }
 
@@ -1500,20 +1451,18 @@ static void dodaemonize(void)
 #ifndef HAVE_DAEMON
         pid_t child;
         if ((child = fork()) == (pid_t) -1) {
-            perror("Daemonization failed - fork");
+            warnp("Daemonization failed - fork");
             return;
         } else if (child != (pid_t) 0) {
             _exit(EXIT_SUCCESS);
         } else if (setsid() == (pid_t) -1) {
-            perror("Daemonization failed : setsid");
+            errp("Daemonization failed : setsid");
         }
         (void) chdir("/");
         (void) closedesc_all(1);
 #else
-        if (daemon(0, 0)) {
-            perror("Daemonization failed");
-            exit(EXIT_FAILURE);
-        }
+        if (daemon(0, 0))
+            errp("Daemonization failed");
 #endif
     }
 }
@@ -1551,17 +1500,12 @@ static void parseOptions(int argc, char *argv[])
         case 'c' :
             console_level = atoi(optarg);
             if (console_level < MIN_CONSOLE_LEVEL ||
-                console_level > MAX_CONSOLE_LEVEL) {
-                fprintf(stderr, "Invalid console level\n");
-                exit(EXIT_FAILURE);
-            }
+                console_level > MAX_CONSOLE_LEVEL)
+                err("Invalid console level");
             break;
 #endif
         case 'C' :
-            if ((config_file = strdup(optarg)) == NULL) {
-                perror("You're really running out of memory");
-                exit(EXIT_FAILURE);
-            }
+            config_file = xstrdup(optarg);
             break;
         case 'v' :
             ++verbose;
@@ -1575,32 +1519,24 @@ static void parseOptions(int argc, char *argv[])
         case 'h' :
             help();
         case 'p' :
-            if ((pid_file = strdup(optarg)) == NULL) {
-                perror("You're really running out of memory");
-                exit(EXIT_FAILURE);
-            }
+            pid_file = xstrdup(optarg);
             break;
         case 's' :
             break;
         case ':' :
-            fprintf(stderr, "Option '%c' is missing parameter\n", optopt);
-            exit(EXIT_FAILURE);
+            err("Option '%c' is missing parameter", optopt);
         case '?':
-            fprintf(stderr, "Unknown option '%c' or argument missing\n", optopt);
-            exit(EXIT_FAILURE);
+            err("Unknown option '%c' or argument missing", optopt);
         default :
-            fprintf(stderr, "Unknown option '%c'\n", optopt);
-            exit(EXIT_FAILURE);
+            err("Unknown option '%c'", optopt);
         }
     }
 }
 
 static void checkRoot(void)
 {
-    if (geteuid() != (uid_t) 0) {
-        fprintf(stderr, "Sorry, you must be root to launch this program\n");
-        exit(EXIT_FAILURE);
-    }
+    if (geteuid() != (uid_t) 0)
+        err("Sorry, you must be root to launch this program");
 }
 
 int main(int argc, char *argv[])
@@ -1608,10 +1544,8 @@ int main(int argc, char *argv[])
     int sockets[2];
 
     parseOptions(argc, argv);
-    if (configParser(config_file) < 0) {
-        fprintf(stderr, "Bad configuration file - aborting\n");
-        return -1;
-    }
+    if (configParser(config_file) < 0)
+        err("Bad configuration file");
     checkRoot();
     dodaemonize();
     setsignals();
@@ -1619,10 +1553,8 @@ int main(int argc, char *argv[])
         return -1;
     clearargs(argc, argv);
     setprogname(PROGNAME_MASTER);
-    if (getDataSources(sockets) < 0) {
-        fprintf(stderr, "Unable to bind sockets - aborting\n");
-        return -1;
-    }
+    if (getDataSources(sockets) < 0)
+        err("Unable to bind sockets");
 
     return process(sockets);
 }

@@ -3,6 +3,7 @@
    replaced with the current month: %m instead of %M (by dorian33 #3027782)
  - add support for rate limiting of messages with the new "ratelimit" and
    "ratelimit_burst" keywords (by Martin von Gagern #2777251)
+ - standardize warning/error output
 
 * Version 1
  - switch over to using daemon() by default

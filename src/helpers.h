@@ -36,7 +36,7 @@ static void *wmalloc(size_t size)
 
 static void *wrealloc(void *ptr, size_t size)
 {
-    void *ret = rmalloc(ptr, size);
+    void *ret = realloc(ptr, size);
     if (!ret)
         warnp("realloc(%p, %zu) failed", ptr, size);
     return ret;

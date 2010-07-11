@@ -492,7 +492,7 @@ static int getDataSources(int sockets[])
 
 #ifdef HAVE_KLOGCTL
     /* larger buffers compared to a pipe() */
-    if(socketpair(AF_UNIX, SOCK_STREAM, 0, fdpipe) < 0) {
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fdpipe) < 0) {
         warnp("Unable to create a pipe");
         close(sockets[0]);
         return -3;
@@ -517,22 +517,23 @@ static int getDataSources(int sockets[])
             return -4;
         }
 
-        while( loop) {
-          while ((s = klogctl(2, line, sizeof (line))) < 0 && errno == EINTR);
-            if( s == -1){
-              loop = 0;
-              break;
+        while (loop) {
+            while ((s = klogctl(2, line, sizeof (line))) < 0 && errno == EINTR)
+                continue;
+            if (s == -1) {
+                loop = 0;
+                break;
             }
             /* make sure we write the whole buffer into the pipe
                line parsing is done on the other end */
-            int out = 0, w;
-            while( out < s){
-              w = write( fdpipe[1], &line[out], s - out);
-              if( (w == -1) && (errno != EINTR)){
-                loop = 0;
-                break;
-              }
-              out += w;
+            int out = 0;
+            while (out < s) {
+                int w = write(fdpipe[1], &line[out], s - out);
+                if (w == -1 && errno != EINTR) {
+                    loop = 0;
+                    break;
+                }
+                out += w;
             }
         }
         klogctl(7, NULL, 0);
@@ -1116,48 +1117,46 @@ static void sanitize(char * const line_)
     }
 }
 
-static int log_line( LogLineType loglinetype, char *buf)
+static int log_line(LogLineType loglinetype, char *buf)
 {
-  int logcode;
-  const char *prg;
-  char *info;
+    int logcode;
+    const char *prg;
+    char *info;
 
-  sanitize( buf);
-  if (parseLogLine( loglinetype, buf, &logcode, &prg, &info) < 0) {
-    return -1;
-  }
-  return processLogLine(logcode, prg, info);
+    sanitize(buf);
+    if (parseLogLine(loglinetype, buf, &logcode, &prg, &info) < 0)
+      return -1;
+    return processLogLine(logcode, prg, info);
 }
 
-static int log_udp( char *buf, int bsize)
+static int log_udp(char *buf, int bsize)
 {
-  buf[bsize] = '\0';
-  write( 1, buf, strlen(buf));
-  return log_line( LOGLINETYPE_SYSLOG, buf);
+    buf[bsize] = '\0';
+    write(1, buf, strlen(buf));
+    return log_line(LOGLINETYPE_SYSLOG, buf);
 }
 
-
-static int log_kernel( char *buf, int bsize)
+static int log_kernel(char *buf, int bsize)
 {
-  char *s = buf;
-  int n=0, start=0;
+    char *s = buf;
+    int n = 0, start = 0;
 
-  s = buf;
-  while( n < bsize){
-    if( s[n] == '\n'){
-      s[n] = '\0';
-      log_line( LOGLINETYPE_KLOG, &s[start]);
-      start = n+1;
+    s = buf;
+    while (n < bsize) {
+        if (s[n] == '\n') {
+            s[n] = '\0';
+            log_line(LOGLINETYPE_KLOG, &s[start]);
+            start = n + 1;
+        }
+        n++;
     }
-    n++;
-  }
 
-  /* we couldn't find any \n ???
-     => invalidate this buffer */
-  if( start == 0)
-    return 0;
+    /* we couldn't find any \n ???
+       => invalidate this buffer */
+    if (start == 0)
+      return 0;
 
-  return bsize - start;
+    return bsize - start;
 }
 
 static int process(const int sockets[])
@@ -1168,7 +1167,7 @@ static int process(const int sockets[])
     ssize_t rd;
     int ld;
     char buffer[2][4096];
-    int  bpos;
+    int bpos;
 
     siglog = syslog = klog = NULL;
     nfds = 0;

@@ -3,7 +3,7 @@ sbin_PROGRAMS = \
 
 AM_CPPFLAGS = \
 	-DCONFDIR=\"$(sysconfdir)\" \
-	-I$(top_srcdir)/lib
+	-I$(top_srcdir)/gnulib/lib
 
 metalog_SOURCES = \
 	helpers.h \
@@ -11,4 +11,4 @@ metalog_SOURCES = \
 	metalog.h \
 	metalog_p.h
 	syslognames.h
-metalog_LDADD = $(top_builddir)/lib/libgnu.a
+metalog_LDADD = $(top_builddir)/gnulib/lib/libgnu.a

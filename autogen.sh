@@ -1,7 +1,10 @@
 #!/bin/sh
 
 PATH=/usr/local/src/gnu/gnulib:${PATH}
-gnulib-tool --import \
+rm -rf gnulib/ snippet/
+gnulib-tool \
+	--source-base=gnulib/lib --m4-base=gnulib/m4 \
+	--import \
 	alloca \
 	c-ctype \
 	connect \
@@ -31,6 +34,5 @@ gnulib-tool --import \
 	unistd \
 	vfprintf-posix \
 	vsnprintf-posix
-rm -f m4/*~ lib/*~
 
 autoreconf -i -f

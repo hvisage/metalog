@@ -100,7 +100,7 @@ AC_ARG_WITH(unicode,
 
 AC_CONFIG_FILES([ \
 	Makefile \
-	lib/Makefile \
+	gnulib/lib/Makefile \
 	src/Makefile \
 	man/Makefile \
 	man/metalog.8 \

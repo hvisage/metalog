@@ -6,6 +6,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/lib
 
 metalog_SOURCES = \
+	helpers.h \
 	metalog.c \
 	metalog.h \
 	metalog_p.h

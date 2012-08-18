@@ -1,3 +1,9 @@
+* Version 3
+ - fix interaction between "postrotate_cmd" and "logdir" (by Matt Whitlock
+   #2887065)
+ - switch to pkg-config for pcre look up
+ - update bundled gnulib code
+
 * Version 2
  - fix long standing typo where the minute field in the rotated log was
    replaced with the current month: %m instead of %M (by dorian33 #3027782)

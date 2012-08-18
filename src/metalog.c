@@ -205,6 +205,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             new_output->maxsize = (*cur_block)->maxsize;
             new_output->maxfiles = (*cur_block)->maxfiles;
             new_output->maxtime = (*cur_block)->maxtime;
+            new_output->postrotate_cmd = (*cur_block)->postrotate_cmd;
             new_output->showrepeats = (*cur_block)->showrepeats;
             new_output->stamp_fmt = (*cur_block)->stamp_fmt;
             new_output->flush = (*cur_block)->flush;

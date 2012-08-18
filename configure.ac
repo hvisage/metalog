@@ -1,11 +1,11 @@
-AC_PREREQ(2.61)
+AC_PREREQ(2.68)
 AC_INIT([metalog], [3], [metalog-users@lists.sourceforge.net])
 AM_INIT_AUTOMAKE([1.11 dist-xz no-dist-gzip silent-rules -Wall])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR(src/metalog.c)
 AM_CONFIG_HEADER(config.h)
 
-dnl Lie about crap we dont care about
+dnl Lie about gnulib crap we dont care about
 
 gl_cv_func_printf_infinite_long_double=yes
 
@@ -17,11 +17,7 @@ gl_EARLY
 gl_INIT
 AC_PROG_CC_STDC
 AC_SYS_LARGEFILE
-
-dnl Use -Wall if we have gcc.
-if test "x$GCC" = "xyes"; then
-	CFLAGS="$CFLAGS -Wall"
-fi
+PKG_PROG_PKG_CONFIG
 
 dnl Checks for header files
 
@@ -70,43 +66,51 @@ AC_FUNC_STAT
 AC_FUNC_VPRINTF
 AC_FUNC_GETGROUPS
 
-AC_CHECK_FUNCS_ONCE([ \
-	daemon \
-	klogctl \
-	setproctitle \
-	setprogname \
-])
+AC_CHECK_FUNCS_ONCE(m4_flatten([
+	daemon
+	klogctl
+	setproctitle
+	setprogname
+]))
 
 dnl PCRE
 
-AC_CHECK_LIB(pcre, pcre_compile, ,
-[AC_ERROR([You need to install the PCRE library - http://www.pcre.org])])
+PKG_CHECK_MODULES([PCRE], libpcre)
+CFLAGS="$CFLAGS $PCRE_CFLAGS"
+LIBS="$LIBS $PCRE_LIBS"
 
 dnl Options
 
 AM_WITH_DMALLOC
 
-AC_ARG_WITH(debug,
-[AC_HELP_STRING([--with-debug],[For maintainers only - please do not use])],
-[ if test "x$withval" = "xyes" ; then
-    CFLAGS="$CFLAGS -DDEBUG=1 -g -Wall -W -Wcast-qual -Wcast-align -Wmissing-noreturn -Wbad-function-cast -Wstrict-prototypes -Wwrite-strings -Wreturn-type "
-  fi ])
+WFLAGS=""
+AC_DEFUN([W_CHECK_CFLAG],[AX_CHECK_COMPILE_FLAG([$1],[WFLAGS="$WFLAGS $1"])])
+W_CHECK_CFLAG([-Wall])
+W_CHECK_CFLAG([-W])
+W_CHECK_CFLAG([-Wcast-qual])
+W_CHECK_CFLAG([-Wcast-align])
+W_CHECK_CFLAG([-Wmissing-noreturn])
+W_CHECK_CFLAG([-Wbad-function-cast])
+W_CHECK_CFLAG([-Wstrict-prototypes])
+W_CHECK_CFLAG([-Wwrite-strings])
+W_CHECK_CFLAG([-Wreturn-type])
+AC_SUBST(WFLAGS, $WFLAGS)
 
 AC_ARG_WITH(unicode,
-[AC_HELP_STRING([--with-unicode],[Enable unicode support (default no)])],
-[ if test "x$withval" = "xyes" ; then
-    AC_DEFINE([ACCEPT_UNICODE_CONTROL_CHARS],[1],[Don't scramble unicode])
-  fi ])
-
-AC_CONFIG_FILES([ \
-	Makefile \
-	gnulib/lib/Makefile \
-	src/Makefile \
-	man/Makefile \
-	man/metalog.8 \
-	man/metalog.conf.5 \
-	metalog.spec \
-	metalog.lsm \
+	[AC_HELP_STRING([--with-unicode],[Enable unicode support (default no)])])
+AS_IF([test "x$with_unicode" = "xyes"], [
+	AC_DEFINE([ACCEPT_UNICODE_CONTROL_CHARS], [1], [Don't scramble unicode])
 ])
+
+AC_CONFIG_FILES(m4_flatten([
+	Makefile
+	gnulib/lib/Makefile
+	src/Makefile
+	man/Makefile
+	man/metalog.8
+	man/metalog.conf.5
+	metalog.spec
+	metalog.lsm
+]))
 
 AC_OUTPUT

@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 PATH=/usr/local/src/gnu/gnulib:${PATH}
 rm -rf gnulib/ snippet/
 gnulib-tool \
@@ -34,5 +36,10 @@ gnulib-tool \
 	unistd \
 	vfprintf-posix \
 	vsnprintf-posix
+rm gnulib/*/.gitignore
+git checkout HEAD^ gnulib/.gitignore
+git add gnulib
 
 autoreconf -i -f
+
+echo "git commit -s -m 'update gnulib/autotool files' INSTALL gnulib"

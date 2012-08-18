@@ -1,3 +1,5 @@
+AM_CFLAGS = $(WFLAGS)
+
 sbin_PROGRAMS = \
 	metalog
 

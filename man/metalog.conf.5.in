@@ -23,119 +23,126 @@ allow you to keep an easy to read config file.
 
 Values names can be one of the following:
 .TP
-.B maxsize
-maxsize = <value>. Once a logfile has exceeded the value defined (in bytes), it
-will be rotated. If maxfile is equal to zero, it disables log rotation. Defining
-a default value is a good idea.
+\fBmaxsize\fR = \fI<number (bytes)>\fR
+Once a logfile has exceeded the value defined (in bytes), it will be rotated.
+If \fBmaxfile\fR is equal to zero, it disables log rotation.
+Defining a default value is a good idea.
 .TP
-.B maxtime
-maxtime = <value>. Once a logfile is older than the value defined (in seconds),
-it will be rotated. Defining a default value is a good idea.
+\fBmaxtime\fR = \fI<number (seconds)>\fR
+Once a logfile is older than the value defined (in seconds), it will be rotated.
+Defining a default value is a good idea.
 
-NB: a logfile is rotated when either maxsize or maxtime limit is
+NB: A logfile is rotated when either \fBmaxsize\fR or \fBmaxtime\fR limit is
 reached. If either one or both is equal 0, then log rotation is disabled.
 .TP
-.B maxfiles
-maxfiles = <value>. This value indicates the maximum number of rotated files
-kept. So you'll have x rotated files (log-date-string filename type), plus the
-file named current.
+\fBmaxfiles\fR = \fI<number>\fR
+This value indicates the maximum number of rotated files kept.
+So you'll have x rotated files (log-date-string filename type), plus the file
+named "current".
 .TP
-.B facility
-facility = "name". Only records a message if the application that issued it
-uses syslog facility <facility>. Facility names are : "auth", "authpriv",
-"cron", "daemon", "ftp", "kern", "lpr", "mail", "news", "security", "syslog",
-"user", "uucp", "local0", "local1" ... "local7" . All kernel messages are logged
-with facility "kern". A section can have several "facility = ..." lines to match
-more than one facility. If <facility> is "*", it'll match all the facilities.
+\fBfacility\fR = \fI"<facility>"\fR
+Only records a message if the application that issued it uses syslog facility
+<facility>. Facility names are : "auth", "authpriv", "cron", "daemon", "ftp",
+"kern", "lpr", "mail", "news", "security", "syslog", "user", "uucp", "local0",
+"local1" ... "local7". All kernel messages are logged with facility "kern".
+A section can have several "facility = ..." lines to match more than one
+facility. If <facility> is "*", it'll match all the facilities.
 .TP
-.B break
-break = <value>. Default is 0. If set to 1 and a section is matched, perform
-action, but don't consider any more possible section matches below this one in
-the config file. This is useful for creating a config where specific types of
-log messages are matched and dispatched, while a "catch-all" section at the
-bottom of the config file handles the default case.  Using break=0 would cause
-messages to be potentially handled by multiple sections, causing message
-duplication, while using break = 1 on the sections above the "catch-all" would
-avoid duplication.
+\fBbreak\fR = \fI<number>\fR
+Default is \fI0\fR.
+If set to \fI1\fR and a section is matched, perform action, but don't consider
+any more possible section matches below this one in the config file.
+This is useful for creating a config where specific types of log messages are
+matched and dispatched, while a "catch-all" section at the bottom of the config
+file handles the default case.
+
+Using \fI0\fR would cause messages to be potentially handled by multiple
+sections, causing message duplication, while using \fI1\fR on the sections above
+a final "catch-all" would avoid duplication.
 .TP
-.B minimum
-minimum = <level> : Only record a message if its urgency is inferior or equal to
-<level> . Level '0' is the most critical one, while level '7' is for debugging
-messages. 'minimum = 5' will strip all non-important messages. The default
-minimum level is 7 (ie. keep all messages).
+\fBminimum\fR = \fI<level>\fR
+Only record a message if its urgency is inferior or equal to \fI<level>\fR.
+Level '0' is the most critical one, while level '7' is for debugging messages.
+\fI5\fR will strip all non-important messages.
+The default minimum level is \fI7\fR (i.e. keep all messages).
 .TP
-.B maximum
-maximum = <level> : don't log if the message level exceeds that value. By
-default, maximum is the largest possible level.
+\fBmaximum\fR = \fI<level>\fR
+Don't log if the message level exceeds that value.
+By default, \fBmaximum\fR is the largest possible level.
 .TP
-.B logdir
-logdir = "/path/where/logs/will/be/written" : files will be written in
-/path/where/logs/will/be/written.
+\fBlogdir\fR = \fI"/dir/where/logs/will/be/written/"\fR
+Files will be written under the specified directory.
 .TP
-.B program
-program = "name". Can be used when a facility is useless. Remember to use
-the executable name.
+\fBprogram\fR = \fI"name"\fR
+Can be used to do filtering instead of \fBfacility\fR.
+Remember to use the executable name.
 .TP
-.B regex
-regex = "perl compatible regular expression". Can be used when you want to log
-given patterns, like invalid, fail etc to get in a given directory everything
-that failed or was invalid. Several regex can be defined in a section.
+\fBregex\fR = \fI"perl compatible regular expression"\fR
+Can be used when you want to log all messages that match the \fIpattern\fR
+(like "invalid", "fail", etc...) to send them to a single directory.
+
+Multiple \fBregex\fR may be defined in a single section.
 .TP
-.B neg_regex
-neg_regex = "perl compatible regular expression". Can be used when you want to log
-the opposite of given patterns. Several neg_regex can be defined in a section.
+\fBneg_regex\fR = \fI"perl compatible regular expression"\fR
+Can be used when you want to log all messages that do not match the \fIpattern\fR.
+
+Multiple \fBneg_regex\fR may be defined in a section.
 .TP
-.B postrotate_cmd
-postrotate_cmd = "/path/to/a/program". Run specified program after a log file
-has been rotated. The program is passed the date, the program name ("metalog"),
-and the new logfile name.
+\fBpostrotate_cmd\fR = \fI"/path/to/a/program"\fR
+Run specified program after a log file has been rotated.
+
+The program is passed the date, the program name ("metalog"), and the new logfile name.
 .TP
-.B program_regex
-program_regex = "perl compatible regular expression". Can be used when you have,
-for example a familly of programs having the same pattern in their names, and
-you want to get logs centralized in a given path.
+\fBprogram_regex\fR = \fI"perl compatible regular expression"\fR
+Similar to \fBprogram\fR, this is a regex that matches the program name to send
+all messages from related programs to the same log file.
+
+Multiple \fBprogram_regex\fR may be defined in a section.
 .TP
-.B program_neg_regex
-program_neg_regex = "perl compatible regular expression". Can be used when you
-want to log programs which do not match a pattern in their names. Several
-program_neg_regex can be defined in a section.
+\fBprogram_neg_regex\fR = \fI"perl compatible regular expression"\fR
+The inverse of \fBprogram_regex\fR to filter out logs from programs that match.
+
+Multiple \fBprogram_neg_regex\fR may be defined in a section.
 .TP
-.B showrepeats
-showrepeats = <value>. Set to 0 to filter out repeat log messages.
+\fBshowrepeats\fR = \fI<number>\fR
+Set to \fI0\fR to filter out repeat log messages.
 .TP
-.B command
-command = "/path/to/program/to/execute". If something is logged in a given section,
-you can automatically launch a program. The log message is passed as the arguments
-to the program. The argv[1] is the date, argv[2] is the program, and argv[3] is the
-actual log message.
+\fBcommand\fR = \fI"/path/to/program/to/execute"\fR
+Run the specified program as soon as something is logged in a given section.
+
+The program is passed the date, the matching program name, and the log message.
 .TP
-.B stamp_fmt
-stamp_fmt = "%b %e %T". Format of the human readable timestamp prepended to all
-log messages. This format string is passed literally to the
+\fBstamp_fmt\fR = \fI"%b %e %T"\fR
+Format of the human readable timestamp prepended to all log messages.
+This format string is passed literally to the
 .BR strftime (3)
-function. An empty string is used to disable timestamping (for cases where the
-logger already does its own timestamping).
+function.
+An empty string is used to disable timestamps (for cases where the log messages
+already include its own).
 .TP
-.B flush
-flush = <value>. If set to 0, matching log messages will always be
-buffered. If set to 1, they will always be written to the file system
-immediately. Both settings override the global default given through
+\fBflush\fR = \fI<number>\fR
+If set to \fI0\fR, matching log messages will always be buffered.
+If set to \fI1\fR, they will always be written to the file system immediately.
+
+Both settings override the global default given through
 command line parameters (\fB\-a\fR/\fB\-s\fR) or signals.
 .TP
-.B ratelimit
-ratelimit = "5/m". Limits the rate of logged messages to the specified number
-of messages per unit of time. Valid units of time are \fIs\fRecond,
-\fIm\fRinute, \fIh\fRour and \fId\fRay, each identified by its first letter.
-Fractional values are allowed such as "0.5/m" to make human parsing easier.
-A limit of zero (the default) may be used to disable any rate limit handling.
+\fBratelimit\fR = \fI"5/m"\fR
+Limits the rate of logged messages to the specified number of messages per unit
+of time.
+Valid units of time are \fIs\fRecond, \fIm\fRinute, \fIh\fRour and \fId\fRay,
+each identified by its first letter.
+Fractional values are allowed such as \fI"0.5/m"\fR to make human parsing easier.
+
+A limit of \fI0\fR (the default) may be used to disable any rate limit handling.
 In this case, the unit of time may be omitted.
 .TP
-.B ratelimit_burst
-ratelimit_burst = <integer>. Up to this number of lines will be printed at the
-beginning of a burst of message, if the rate of messages has been well below
-the limit before. The specified message rate will not be exceeded.  The default
-value of 1 disables special treatment for bursts. Values less than 1 are
-invalid and will be rejected.
+\fBratelimit_burst\fR = \fI<number>\fR
+Up to this number of lines will be printed at the beginning of a burst of message,
+if the rate of messages has been well below the limit before.
+The specified message rate will not be exceeded.
+The default value of 1 disables special treatment for bursts.
+Values less than 1 are invalid and will be rejected.
 .SH "FILES"
 .LP
 Note that the exact paths depend on the build settings.  These are the standard paths.

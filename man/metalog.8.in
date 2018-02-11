@@ -24,12 +24,12 @@ Improve performance by using buffers (bug log files won't get updated in real ti
 Can be overridden for individual logs.
 .TP
 .BR \-B ", " \-\-daemonize
-have the server start in background (daemonization).
+Have the server start in background (daemonization).
 .TP
-.BR \-c ", " \-\-consolelevel=0..7
+.BR \-c ", " \-\-consolelevel = \fR\fI0..7\fR
 Set the console log level (Linux only).
 .TP
-.BR \-C ", " \-\-configfile=file
+.BR \-C ", " \-\-configfile = \fR\fIfile\fR
 Use an alternate configuration file.
 .TP
 .BR \-h ", " \-\-help
@@ -38,7 +38,7 @@ Output help information and exit.
 .BR \-N ", " \-\-no\-kernel
 Do not attempt to log messages from the kernel.
 .TP
-.BR \-P ", " \-\-pidfile=pid file
+.BR \-P ", " \-\-pidfile = \fR\fIfile\fR
 Use an alternate file to store the process number.
 .TP
 .BR \-s ", " \-\-sync ", " \-\-synchronous

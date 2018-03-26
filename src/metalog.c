@@ -199,7 +199,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 free(new_output);
                 return -3;
             }
-            new_output->directory = logdir;
+            if (strcasecmp(value, "NONE") != 0)
+                new_output->directory = logdir;
             new_output->fp = NULL;
             new_output->size = (off_t) 0;
             new_output->maxsize = (*cur_block)->maxsize;
@@ -241,6 +242,14 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->postrotate_cmd = (*cur_block)->postrotate_cmd;
             }
+        } else if (strcasecmp(keyword, "remote_host") == 0) {
+            if ((remote_host.hostname = wstrdup(value)) == NULL)
+               return -3;
+        } else if (strcasecmp(keyword, "remote_port") == 0) {
+            if ((remote_host.port = wstrdup(value)) == NULL)
+               return -3;
+        } else if (strcasecmp(keyword, "remote_log") == 0) {
+            (*cur_block)->remote_log = atoi(value);
         } else if (strcasecmp(keyword, "break") == 0) {
             (*cur_block)->brk = atoi(value);
         } else if (strcasecmp(keyword, "stamp_fmt") == 0) {
@@ -344,6 +353,7 @@ static int configParser(const char * const file)
             FLUSH_DEFAULT,             /* flush */
             0,                         /* usec_between_msgs */
             1,                         /* max_burst_length */
+            false,                     /* send log entry to remote logger */
     };
     ConfigBlock *cur_block = &default_block;
 
@@ -959,6 +969,75 @@ static int writeLogLine(Output * const output, const char * const date,
     return 0;
 }
 
+/* send a line to a remote syslog server */
+static int sendRemote(const char * const prg, const char * const info)
+{
+    struct timespec now;
+    struct addrinfo hints;
+    struct addrinfo *result;
+    struct addrinfo *rp;
+    char *line = NULL;
+    int ret = 0;
+
+    /* prepare log entry */
+    if ((line = wmalloc(strlen("  []  ") + strlen(prg) + strlen(info) + 1)) == NULL)
+        return -1;
+    sprintf(line, "[%s] %s\n", prg, info);
+
+    /* everything seems to be ready to send to remote host immediatelly */
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    if ((remote_host.sock > 0) &&
+        ((remote_host.last_dns.tv_sec + DEFAULT_DNS_LOOKUP_INTERVERVAL) > now.tv_sec)) {
+        if (sendto(remote_host.sock, line, strlen(line), 0, result->ai_addr, result->ai_addrlen) == -1) {
+            close(remote_host.sock);
+            remote_host.sock = -1;
+        }
+        else
+            return 0;
+    }
+
+    /* sending failed or DNS info is too old, try again after updated DNS */
+    clock_gettime(CLOCK_MONOTONIC, &remote_host.last_dns);
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_flags = AI_ADDRCONFIG | AI_CANONNAME;
+    hints.ai_socktype = SOCK_DGRAM;
+    if (getaddrinfo(remote_host.hostname, remote_host.port, &hints, &result) != 0) {
+        free(line);
+        return -1;
+    }
+
+    /* close an eventually open socket */
+    if (remote_host.sock > 0)
+        close(remote_host.sock);
+
+    /* establish the socket to the remote host using all its resolved addresses */
+    for (rp = result; rp != NULL; rp = rp->ai_next) {
+        if (remote_host.sock <= 0)
+            remote_host.sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+        if (remote_host.sock < 0)
+            continue;
+
+        /* try to send the line */
+        if (sendto(remote_host.sock, line, strlen(line), 0, result->ai_addr, result->ai_addrlen) == -1) {
+            close(remote_host.sock);
+            remote_host.sock = -1;
+            continue;
+        }
+        else {
+            break;
+        }
+    }
+    free(line);
+
+    if(!rp)
+        ret = -1;
+
+    freeaddrinfo(result);
+
+    return ret;
+}
+
 static void flushAll(void)
 {
     ConfigBlock *block = config_blocks;
@@ -1074,7 +1153,14 @@ static int processLogLine(const int logcode,
 
         bool do_break = false;
         if (block->output != NULL) {
+            /* write a real log entry */
             writeLogLine(block->output, datebuf, prg, info);
+
+            /* send the log entry to the remote host */
+            if (remote_host.hostname != NULL && block->remote_log) {
+                sendRemote(prg, info);
+            }
+
             if (block->brk)
                 do_break = true;
         }
@@ -1544,6 +1630,9 @@ int main(int argc, char *argv[])
 {
     int sockets[2];
 
+    remote_host.port = DEFAULT_UPD_PORT;
+    remote_host.sock = -1;
+    remote_host.last_dns.tv_sec = 0;
     parseOptions(argc, argv);
     if (configParser(config_file) < 0)
         err("Bad configuration file");

@@ -34,6 +34,8 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#include <netinet/in.h>
+#include <netdb.h>
 #include "c-ctype.h"
 #include "pathmax.h"
 
@@ -83,6 +85,14 @@ typedef struct RateLimiter_ {
     int token_bucket;
     int64_t last_tick;
 } RateLimiter;
+
+/* describing a remote syslog server */
+typedef struct RemoteHost_ {
+    const char *hostname;       /* host name of remote host */
+    const char *port;           /* UDP port */
+    int sock;                   /* UDP socket to remote server */
+    struct timespec last_dns;   /* time stamp of last successful DNS lookup */
+} RemoteHost;
 
 typedef struct Output_ {
     char *directory;
@@ -139,6 +149,7 @@ typedef struct ConfigBlock_ {
     FlushMode flush;
     int64_t usec_between_msgs;
     int burst_length;
+    int remote_log;
 } ConfigBlock;
 
 typedef enum LogLineType_ {
@@ -170,6 +181,8 @@ typedef enum LogLineType_ {
 #define MAX_SIGNIFICANT_LENGTH 512U
 #define MAX_LOG_LENGTH 8192U          /* must be < (INT_MAX / 2) */
 #define DEFAULT_STAMP_FMT "%b %d %T"
+#define DEFAULT_UPD_PORT "514"              /* UDP port of the remote syslog server */
+#define DEFAULT_DNS_LOOKUP_INTERVERVAL 120  /* seconds, after that a DNS lookup should be repeated */
 
 #ifdef ACCEPT_UNICODE_CONTROL_CHARS
 # define ISCTRLCODE(X) ((X) == 0x7f || ((unsigned char) (X)) < 32U)

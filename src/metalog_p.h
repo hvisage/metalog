@@ -31,6 +31,7 @@ static int argv_lth;
 #endif
 static ConfigBlock *config_blocks;
 static Output *outputs;
+static RemoteHost remote_host;
 #ifdef HAVE_KLOGCTL
 static int console_level = DEFAULT_CONSOLE_LEVEL;
 #endif

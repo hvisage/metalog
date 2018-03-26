@@ -48,6 +48,23 @@ Only records a message if the application that issued it uses syslog facility
 A section can have several "facility = ..." lines to match more than one
 facility. If <facility> is "*", it'll match all the facilities.
 .TP
+\fBremote_host\fR = \fI"<IP address or domain name>"\fR
+Log entries are sent to the remote log server defined by this IP address or
+domain name. Only one remote log server can be defined. This can only be defined
+in the default values section. All log messages are sent there, limitations via
+"ratelimit", "ratelimit_burst" or "showrepeats" are ignored for log message sent
+to the remote log server. In case a domain or host name is configured, the
+necessary DNS request will be repeated after every failed attempt or after
+120 seconds when the name has been successfully resolved.
+.TP
+\fBremote_port\fR = \fI"<value>"\fR
+The UDP port of the remote log server. Default is "514". This can only be
+defined in the default values section.
+.TP
+\fBremote_log\fR = \fI"<number>"\fR
+Default is \fI0\fR. Log messages are sent to the remote log server when set
+to \fI1\fR. Can be defined for default values or in sections.
+.TP
 \fBbreak\fR = \fI<number>\fR
 Default is \fI0\fR.
 If set to \fI1\fR and a section is matched, perform action, but don't consider

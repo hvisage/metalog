@@ -1133,7 +1133,8 @@ static int log_line(LogLineType loglinetype, char *buf)
 static int log_udp(char *buf, int bsize)
 {
     buf[bsize] = '\0';
-    write(1, buf, strlen(buf));
+    if (write(1, buf, strlen(buf)) != (ssize_t) strlen(buf))
+        return -1;
     return log_line(LOGLINETYPE_SYSLOG, buf);
 }
 
@@ -1317,7 +1318,7 @@ static void signal_doLog_queue(const char *fmt, const unsigned int pid, const in
     ret = write(dolog_queue[1], buf, sizeof(buf));
     assert(ret == sizeof(buf));
     ret = write(dolog_queue[1], fmt, fmt_len);
-    assert(ret == fmt_len);
+    assert(ret == (ssize_t) fmt_len);
 }
 
 static void signal_doLog_dequeue(void)
@@ -1337,7 +1338,7 @@ static void signal_doLog_dequeue(void)
     buf = malloc(fmt_len+1);
     assert(buf != NULL);
     ret = read(dolog_queue[0], buf, fmt_len);
-    assert(ret == fmt_len);
+    assert(ret == (ssize_t) fmt_len);
     buf[fmt_len] = '\0';
 
     ++spawn_recursion;

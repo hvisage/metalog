@@ -88,7 +88,8 @@ Don't log if the message level exceeds that value.
 By default, \fBmaximum\fR is the largest possible level.
 .TP
 \fBlogdir\fR = \fI"/dir/where/logs/will/be/written/"\fR
-Files will be written under the specified directory.
+Files will be written under the specified directory. The special value \fI"NONE"\fR will
+skip the log message.
 .TP
 \fBprogram\fR = \fI"name"\fR
 Can be used to do filtering instead of \fBfacility\fR.

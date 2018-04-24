@@ -10,6 +10,7 @@
 
 #include <alloca.h>
 #include <assert.h>
+#include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -36,8 +37,6 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include "c-ctype.h"
-#include "pathmax.h"
 
 #ifndef HAVE_SYSLOG_NAMES
 # include "syslognames.h"

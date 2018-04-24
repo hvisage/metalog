@@ -36,9 +36,10 @@ gnulib-tool \
 	unistd \
 	vfprintf-posix \
 	vsnprintf-posix
-rm gnulib/*/.gitignore
-git checkout HEAD^ gnulib/.gitignore
-git add gnulib
+
+rm -f gnulib/*/.gitignore
+git checkout HEAD^ gnulib/.gitignore || true
+git add gnulib || true
 
 autoreconf -i -f
 

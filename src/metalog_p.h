@@ -26,11 +26,11 @@ static struct option long_options[] = {
 };
 
 #if defined(__linux__) && !defined(HAVE_SETPROCTITLE)
-static char **argv0;
+static char **argv0 = NULL;
 static int argv_lth;
 #endif
-static ConfigBlock *config_blocks;
-static Output *outputs;
+static ConfigBlock *config_blocks = NULL;
+static Output *outputs = NULL;
 static RemoteHost remote_host;
 #ifdef HAVE_KLOGCTL
 static int console_level = DEFAULT_CONSOLE_LEVEL;

@@ -628,7 +628,7 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
         line++;
     }
     line++;
-    while (c_isspace(*line) == 0) {
+    while (isspace(*line) == 0) {
         if (*line == 0) {
             return -1;
         }
@@ -661,7 +661,7 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
         *line = 0;
     }
     line++;
-    while (c_isspace(*line) != 0) {
+    while (isspace(*line) != 0) {
         if (*line == 0) {
             return -1;
         }

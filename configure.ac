@@ -5,16 +5,12 @@ AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR(src/metalog.c)
 AM_CONFIG_HEADER(config.h)
 
-dnl Lie about gnulib crap we dont care about
-
 gl_cv_func_printf_infinite_long_double=yes
 
 dnl Checks for programs.
 AC_PROG_INSTALL
 AC_USE_SYSTEM_EXTENSIONS
 AC_PROG_CC
-gl_EARLY
-gl_INIT
 AC_PROG_CC_STDC
 AC_SYS_LARGEFILE
 PKG_PROG_PKG_CONFIG
@@ -104,7 +100,6 @@ AS_IF([test "x$with_unicode" = "xyes"], [
 
 AC_CONFIG_FILES(m4_flatten([
 	Makefile
-	gnulib/lib/Makefile
 	src/Makefile
 	man/Makefile
 	man/metalog.8

@@ -974,7 +974,6 @@ static int sendRemote(const char * const prg, const char * const info)
 {
     struct timespec now;
     struct addrinfo hints;
-    struct addrinfo *result;
     struct addrinfo *rp;
     char *line = NULL;
     int ret = 0;
@@ -988,12 +987,13 @@ static int sendRemote(const char * const prg, const char * const info)
     clock_gettime(CLOCK_MONOTONIC, &now);
     if ((remote_host.sock > 0) &&
         ((remote_host.last_dns.tv_sec + DEFAULT_DNS_LOOKUP_INTERVERVAL) > now.tv_sec)) {
-        if (sendto(remote_host.sock, line, strlen(line), 0, result->ai_addr, result->ai_addrlen) == -1) {
+        if (sendto(remote_host.sock, line, strlen(line), 0, remote_host.result->ai_addr, remote_host.result->ai_addrlen) == -1) {
             close(remote_host.sock);
             remote_host.sock = -1;
         }
-        else
+        else {
             return 0;
+        }
     }
 
     /* sending failed or DNS info is too old, try again after updated DNS */
@@ -1002,7 +1002,10 @@ static int sendRemote(const char * const prg, const char * const info)
     hints.ai_family = AF_UNSPEC;
     hints.ai_flags = AI_ADDRCONFIG | AI_CANONNAME;
     hints.ai_socktype = SOCK_DGRAM;
-    if (getaddrinfo(remote_host.hostname, remote_host.port, &hints, &result) != 0) {
+    if (remote_host.result != NULL) {
+        freeaddrinfo(remote_host.result);
+    }
+    if (getaddrinfo(remote_host.hostname, remote_host.port, &hints, &remote_host.result) != 0) {
         free(line);
         return -1;
     }
@@ -1012,14 +1015,14 @@ static int sendRemote(const char * const prg, const char * const info)
         close(remote_host.sock);
 
     /* establish the socket to the remote host using all its resolved addresses */
-    for (rp = result; rp != NULL; rp = rp->ai_next) {
+    for (rp = remote_host.result; rp != NULL; rp = rp->ai_next) {
         if (remote_host.sock <= 0)
-            remote_host.sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+            remote_host.sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if (remote_host.sock < 0)
             continue;
 
         /* try to send the line */
-        if (sendto(remote_host.sock, line, strlen(line), 0, result->ai_addr, result->ai_addrlen) == -1) {
+        if (sendto(remote_host.sock, line, strlen(line), 0, rp->ai_addr, rp->ai_addrlen) == -1) {
             close(remote_host.sock);
             remote_host.sock = -1;
             continue;
@@ -1032,8 +1035,6 @@ static int sendRemote(const char * const prg, const char * const info)
 
     if(!rp)
         ret = -1;
-
-    freeaddrinfo(result);
 
     return ret;
 }
@@ -1633,6 +1634,7 @@ int main(int argc, char *argv[])
     remote_host.port = DEFAULT_UPD_PORT;
     remote_host.sock = -1;
     remote_host.last_dns.tv_sec = 0;
+    remote_host.result = NULL;
     parseOptions(argc, argv);
     if (configParser(config_file) < 0)
         err("Bad configuration file");

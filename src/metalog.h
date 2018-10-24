@@ -91,6 +91,7 @@ typedef struct RemoteHost_ {
     const char *port;           /* UDP port */
     int sock;                   /* UDP socket to remote server */
     struct timespec last_dns;   /* time stamp of last successful DNS lookup */
+    struct addrinfo *result;    /* IP address of resolved remote server */
 } RemoteHost;
 
 typedef struct Output_ {

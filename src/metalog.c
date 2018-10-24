@@ -99,7 +99,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             (*cur_block)->nb_facilities++;
         } else if (strcasecmp(keyword, "regex") == 0 ||
                    strcasecmp(keyword, "neg_regex") == 0) {
-            const char *regex;
+            char *regex;
             RegexWithSign *new_regexeswithsign;
 
             if ((regex = wstrdup(value)) == NULL)
@@ -107,16 +107,21 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             if ((new_regexeswithsign =
                  wrealloc((*cur_block)->regexeswithsign,
                           ((*cur_block)->nb_regexes + 1) *
-                          sizeof *((*cur_block)->regexeswithsign))) == NULL)
+                          sizeof *((*cur_block)->regexeswithsign))) == NULL) {
+                free(regex);
                 return -3;
+            }
             (*cur_block)->regexeswithsign = new_regexeswithsign;
-            if ((new_regex = wpcre_compile(regex, PCRE_CASELESS)) == NULL)
+            if ((new_regex = wpcre_compile(regex, PCRE_CASELESS)) == NULL) {
+                free(regex);
                 return -5;
-            {
+            }
+            else {
                 const char *errptr;
                 RegexWithSign * const this_regex =
                     &((*cur_block)->regexeswithsign[(*cur_block)->nb_regexes]);
 
+                free(regex);
                 if (strcasecmp(keyword, "neg_regex") == 0) {
                     this_regex->sign = REGEX_SIGN_NEGATIVE;
                 } else {
@@ -129,7 +134,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             (*cur_block)->nb_regexes++;
         } else if (strcasecmp(keyword, "program_regex") == 0 ||
                    strcasecmp(keyword, "program_neg_regex") == 0) {
-            const char *regex;
+            char *regex;
             RegexWithSign *new_regexeswithsign;
 
             if ((regex = wstrdup(value)) == NULL)
@@ -138,13 +143,18 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                  wrealloc((*cur_block)->program_regexeswithsign,
                           ((*cur_block)->program_nb_regexes + 1) *
                           sizeof *((*cur_block)->program_regexeswithsign)))
-                == NULL)
+                == NULL) {
+                free(regex);
                 return -3;
+            }
             (*cur_block)->program_regexeswithsign = new_regexeswithsign;
-            if ((new_regex = wpcre_compile(regex, PCRE_CASELESS)) == NULL)
+            if ((new_regex = wpcre_compile(regex, PCRE_CASELESS)) == NULL) {
+                free(regex);
                 return -5;
-            {
+            }
+            else {
                 const char *errptr;
+                free(regex);
                 RegexWithSign * const this_regex =
                     &((*cur_block)->program_regexeswithsign
                       [(*cur_block)->program_nb_regexes]);
@@ -180,7 +190,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 (*cur_block)->output->showrepeats = (*cur_block)->showrepeats;
             }
         } else if (strcasecmp(keyword, "logdir") == 0) {
-            char *logdir;
+            char *logdir = NULL;
             Output *outputs_scan = outputs;
             Output *previous_scan = NULL;
             Output *new_output;
@@ -197,10 +207,13 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             if ((new_output = wmalloc(sizeof *new_output)) == NULL ||
                 (logdir = wstrdup(value)) == NULL) {
                 free(new_output);
+                free(logdir);
                 return -3;
             }
             if (strcasecmp(value, "NONE") != 0)
                 new_output->directory = logdir;
+            else
+                free(logdir);
             new_output->fp = NULL;
             new_output->size = (off_t) 0;
             new_output->maxsize = (*cur_block)->maxsize;
@@ -974,7 +987,6 @@ static int sendRemote(const char * const prg, const char * const info)
 {
     struct timespec now;
     struct addrinfo hints;
-    struct addrinfo *result;
     struct addrinfo *rp;
     char *line = NULL;
     int ret = 0;
@@ -988,12 +1000,14 @@ static int sendRemote(const char * const prg, const char * const info)
     clock_gettime(CLOCK_MONOTONIC, &now);
     if ((remote_host.sock > 0) &&
         ((remote_host.last_dns.tv_sec + DEFAULT_DNS_LOOKUP_INTERVERVAL) > now.tv_sec)) {
-        if (sendto(remote_host.sock, line, strlen(line), 0, result->ai_addr, result->ai_addrlen) == -1) {
+        if (sendto(remote_host.sock, line, strlen(line), 0, remote_host.result->ai_addr, remote_host.result->ai_addrlen) == -1) {
             close(remote_host.sock);
             remote_host.sock = -1;
         }
-        else
+        else {
+            free(line);
             return 0;
+        }
     }
 
     /* sending failed or DNS info is too old, try again after updated DNS */
@@ -1002,7 +1016,11 @@ static int sendRemote(const char * const prg, const char * const info)
     hints.ai_family = AF_UNSPEC;
     hints.ai_flags = AI_ADDRCONFIG | AI_CANONNAME;
     hints.ai_socktype = SOCK_DGRAM;
-    if (getaddrinfo(remote_host.hostname, remote_host.port, &hints, &result) != 0) {
+    if (remote_host.result != NULL) {
+        freeaddrinfo(remote_host.result);
+        remote_host.result = NULL;
+    }
+    if (getaddrinfo(remote_host.hostname, remote_host.port, &hints, &remote_host.result) != 0) {
         free(line);
         return -1;
     }
@@ -1012,14 +1030,14 @@ static int sendRemote(const char * const prg, const char * const info)
         close(remote_host.sock);
 
     /* establish the socket to the remote host using all its resolved addresses */
-    for (rp = result; rp != NULL; rp = rp->ai_next) {
+    for (rp = remote_host.result; rp != NULL; rp = rp->ai_next) {
         if (remote_host.sock <= 0)
-            remote_host.sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+            remote_host.sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if (remote_host.sock < 0)
             continue;
 
         /* try to send the line */
-        if (sendto(remote_host.sock, line, strlen(line), 0, result->ai_addr, result->ai_addrlen) == -1) {
+        if (sendto(remote_host.sock, line, strlen(line), 0, rp->ai_addr, rp->ai_addrlen) == -1) {
             close(remote_host.sock);
             remote_host.sock = -1;
             continue;
@@ -1032,8 +1050,6 @@ static int sendRemote(const char * const prg, const char * const info)
 
     if(!rp)
         ret = -1;
-
-    freeaddrinfo(result);
 
     return ret;
 }
@@ -1633,6 +1649,7 @@ int main(int argc, char *argv[])
     remote_host.port = DEFAULT_UPD_PORT;
     remote_host.sock = -1;
     remote_host.last_dns.tv_sec = 0;
+    remote_host.result = NULL;
     parseOptions(argc, argv);
     if (configParser(config_file) < 0)
         err("Bad configuration file");

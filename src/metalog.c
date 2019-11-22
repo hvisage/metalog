@@ -1161,10 +1161,60 @@ static int processLogLine(const int logcode,
 
         char datebuf[100] = { '\0' };
         if (block->output && block->output->stamp_fmt[0]) {
-            const time_t now = time(NULL);
-            struct tm *tm = localtime(&now);
-            if (tm)
-                strftime(datebuf, sizeof datebuf, block->output->stamp_fmt, tm);
+            struct timespec ts;
+            clock_gettime(CLOCK_REALTIME, &ts);
+            struct tm *tm = localtime(&ts.tv_sec);
+            if (tm) {
+                /* make a copy as we may change the string */
+                char *fmt_str = strdup(block->output->stamp_fmt);
+                /* Search for and process "%N" */
+                char *p = fmt_str;
+                while ((p = strchr(p, '%')) != NULL) {
+                    char *tmp = NULL;
+                    int n, m;
+                    unsigned scale;
+                    unsigned long precision;
+                    p++;
+                    if (*p == '%') {
+                        p++;
+                        continue;
+                    }
+                    n = strspn(p, "0123456789");
+                    if (p[n] != 'N') {
+                        p += n;
+                        continue;
+                    }
+                    /* We have "%[nnn]N" */
+                    p[-1] = '\0';
+                    p[n] = '\0';
+                    scale = 1;
+                    precision = 9;
+                    if (n) {
+                        int old_errno = errno;
+                        char *e = NULL;
+                        errno = 0;
+                        precision = strtoul(p, &e, 10);
+                        if (!errno && p != e && !*e) {
+                            if (precision == 0 || precision > 9)
+                                precision = 9;
+                            m = 9 - precision;
+                            while (--m >= 0)
+                                scale *= 10;
+                        }
+                        errno = old_errno;
+                    }
+                    m = p - fmt_str;
+                    p += n + 1;
+                    if (asprintf(&tmp, "%s%0*u%s", fmt_str, (unsigned)precision, (unsigned)ts.tv_nsec / scale, p) <= 0) {
+                        break;
+                    }
+                    free(fmt_str);
+                    fmt_str = tmp;
+                    p = fmt_str + m;
+                }
+                strftime(datebuf, sizeof datebuf, fmt_str, tm);
+                free(fmt_str);
+            }
         }
 
         bool do_break = false;

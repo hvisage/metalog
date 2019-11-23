@@ -132,7 +132,9 @@ The program is passed the date, the matching program name, and the log message.
 .TP
 \fBstamp_fmt\fR = \fI"%b %e %T"\fR
 Format of the human readable timestamp prepended to all log messages.
-This format string is passed literally to the
+The format string supports all conversion specifications from strftime plus %[nnn]N for nanoseconds
+(default: nine numbers long, can be shortened with nnn < 9).
+The format string with %[nnn]N replaced is then passed to the
 .BR strftime (3)
 function.
 An empty string is used to disable timestamps (for cases where the log messages

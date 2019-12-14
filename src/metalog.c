@@ -1287,6 +1287,9 @@ static int log_udp(char *buf, int bsize)
     buf[bsize] = '\0';
     if (write(1, buf, strlen(buf)) != (ssize_t) strlen(buf))
         return -1;
+    if (write(1, "\n", 1) != 1)
+        return -1;
+
     return log_line(LOGLINETYPE_SYSLOG, buf);
 }
 

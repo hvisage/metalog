@@ -1064,6 +1064,78 @@ static void flushAll(void)
     }
 }
 
+static int get_stamp_fmt_timestamp(const char *stamp_fmt, char *datebuf, int datebuf_size)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    struct tm *tm = localtime(&ts.tv_sec);
+
+    if ((!stamp_fmt) || (!datebuf) || datebuf_size < 1) {
+        return -1;
+    }
+
+    if (tm) {
+        /* make a copy as we may change the string */
+        char *fmt_str = strdup(stamp_fmt);
+        /* Search for and process "%N" */
+        char *p = fmt_str;
+        while ((p = strchr(p, '%')) != NULL) {
+            char *tmp = NULL;
+            int n, m;
+            unsigned scale;
+            unsigned long precision;
+            p++;
+            if (*p == '%') {
+                p++;
+                continue;
+            }
+            n = strspn(p, "0123456789");
+            if (p[n] != 'N') {
+                p += n;
+                continue;
+            }
+            /* We have "%[nnn]N" */
+            p[-1] = '\0';
+            p[n] = '\0';
+            scale = 1;
+            precision = 9;
+            if (n) {
+                int old_errno = errno;
+                char *e = NULL;
+                errno = 0;
+                precision = strtoul(p, &e, 10);
+                if (!errno && p != e && !*e) {
+                    if (precision == 0 || precision > 9)
+                        precision = 9;
+                    m = 9 - precision;
+                    while (--m >= 0)
+                        scale *= 10;
+                }
+                errno = old_errno;
+            }
+            m = p - fmt_str;
+            p += n + 1;
+            if (asprintf(&tmp, "%s%0*u%s", fmt_str, (unsigned)precision, (unsigned)ts.tv_nsec / scale, p) <= 0) {
+                break;
+            }
+            free(fmt_str);
+            fmt_str = tmp;
+            p = fmt_str + m;
+        }
+        strftime(datebuf, datebuf_size, fmt_str, tm);
+        free(fmt_str);
+    }
+
+    return 0;
+}
+
+static int log_stdout(const char * const date,
+                      const char * const prg, const char * const info)
+{
+    printf("%s [%s] %s\n", date, prg, info);
+    return 0;
+}
+
 static int processLogLine(const int logcode,
                           const char * const prg, char * const info)
 {
@@ -1161,66 +1233,18 @@ static int processLogLine(const int logcode,
 
         char datebuf[100] = { '\0' };
         if (block->output && block->output->stamp_fmt[0]) {
-            struct timespec ts;
-            clock_gettime(CLOCK_REALTIME, &ts);
-            struct tm *tm = localtime(&ts.tv_sec);
-            if (tm) {
-                /* make a copy as we may change the string */
-                char *fmt_str = strdup(block->output->stamp_fmt);
-                /* Search for and process "%N" */
-                char *p = fmt_str;
-                while ((p = strchr(p, '%')) != NULL) {
-                    char *tmp = NULL;
-                    int n, m;
-                    unsigned scale;
-                    unsigned long precision;
-                    p++;
-                    if (*p == '%') {
-                        p++;
-                        continue;
-                    }
-                    n = strspn(p, "0123456789");
-                    if (p[n] != 'N') {
-                        p += n;
-                        continue;
-                    }
-                    /* We have "%[nnn]N" */
-                    p[-1] = '\0';
-                    p[n] = '\0';
-                    scale = 1;
-                    precision = 9;
-                    if (n) {
-                        int old_errno = errno;
-                        char *e = NULL;
-                        errno = 0;
-                        precision = strtoul(p, &e, 10);
-                        if (!errno && p != e && !*e) {
-                            if (precision == 0 || precision > 9)
-                                precision = 9;
-                            m = 9 - precision;
-                            while (--m >= 0)
-                                scale *= 10;
-                        }
-                        errno = old_errno;
-                    }
-                    m = p - fmt_str;
-                    p += n + 1;
-                    if (asprintf(&tmp, "%s%0*u%s", fmt_str, (unsigned)precision, (unsigned)ts.tv_nsec / scale, p) <= 0) {
-                        break;
-                    }
-                    free(fmt_str);
-                    fmt_str = tmp;
-                    p = fmt_str + m;
-                }
-                strftime(datebuf, sizeof datebuf, fmt_str, tm);
-                free(fmt_str);
-            }
+            get_stamp_fmt_timestamp(block->output->stamp_fmt,
+                                    datebuf,
+                                    sizeof(datebuf));
         }
 
         bool do_break = false;
         if (block->output != NULL) {
             /* write a real log entry */
             writeLogLine(block->output, datebuf, prg, info);
+
+            /* write to stdout */
+            log_stdout(datebuf, prg, info);
 
             /* send the log entry to the remote host */
             if (remote_host.hostname != NULL && block->remote_log) {
@@ -1286,8 +1310,6 @@ static int log_udp(char *buf, int bsize)
 {
     buf[bsize] = '\0';
     if (write(1, buf, strlen(buf)) != (ssize_t) strlen(buf))
-        return -1;
-    if (write(1, "\n", 1) != 1)
         return -1;
 
     return log_line(LOGLINETYPE_SYSLOG, buf);

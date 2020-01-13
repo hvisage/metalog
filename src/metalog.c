@@ -1306,15 +1306,6 @@ static int log_line(LogLineType loglinetype, char *buf)
     return processLogLine(logcode, prg, info);
 }
 
-static int log_udp(char *buf, int bsize)
-{
-    buf[bsize] = '\0';
-    if (write(1, buf, strlen(buf)) != (ssize_t) strlen(buf))
-        return -1;
-
-    return log_line(LOGLINETYPE_SYSLOG, buf);
-}
-
 static int log_kernel(char *buf, int bsize)
 {
     char *s = buf;
@@ -1404,7 +1395,9 @@ static int process(const int sockets[])
                 ;
             if (rd == -1)
                 return -1;
-            log_udp(buffer[0], rd);
+
+            buffer[0][rd] = '\0';
+            log_line(LOGLINETYPE_SYSLOG, buffer[0]);
         }
 
         /* STREAM_SOCKET (klog) */

@@ -91,6 +91,9 @@ By default, \fBmaximum\fR is the largest possible level.
 Files will be written under the specified directory. The special value \fI"NONE"\fR will
 skip the log message.
 .TP
+\fBperms\fR = \fI<mode>\fR
+Permissions for the log directory. Defaults to \fI0700\fR
+.TP
 \fBprogram\fR = \fI"name"\fR
 Can be used to do filtering instead of \fBfacility\fR.
 Remember to use the executable name.

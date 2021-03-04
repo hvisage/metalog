@@ -1645,6 +1645,21 @@ static void dodaemonize(void)
     }
 }
 
+static void setgroup(void)
+{
+	if (group_name == NULL) return;
+	struct group *g;
+	errno = 0;
+	if ((g = getgrnam(group_name)) == NULL) {
+	    if(errno == 0)
+	        err("Failed to set group: group '%s' not found", group_name);
+	    else
+	        errp("Failed to set group");
+	}
+	if (setgid(g->gr_gid) == -1)
+	    errp("Failed to set group");
+}
+
 __attribute__ ((noreturn))
 static void help(void)
 {
@@ -1685,6 +1700,9 @@ static void parseOptions(int argc, char *argv[])
         case 'C' :
             config_file = xstrdup(optarg);
             break;
+	case 'g' :
+	    group_name = xstrdup(optarg);
+	    break;
         case 'v' :
             ++verbose;
             break;
@@ -1729,6 +1747,7 @@ int main(int argc, char *argv[])
     if (configParser(config_file) < 0)
         err("Bad configuration file");
     checkRoot();
+    setgroup();
     dodaemonize();
     setsignals();
     if (update_pid_file(pid_file))

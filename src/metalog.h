@@ -37,6 +37,7 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <grp.h>
 
 #ifndef HAVE_SYSLOG_NAMES
 # include "syslognames.h"

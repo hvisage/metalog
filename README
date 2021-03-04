@@ -361,6 +361,9 @@ Linux. Valid values are from 0 to 7. The default is 7.
 - '-C <configuration file>' or '--configfile=<configuration file>' : use an
 alternative configuration file.
 
+- '-g <group>' or '--group=<group>' : change the GID of the metalog process.
+Created files will be owned by this group.
+
 - '-h' or '--help' : show help and version number.
 
 - '-p <filename>' or '--pidfile=<filename>' : set the name of the file

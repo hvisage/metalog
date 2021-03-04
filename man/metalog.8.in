@@ -32,6 +32,10 @@ Set the console log level (Linux only).
 .BR \-C ", " \-\-configfile = \fR\fIfile\fR
 Use an alternate configuration file.
 .TP
+.BR \-g ", " \-\-group = \fR\fIgroup\fR
+Change the GID of the metalog process.
+Created files will be owned by this group.
+.TP
 .BR \-h ", " \-\-help
 Output help information and exit.
 .TP

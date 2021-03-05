@@ -220,7 +220,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             else
                 free(logdir);
             new_output->fp = NULL;
-	    new_output->perms = (*cur_block)->perms;
+            new_output->perms = (*cur_block)->perms;
             new_output->size = (off_t) 0;
             new_output->maxsize = (*cur_block)->maxsize;
             new_output->maxfiles = (*cur_block)->maxfiles;
@@ -359,7 +359,7 @@ static int configParser(const char * const file)
             (off_t) DEFAULT_MAXSIZE,   /* maxsize */
             DEFAULT_MAXFILES,          /* maxfiles */
             (time_t) DEFAULT_MAXTIME,  /* maxtime */
-	    (mode_t) DEFAULT_PERMS,    /* perms */
+            (mode_t) DEFAULT_PERMS,    /* perms */
             NULL,                      /* output */
             NULL,                      /* command */
             NULL,                      /* program */
@@ -1647,17 +1647,17 @@ static void dodaemonize(void)
 
 static void setgroup(void)
 {
-	if (group_name == NULL) return;
-	struct group *g;
-	errno = 0;
-	if ((g = getgrnam(group_name)) == NULL) {
-	    if(errno == 0)
-	        err("Failed to set group: group '%s' not found", group_name);
-	    else
-	        errp("Failed to set group");
-	}
-	if (setgid(g->gr_gid) == -1)
-	    errp("Failed to set group");
+        if (group_name == NULL) return;
+        struct group *g;
+        errno = 0;
+        if ((g = getgrnam(group_name)) == NULL) {
+            if(errno == 0)
+                err("Failed to set group: group '%s' not found", group_name);
+            else
+                errp("Failed to set group");
+        }
+        if (setgid(g->gr_gid) == -1)
+            errp("Failed to set group");
 }
 
 __attribute__ ((noreturn))
@@ -1700,9 +1700,9 @@ static void parseOptions(int argc, char *argv[])
         case 'C' :
             config_file = xstrdup(optarg);
             break;
-	case 'g' :
-	    group_name = xstrdup(optarg);
-	    break;
+        case 'g' :
+            group_name = xstrdup(optarg);
+            break;
         case 'v' :
             ++verbose;
             break;

@@ -6,7 +6,7 @@
 #else
 # define KLOGCTL_OPTIONS ""
 #endif
-#define GETOPT_OPTIONS KLOGCTL_OPTIONS "aBC:hp:sVvN"
+#define GETOPT_OPTIONS KLOGCTL_OPTIONS "aBC:g:hp:sVvN"
 
 static struct option long_options[] = {
     { "async",        0, NULL, 'a' },
@@ -15,6 +15,7 @@ static struct option long_options[] = {
     { "consolelevel", 1, NULL, 'c' },
 #endif
     { "configfile",   1, NULL, 'C' },
+    { "group",        1, NULL, 'g' },
     { "help",         0, NULL, 'h' },
     { "no-kernel",    0, NULL, 'N' },
     { "pidfile",      1, NULL, 'p' },
@@ -42,5 +43,6 @@ static bool do_kernel_log = true;
 static signed char daemonize;
 static const char *pid_file = DEFAULT_PID_FILE;
 static const char *config_file = DEFAULT_CONFIG_FILE;
+static const char *group_name = NULL;
 
 #endif

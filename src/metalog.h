@@ -37,6 +37,7 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <grp.h>
 
 #ifndef HAVE_SYSLOG_NAMES
 # include "syslognames.h"
@@ -96,6 +97,7 @@ typedef struct RemoteHost_ {
 
 typedef struct Output_ {
     char *directory;
+    mode_t perms;
     FILE *fp;
     off_t size;
     off_t maxsize;
@@ -130,6 +132,7 @@ typedef struct ConfigBlock_ {
     off_t maxsize;
     int maxfiles;
     time_t maxtime;
+    mode_t perms;
     Output *output;
     const char *command;
     const char *program;
@@ -168,7 +171,7 @@ typedef enum LogLineType_ {
 #define CF_PROGNAME_KERNEL "kernel"
 #define OUTPUT_DIR_TIMESTAMP ".timestamp"
 #define OUTPUT_DIR_CURRENT "current"
-#define OUTPUT_DIR_PERMS 0700
+#define DEFAULT_PERMS 0700
 #define OUTPUT_DIR_LOGFILES_PREFIX "log-"
 #define OUTPUT_DIR_LOGFILES_SUFFIX "%Y-%m-%d-%H:%M:%S"
 #define DEFAULT_CONFIG_FILE CONFDIR "/metalog.conf"

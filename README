@@ -225,6 +225,13 @@ Defaults to 0 (i.e. repeated messages will be summarized)
 directory doesn't exist, it will be automatically created when the first
 matching message will be logged (the parent directory has to exist, though) .
 
+* perms = <mode> : permissions for the log directory. Defaults to 0700
+
+Example : Let those in the group with the GID of the process read the log.
+Don't forget to run metalog as the group.
+
+  perms    = 0770
+
 * command = <path/to/command> : run a program or a shell-script when all
 conditions are met. This directive is not incompatible with logdir : a
 message can be both logged and passed to an external command. When the
@@ -353,6 +360,9 @@ Linux. Valid values are from 0 to 7. The default is 7.
 
 - '-C <configuration file>' or '--configfile=<configuration file>' : use an
 alternative configuration file.
+
+- '-g <group>' or '--group=<group>' : change the GID of the metalog process.
+Created files will be owned by this group.
 
 - '-h' or '--help' : show help and version number.
 

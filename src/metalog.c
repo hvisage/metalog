@@ -189,6 +189,11 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->showrepeats = (*cur_block)->showrepeats;
             }
+        } else if (strcasecmp(keyword, "perms") == 0) {
+            (*cur_block)->perms = (mode_t) strtoul(value, NULL, 8);
+            if ((*cur_block)->output != NULL) {
+                (*cur_block)->output->perms = (*cur_block)->perms;
+            }
         } else if (strcasecmp(keyword, "logdir") == 0) {
             char *logdir = NULL;
             Output *outputs_scan = outputs;
@@ -215,6 +220,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             else
                 free(logdir);
             new_output->fp = NULL;
+            new_output->perms = (*cur_block)->perms;
             new_output->size = (off_t) 0;
             new_output->maxsize = (*cur_block)->maxsize;
             new_output->maxfiles = (*cur_block)->maxfiles;
@@ -353,6 +359,7 @@ static int configParser(const char * const file)
             (off_t) DEFAULT_MAXSIZE,   /* maxsize */
             DEFAULT_MAXFILES,          /* maxfiles */
             (time_t) DEFAULT_MAXTIME,  /* maxtime */
+            (mode_t) DEFAULT_PERMS,    /* perms */
             NULL,                      /* output */
             NULL,                      /* command */
             NULL,                      /* program */
@@ -849,7 +856,7 @@ static int writeLogLine(Output * const output, const char * const date,
 
         testdir:
         if (stat(output->directory, &st) < 0) {
-            if (mkdir(output->directory, OUTPUT_DIR_PERMS) < 0) {
+            if (mkdir(output->directory, output->perms) < 0) {
                 warnp("Can't create [%s]", output->directory);
                 return -1;
             }
@@ -1638,6 +1645,21 @@ static void dodaemonize(void)
     }
 }
 
+static void setgroup(void)
+{
+        if (group_name == NULL) return;
+        struct group *g;
+        errno = 0;
+        if ((g = getgrnam(group_name)) == NULL) {
+            if(errno == 0)
+                err("Failed to set group: group '%s' not found", group_name);
+            else
+                errp("Failed to set group");
+        }
+        if (setgid(g->gr_gid) == -1)
+            errp("Failed to set group");
+}
+
 __attribute__ ((noreturn))
 static void help(void)
 {
@@ -1677,6 +1699,9 @@ static void parseOptions(int argc, char *argv[])
 #endif
         case 'C' :
             config_file = xstrdup(optarg);
+            break;
+        case 'g' :
+            group_name = xstrdup(optarg);
             break;
         case 'v' :
             ++verbose;
@@ -1722,6 +1747,7 @@ int main(int argc, char *argv[])
     if (configParser(config_file) < 0)
         err("Bad configuration file");
     checkRoot();
+    setgroup();
     dodaemonize();
     setsignals();
     if (update_pid_file(pid_file))

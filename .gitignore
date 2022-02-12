@@ -6,6 +6,7 @@
 
 .deps
 .libs
+.cache
 
 *.diff
 *.orig
@@ -28,6 +29,7 @@ Makefile
 Makefile.in
 missing
 stamp-h1
+compile_commands.json
 
 /metalog.lsm
 /metalog.spec

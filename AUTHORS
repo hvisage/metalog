@@ -12,3 +12,6 @@
 
 * Mike Frysinger <vapier@gentoo.org>
   Keeping the bitrot away.
+
+* Jovan Lanik <jox969@gmail.com>
+  Port to PCRE2, implemented perms and --group

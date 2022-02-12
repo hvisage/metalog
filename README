@@ -20,10 +20,10 @@ http://metalog.sourceforge.net/
         ------------------------ COMPILATION ------------------------
         
         
-In order to compile Metalog, you should have the PCRE library on your
+In order to compile Metalog, you should have the PCRE2 library on your
 system. That library is used to process Perl-compatible regular expressions.
 
-libpcre comes with many distributions, but you can also download it from :
+libpcre2 comes with many distributions, but you can also download it from :
 
                              http://www.pcre.org/
                              

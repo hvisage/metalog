@@ -23,7 +23,7 @@ static pcre2_code *wpcre2_compile(const char *pattern, uint32_t options)
     pcre2_code *ret = pcre2_compile((PCRE2_SPTR)pattern, PCRE2_ZERO_TERMINATED, options, &errcode, &erroffset, NULL);
     if (!ret) {
         PCRE2_UCHAR buffer[256];
-	pcre2_get_error_message(errcode, buffer, sizeof(buffer));
+        pcre2_get_error_message(errcode, buffer, sizeof(buffer));
         warn("Invalid regex [%s] at %zu: %s", pattern, erroffset, buffer);
     }
     return ret;

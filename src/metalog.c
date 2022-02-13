@@ -64,7 +64,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
     if ((stcount =
          pcre2_match(re_newstmt, (PCRE2_SPTR)line, (PCRE2_SIZE)line_size,
                    0, 0, match_data, NULL)) >= 3) {
-	PCRE2_SIZE len;
+        PCRE2_SIZE len;
         pcre2_substring_get_bynumber(match_data, 1, (PCRE2_UCHAR **)&keyword, &len);
         pcre2_substring_get_bynumber(match_data, 2, (PCRE2_UCHAR **)&value, &len);
         if (strcasecmp(keyword, "minimum") == 0) {
@@ -333,8 +333,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             }
         } else
             err("Unknown keyword '%s'! line: %s", keyword, line);
-	pcre2_substring_free((PCRE2_UCHAR *)keyword);
-	pcre2_substring_free((PCRE2_UCHAR *)value);
+        pcre2_substring_free((PCRE2_UCHAR *)keyword);
+        pcre2_substring_free((PCRE2_UCHAR *)value);
     }
     pcre2_match_data_free(match_data);
     return 0;
@@ -1185,14 +1185,14 @@ static int processLogLine(const int logcode,
             do {
                 if (this_regex->sign == REGEX_SIGN_POSITIVE) {
                     if (pcre2_match(this_regex->regex,
-                                  (PCRE2_SPTR)prg, (PCRE2_SIZE)prg_len,
-				  0, 0, match_data, NULL) >= 0) {
+                                    (PCRE2_SPTR)prg, (PCRE2_SIZE)prg_len,
+                                    0, 0, match_data, NULL) >= 0) {
                         regex_result = 1;
                     }
                 } else {
                     if (pcre2_match(this_regex->regex,
-                                  (PCRE2_SPTR)prg, (PCRE2_SIZE)prg_len,
-				  0, 0, match_data, NULL) < 0) {
+                                    (PCRE2_SPTR)prg, (PCRE2_SIZE)prg_len,
+                                    0, 0, match_data, NULL) < 0) {
                         regex_result = 1;
                     }
                 }
@@ -1212,14 +1212,14 @@ static int processLogLine(const int logcode,
             do {
                 if (this_regex->sign == REGEX_SIGN_POSITIVE) {
                     if (pcre2_match(this_regex->regex,
-                                  (PCRE2_SPTR)info, (PCRE2_SIZE)info_len,
-				  0, 0, match_data, NULL) >= 0) {
+                                    (PCRE2_SPTR)info, (PCRE2_SIZE)info_len,
+                                    0, 0, match_data, NULL) >= 0) {
                         regex_result = 1;
                     }
                 } else {
                     if (pcre2_match(this_regex->regex,
-                                  (PCRE2_SPTR)info, (PCRE2_SIZE)info_len,
-				  0, 0, match_data, NULL) < 0) {
+                                    (PCRE2_SPTR)info, (PCRE2_SIZE)info_len,
+                                    0, 0, match_data, NULL) < 0) {
                         regex_result = 1;
                     }
                 }

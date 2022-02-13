@@ -118,7 +118,6 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 return -5;
             }
             else {
-                const char *errptr;
                 RegexWithSign * const this_regex =
                     &((*cur_block)->regexeswithsign[(*cur_block)->nb_regexes]);
 
@@ -152,7 +151,6 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 return -5;
             }
             else {
-                const char *errptr;
                 free(regex);
                 RegexWithSign * const this_regex =
                     &((*cur_block)->program_regexeswithsign

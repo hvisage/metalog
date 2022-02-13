@@ -45,7 +45,8 @@
 #ifdef HAVE_SYS_KLOG_H
 # include <sys/klog.h>
 #endif
-#include <pcre.h>
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
 
 #include "helpers.h"
 
@@ -59,11 +60,6 @@
 #else
 # define KLOG_FILE "/dev/klog"
 #endif
-
-typedef struct PCREInfo_ {
-    pcre *pcre;
-    pcre_extra *pcre_extra;
-} PCREInfo;
 
 typedef struct DuplicateTracker_ {
     char *previous_prg;
@@ -118,7 +114,7 @@ typedef enum RegexSign_ {
 } RegexSign;
 
 typedef struct RegexWithSign_ {
-    PCREInfo regex;
+    pcre2_code *regex;
     RegexSign sign;
 } RegexWithSign;
 

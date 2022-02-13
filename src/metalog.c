@@ -22,13 +22,13 @@ static int doLog(const char * fmt, ...);
  */
 static int parseLine(char * const line, ConfigBlock **cur_block,
                      const ConfigBlock * const default_block,
-                     pcre * const re_newblock, pcre * const re_newstmt,
-                     pcre * const re_comment, pcre * const re_null)
+                     pcre2_code * const re_newblock, pcre2_code * const re_newstmt,
+                     pcre2_code * const re_comment, pcre2_code * const re_null)
 {
-    int ovector[16];
-    pcre *new_regex;
-    const char *keyword;
-    const char *value;
+    pcre2_match_data *match_data = pcre2_match_data_create(16, NULL);
+    pcre2_code *new_regex;
+    char *keyword;
+    char *value;
     int line_size;
     int stcount;
 
@@ -41,14 +41,14 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         }
         line[--line_size] = 0;
     }
-    if (pcre_exec(re_null, NULL, line, line_size,
-                  0, 0, ovector, ARRAY_SIZE(ovector)) >= 0 ||
-        pcre_exec(re_comment, NULL, line, line_size,
-                  0, 0, ovector, ARRAY_SIZE(ovector)) >= 0) {
+    if (pcre2_match(re_null, (PCRE2_SPTR)line, (PCRE2_SIZE)line_size,
+                  0, 0, match_data, NULL) >= 0 ||
+        pcre2_match(re_comment, (PCRE2_SPTR)line, (PCRE2_SIZE)line_size,
+                  0, 0, match_data, NULL) >= 0) {
         return 0;
     }
-    if (pcre_exec(re_newblock, NULL, line, line_size,
-                  0, 0, ovector, ARRAY_SIZE(ovector)) >= 0) {
+    if (pcre2_match(re_newblock, (PCRE2_SPTR)line, (PCRE2_SIZE)line_size,
+                  0, 0, match_data, NULL) >= 0) {
         ConfigBlock *previous_block = *cur_block;
 
         if ((*cur_block = wmalloc(sizeof **cur_block)) == NULL)
@@ -62,10 +62,11 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         return 0;
     }
     if ((stcount =
-         pcre_exec(re_newstmt, NULL, line, line_size,
-                   0, 0, ovector, ARRAY_SIZE(ovector))) >= 3) {
-        pcre_get_substring(line, ovector, stcount, 1, &keyword);
-        pcre_get_substring(line, ovector, stcount, 2, &value);
+         pcre2_match(re_newstmt, (PCRE2_SPTR)line, (PCRE2_SIZE)line_size,
+                   0, 0, match_data, NULL)) >= 3) {
+        PCRE2_SIZE len;
+        pcre2_substring_get_bynumber(match_data, 1, (PCRE2_UCHAR **)&keyword, &len);
+        pcre2_substring_get_bynumber(match_data, 2, (PCRE2_UCHAR **)&value, &len);
         if (strcasecmp(keyword, "minimum") == 0) {
             (*cur_block)->minimum = atoi(value);
         } else if (strcasecmp(keyword, "maximum") == 0) {
@@ -112,12 +113,11 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 return -3;
             }
             (*cur_block)->regexeswithsign = new_regexeswithsign;
-            if ((new_regex = wpcre_compile(regex, PCRE_CASELESS)) == NULL) {
+            if ((new_regex = wpcre2_compile(regex, PCRE2_CASELESS)) == NULL) {
                 free(regex);
                 return -5;
             }
             else {
-                const char *errptr;
                 RegexWithSign * const this_regex =
                     &((*cur_block)->regexeswithsign[(*cur_block)->nb_regexes]);
 
@@ -127,9 +127,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 } else {
                     this_regex->sign = REGEX_SIGN_POSITIVE;
                 }
-                this_regex->regex.pcre = new_regex;
-                this_regex->regex.pcre_extra =
-                    pcre_study(new_regex, 0, &errptr);
+                this_regex->regex = new_regex;
             }
             (*cur_block)->nb_regexes++;
         } else if (strcasecmp(keyword, "program_regex") == 0 ||
@@ -148,12 +146,11 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 return -3;
             }
             (*cur_block)->program_regexeswithsign = new_regexeswithsign;
-            if ((new_regex = wpcre_compile(regex, PCRE_CASELESS)) == NULL) {
+            if ((new_regex = wpcre2_compile(regex, PCRE2_CASELESS)) == NULL) {
                 free(regex);
                 return -5;
             }
             else {
-                const char *errptr;
                 free(regex);
                 RegexWithSign * const this_regex =
                     &((*cur_block)->program_regexeswithsign
@@ -164,9 +161,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 } else {
                     this_regex->sign = REGEX_SIGN_POSITIVE;
                 }
-                this_regex->regex.pcre = new_regex;
-                this_regex->regex.pcre_extra =
-                    pcre_study(new_regex, 0, &errptr);
+                this_regex->regex = new_regex;
             }
             (*cur_block)->program_nb_regexes++;
         } else if (strcasecmp(keyword, "maxsize") == 0) {
@@ -336,7 +331,10 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             }
         } else
             err("Unknown keyword '%s'! line: %s", keyword, line);
+        pcre2_substring_free((PCRE2_UCHAR *)keyword);
+        pcre2_substring_free((PCRE2_UCHAR *)value);
     }
+    pcre2_match_data_free(match_data);
     return 0;
 }
 
@@ -344,10 +342,10 @@ static int configParser(const char * const file)
 {
     char line[LINE_MAX];
     FILE *fp;
-    pcre *re_newblock;
-    pcre *re_newstmt;
-    pcre *re_comment;
-    pcre *re_null;
+    pcre2_code *re_newblock;
+    pcre2_code *re_newstmt;
+    pcre2_code *re_comment;
+    pcre2_code *re_null;
     int retcode = 0;
     ConfigBlock default_block = {
             DEFAULT_MINIMUM,           /* minimum */
@@ -381,10 +379,10 @@ static int configParser(const char * const file)
         warnp("Can't open the configuration file");
         return -2;
     }
-    re_newblock = wpcre_compile(":\\s*$", 0);
-    re_newstmt = wpcre_compile("^\\s*(.+?)\\s*=\\s*\"?([^\"]*)\"?\\s*$", 0);
-    re_comment = wpcre_compile("^\\s*#", 0);
-    re_null = wpcre_compile("^\\s*$", 0);
+    re_newblock = wpcre2_compile(":\\s*$", 0);
+    re_newstmt = wpcre2_compile("^\\s*(.+?)\\s*=\\s*\"?([^\"]*)\"?\\s*$", 0);
+    re_comment = wpcre2_compile("^\\s*#", 0);
+    re_null = wpcre2_compile("^\\s*$", 0);
     if (!re_newblock || !re_newstmt || !re_comment || !re_null) {
         retcode = -1;
         goto rtn;
@@ -398,16 +396,16 @@ static int configParser(const char * const file)
     }
  rtn:
     if (re_newblock != NULL) {
-        pcre_free(re_newblock);
+        pcre2_code_free(re_newblock);
     }
     if (re_newstmt != NULL) {
-        pcre_free(re_newstmt);
+        pcre2_code_free(re_newstmt);
     }
     if (re_comment != NULL) {
-        pcre_free(re_comment);
+        pcre2_code_free(re_comment);
     }
     if (re_null != NULL) {
-        pcre_free(re_null);
+        pcre2_code_free(re_null);
     }
     fclose(fp);
 
@@ -1146,7 +1144,7 @@ static int log_stdout(const char * const date,
 static int processLogLine(const int logcode,
                           const char * const prg, char * const info)
 {
-    int ovector[16];
+    pcre2_match_data *match_data = pcre2_match_data_create(16, NULL);
     ConfigBlock *block = config_blocks;
     RegexWithSign *this_regex;
     const int facility = LOG_FAC(logcode);
@@ -1184,17 +1182,15 @@ static int processLogLine(const int logcode,
             this_regex = block->program_regexeswithsign;
             do {
                 if (this_regex->sign == REGEX_SIGN_POSITIVE) {
-                    if (pcre_exec(this_regex->regex.pcre,
-                                  this_regex->regex.pcre_extra,
-                                  prg, prg_len, 0, 0, ovector,
-                                  ARRAY_SIZE(ovector)) >= 0) {
+                    if (pcre2_match(this_regex->regex,
+                                    (PCRE2_SPTR)prg, (PCRE2_SIZE)prg_len,
+                                    0, 0, match_data, NULL) >= 0) {
                         regex_result = 1;
                     }
                 } else {
-                    if (pcre_exec(this_regex->regex.pcre,
-                                  this_regex->regex.pcre_extra,
-                                  prg, prg_len, 0, 0, ovector,
-                                  ARRAY_SIZE(ovector)) < 0) {
+                    if (pcre2_match(this_regex->regex,
+                                    (PCRE2_SPTR)prg, (PCRE2_SIZE)prg_len,
+                                    0, 0, match_data, NULL) < 0) {
                         regex_result = 1;
                     }
                 }
@@ -1213,17 +1209,15 @@ static int processLogLine(const int logcode,
             this_regex = block->regexeswithsign;
             do {
                 if (this_regex->sign == REGEX_SIGN_POSITIVE) {
-                    if (pcre_exec(this_regex->regex.pcre,
-                                  this_regex->regex.pcre_extra,
-                                  info, info_len, 0, 0, ovector,
-                                  ARRAY_SIZE(ovector)) >= 0) {
+                    if (pcre2_match(this_regex->regex,
+                                    (PCRE2_SPTR)info, (PCRE2_SIZE)info_len,
+                                    0, 0, match_data, NULL) >= 0) {
                         regex_result = 1;
                     }
                 } else {
-                    if (pcre_exec(this_regex->regex.pcre,
-                                  this_regex->regex.pcre_extra,
-                                  info, info_len, 0, 0, ovector,
-                                  ARRAY_SIZE(ovector)) < 0) {
+                    if (pcre2_match(this_regex->regex,
+                                    (PCRE2_SPTR)info, (PCRE2_SIZE)info_len,
+                                    0, 0, match_data, NULL) < 0) {
                         regex_result = 1;
                     }
                 }
@@ -1274,6 +1268,7 @@ static int processLogLine(const int logcode,
         block = block->next_block;
     }
 
+    pcre2_match_data_free(match_data);
     return 0;
 }
 

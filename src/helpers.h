@@ -16,13 +16,16 @@
 #define errf(fmt, args...) _err(warnf, fmt, ## args)
 #define errp(fmt, args...) _err(warnp, fmt , ## args)
 
-static pcre *wpcre_compile(const char *pattern, int options)
+static pcre2_code *wpcre2_compile(const char *pattern, uint32_t options)
 {
-    const char *errptr;
-    int erroffset;
-    pcre *ret = pcre_compile(pattern, options, &errptr, &erroffset, NULL);
-    if (!ret)
-        warn("Invalid regex [%s] at %d: %s", pattern, erroffset, errptr);
+    int errcode;
+    PCRE2_SIZE erroffset;
+    pcre2_code *ret = pcre2_compile((PCRE2_SPTR)pattern, PCRE2_ZERO_TERMINATED, options, &errcode, &erroffset, NULL);
+    if (!ret) {
+        PCRE2_UCHAR buffer[256];
+        pcre2_get_error_message(errcode, buffer, sizeof(buffer));
+        warn("Invalid regex [%s] at %zu: %s", pattern, erroffset, buffer);
+    }
     return ret;
 }
 

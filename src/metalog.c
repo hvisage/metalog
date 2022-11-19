@@ -1185,19 +1185,25 @@ static int processLogLine(const int logcode,
                     if (pcre2_match(this_regex->regex,
                                     (PCRE2_SPTR)prg, (PCRE2_SIZE)prg_len,
                                     0, 0, match_data, NULL) >= 0) {
+                        /* pass, unless a program_neg_regex matches */
                         regex_result = 1;
+                    } else if (regex_result != 1) {
+                        /* fail, unless another program_regex matches */
+                        regex_result = -1;
                     }
                 } else {
                     if (pcre2_match(this_regex->regex,
                                     (PCRE2_SPTR)prg, (PCRE2_SIZE)prg_len,
-                                    0, 0, match_data, NULL) < 0) {
-                        regex_result = 1;
+                                    0, 0, match_data, NULL) >= 0) {
+                        /* fail immediately */
+                        goto nextblock;
                     }
+                    /* pass, unless a non-matching program_regex is found or another program_neg_regex matches */
                 }
                 this_regex++;
                 nb_regexes--;
             } while (nb_regexes > 0);
-            if (regex_result == 0) {
+            if (regex_result == -1) {
                 goto nextblock;
             }
         }
@@ -1212,19 +1218,25 @@ static int processLogLine(const int logcode,
                     if (pcre2_match(this_regex->regex,
                                     (PCRE2_SPTR)info, (PCRE2_SIZE)info_len,
                                     0, 0, match_data, NULL) >= 0) {
+                        /* pass, unless a neg_regex matches */
                         regex_result = 1;
+                    } else if (regex_result != 1) {
+                        /* fail, unless another regex matches */
+                        regex_result = -1;
                     }
                 } else {
                     if (pcre2_match(this_regex->regex,
                                     (PCRE2_SPTR)info, (PCRE2_SIZE)info_len,
-                                    0, 0, match_data, NULL) < 0) {
-                        regex_result = 1;
+                                    0, 0, match_data, NULL) >= 0) {
+                        /* fail immediately */
+                        goto nextblock;
                     }
+                    /* pass, unless a non-matching regex is found or another neg_regex matches */
                 }
                 this_regex++;
                 nb_regexes--;
             } while (nb_regexes > 0);
-            if (regex_result == 0) {
+            if (regex_result == -1) {
                 goto nextblock;
             }
         }

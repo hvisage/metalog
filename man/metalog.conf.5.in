@@ -99,15 +99,22 @@ Can be used to do filtering instead of \fBfacility\fR.
 Remember to use the executable name.
 .TP
 \fBregex\fR = \fI"perl compatible regular expression"\fR
-Can be used when you want to log all messages that match the \fIpattern\fR
+Can be used when you only want to log messages that match the \fIpattern\fR
 (like "invalid", "fail", etc...) to send them to a single directory.
 
-Multiple \fBregex\fR may be defined in a single section.
+Multiple \fBregex\fR may be defined in a single section, only one must match.
 .TP
 \fBneg_regex\fR = \fI"perl compatible regular expression"\fR
-Can be used when you want to log all messages that do not match the \fIpattern\fR.
+Can be used when you only want to log messages that do not match the \fIpattern\fR.
 
-Multiple \fBneg_regex\fR may be defined in a section.
+A \fBneg_regex\fR match will override any \fBregex\fR matches and not log the
+message.
+
+When one or more \fBregex\fR are provided, at least one of them must match to
+log the message. The lack of any \fBregex\fR will result in message being
+logged when no \fBneg_regex\fR match.
+
+Multiple \fBneg_regex\fR may be defined in a section, only one must match.
 .TP
 \fBpostrotate_cmd\fR = \fI"/path/to/a/program"\fR
 Run specified program after a log file has been rotated.
@@ -118,12 +125,19 @@ The program is passed the date, the program name ("metalog"), and the new logfil
 Similar to \fBprogram\fR, this is a regex that matches the program name to send
 all messages from related programs to the same log file.
 
-Multiple \fBprogram_regex\fR may be defined in a section.
+Multiple \fBprogram_regex\fR may be defined in a section, only one must match.
 .TP
 \fBprogram_neg_regex\fR = \fI"perl compatible regular expression"\fR
 The inverse of \fBprogram_regex\fR to filter out logs from programs that match.
 
-Multiple \fBprogram_neg_regex\fR may be defined in a section.
+A \fBprogram_neg_regex\fR match will override any \fBprogram_regex\fR matches
+and not log the message.
+
+When one or more \fBprogram_regex\fR are provided, at least one of them must
+match to log the message. The lack of any \fBprogram_regex\fR will result in
+message being logged when no \fBprogram_neg_regex\fR match.
+
+Multiple \fBprogram_neg_regex\fR may be defined in a section, only one must match.
 .TP
 \fBshowrepeats\fR = \fI<number>\fR
 Set to \fI0\fR to filter out repeat log messages.

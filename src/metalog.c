@@ -212,8 +212,10 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             }
             if (strcasecmp(value, "NONE") != 0)
                 new_output->directory = logdir;
-            else
+            else {
                 free(logdir);
+                new_output->directory = NULL;
+            }
             new_output->fp = NULL;
             new_output->perms = (*cur_block)->perms;
             new_output->size = (off_t) 0;

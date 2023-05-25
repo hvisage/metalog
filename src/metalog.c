@@ -1540,13 +1540,13 @@ static void metalog_signal_exit(int exit_status)
 }
 
 __attribute__ ((noreturn))
-static RETSIGTYPE sigkchld(int sig)
+static void sigkchld(int sig)
 {
     signal_doLog_queue("Process [%u] died with signal [%d]\n", (unsigned int) getpid(), sig);
     metalog_signal_exit(EXIT_FAILURE);
 }
 
-static RETSIGTYPE sigchld(int sig)
+static void sigchld(int sig)
 {
     pid_t pid;
     signed char should_exit = 0;
@@ -1574,7 +1574,7 @@ static RETSIGTYPE sigchld(int sig)
     }
 }
 
-static RETSIGTYPE sigusr1(int sig)
+static void sigusr1(int sig)
 {
     (void) sig;
 
@@ -1583,7 +1583,7 @@ static RETSIGTYPE sigusr1(int sig)
     flushAll();
 }
 
-static RETSIGTYPE sigusr2(int sig)
+static void sigusr2(int sig)
 {
     (void) sig;
 

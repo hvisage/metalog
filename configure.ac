@@ -3,7 +3,7 @@ AC_INIT([metalog], [4], [metalog-users@lists.sourceforge.net])
 AM_INIT_AUTOMAKE([1.11 dist-xz no-dist-gzip silent-rules -Wall])
 AM_SILENT_RULES([yes])
 AC_CONFIG_SRCDIR(src/metalog.c)
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS([config.h])
 
 gl_cv_func_printf_infinite_long_double=yes
 
@@ -11,7 +11,6 @@ dnl Checks for programs.
 AC_PROG_INSTALL
 AC_USE_SYSTEM_EXTENSIONS
 AC_PROG_CC
-AC_PROG_CC_STDC
 AC_SYS_LARGEFILE
 PKG_PROG_PKG_CONFIG
 
@@ -27,7 +26,6 @@ AC_C_CONST
 AC_TYPE_MODE_T
 AC_TYPE_PID_T
 AC_STRUCT_TM
-AC_TYPE_SIGNAL
 AC_TYPE_UID_T
 AC_TYPE_OFF_T
 
@@ -36,21 +34,24 @@ dnl Options
 AM_WITH_DMALLOC
 
 AC_MSG_CHECKING([whether syslog names are available])
-AC_TRY_COMPILE([
-#define SYSLOG_NAMES 1
-#include <stdio.h>
-#include <syslog.h>
-],
-[
- (void) facilitynames
-],
-[
-  AC_MSG_RESULT(yes)
-  AC_DEFINE(HAVE_SYSLOG_NAMES, , [Define if syslog names are defined])
-],
-[
-  AC_MSG_RESULT(no)
-])  
+AC_COMPILE_IFELSE(
+	[AC_LANG_PROGRAM(
+		[[
+			#define SYSLOG_NAMES 1
+			#include <stdio.h>
+			#include <syslog.h>
+		]],
+		[[
+			(void) facilitynames
+		]],
+	)],
+	[
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_SYSLOG_NAMES, , [Define if syslog names are defined])
+	],
+	[
+		AC_MSG_RESULT(no)
+	])
 
 dnl Checks for libraries.
 
@@ -93,7 +94,7 @@ W_CHECK_CFLAG([-Wreturn-type])
 AC_SUBST(WFLAGS, $WFLAGS)
 
 AC_ARG_WITH(unicode,
-	[AC_HELP_STRING([--with-unicode],[Enable unicode support (default no)])])
+	[AS_HELP_STRING([--with-unicode],[Enable unicode support (default no)])])
 AS_IF([test "x$with_unicode" = "xyes"], [
 	AC_DEFINE([ACCEPT_UNICODE_CONTROL_CHARS], [1], [Don't scramble unicode])
 ])

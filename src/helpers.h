@@ -32,32 +32,36 @@ static pcre2_code *wpcre2_compile(const char *pattern, uint32_t options)
 static void *wmalloc(size_t size)
 {
     void *ret = malloc(size);
-    if (!ret)
+    if (!ret) {
         warnp("malloc(%zu) failed", size);
+    }
     return ret;
 }
 
 static void *wrealloc(void *ptr, size_t size)
 {
     void *ret = realloc(ptr, size);
-    if (!ret)
+    if (!ret) {
         warnp("realloc(%p, %zu) failed", ptr, size);
+    }
     return ret;
 }
 
 static char *wstrdup(const char *s)
 {
     char *ret = strdup(s);
-    if (!ret)
+    if (!ret) {
         warnp("strdup(\"%s\") failed", s);
+    }
     return ret;
 }
 
 static char *xstrdup(const char *s)
 {
     char *ret = strdup(s);
-    if (!ret)
+    if (!ret) {
         errp("strdup(\"%s\") failed", s);
+    }
     return ret;
 }
 

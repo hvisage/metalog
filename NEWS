@@ -1,3 +1,38 @@
+* Version (not released, yet)
+ - m-kress:
+ -- add missing brackets to harmonize code
+ - auouymous:
+ -- fix behavior of (program_)?regex and (program_)?neg_regex conditions
+ - LonEox78:
+ -- pointer to directory name was not initialized, so eventually weird directories were created
+ - orbea:
+ -- replace RETSIGTYPE with void
+ -- silence obsolete warnings
+
+* Version 20220214
+ - jovanlanik:
+ -- port to pcre2
+ -- doku has been updated, removed a lot of inconsistencies
+ -- add an option to change group
+ -- add permissions to configuration
+ -- remove unused errptr
+
+* Version 20200113
+ - avoid writing logs to STDOUT twice
+ - add line feed to sent UDP log entries
+ - rkonrad:
+ -- add support for nanoseconds in time stamp
+
+* Version 20181125
+ - closed memory leaks for remote syslog
+
+* Version 2018510
+ - orbea:
+ -- clean up automake files
+
+* Version 20180327
+ - minor fix in man page
+
 * Version 20180326
  - moved to GitHub hvisage/metalog
  - Michael Kress:

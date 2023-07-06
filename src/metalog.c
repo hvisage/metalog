@@ -51,12 +51,14 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                   0, 0, match_data, NULL) >= 0) {
         ConfigBlock *previous_block = *cur_block;
 
-        if ((*cur_block = wmalloc(sizeof **cur_block)) == NULL)
+        if ((*cur_block = wmalloc(sizeof **cur_block)) == NULL) {
             return -3;
+        }
         **cur_block = *default_block;
         if (config_blocks == NULL) {
             config_blocks = *cur_block;
-        } else {
+        }
+        else {
             previous_block->next_block = *cur_block;
         }
         return 0;
@@ -69,9 +71,11 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         pcre2_substring_get_bynumber(match_data, 2, (PCRE2_UCHAR **)&value, &len);
         if (strcasecmp(keyword, "minimum") == 0) {
             (*cur_block)->minimum = atoi(value);
-        } else if (strcasecmp(keyword, "maximum") == 0) {
+        }
+        else if (strcasecmp(keyword, "maximum") == 0) {
             (*cur_block)->maximum = atoi(value);
-        } else if (strcasecmp(keyword, "facility") == 0) {
+        }
+        else if (strcasecmp(keyword, "facility") == 0) {
             int n = 0;
 
             if (*value == '*' && value[1] == 0) {
@@ -93,18 +97,21 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             (*cur_block)->facilities = wrealloc((*cur_block)->facilities,
                                                 ((*cur_block)->nb_facilities + 1) *
                                                 sizeof(*(*cur_block)->facilities));
-            if ((*cur_block)->facilities == NULL)
+            if ((*cur_block)->facilities == NULL) {
                 return -3;
+            }
             (*cur_block)->facilities[(*cur_block)->nb_facilities] =
                 LOG_FAC(facilitynames[n].c_val);
             (*cur_block)->nb_facilities++;
-        } else if (strcasecmp(keyword, "regex") == 0 ||
+        }
+        else if (strcasecmp(keyword, "regex") == 0 ||
                    strcasecmp(keyword, "neg_regex") == 0) {
             char *regex;
             RegexWithSign *new_regexeswithsign;
 
-            if ((regex = wstrdup(value)) == NULL)
+            if ((regex = wstrdup(value)) == NULL) {
                 return -3;
+            }
             if ((new_regexeswithsign =
                  wrealloc((*cur_block)->regexeswithsign,
                           ((*cur_block)->nb_regexes + 1) *
@@ -124,19 +131,22 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 free(regex);
                 if (strcasecmp(keyword, "neg_regex") == 0) {
                     this_regex->sign = REGEX_SIGN_NEGATIVE;
-                } else {
+                }
+                else {
                     this_regex->sign = REGEX_SIGN_POSITIVE;
                 }
                 this_regex->regex = new_regex;
             }
             (*cur_block)->nb_regexes++;
-        } else if (strcasecmp(keyword, "program_regex") == 0 ||
+        }
+        else if (strcasecmp(keyword, "program_regex") == 0 ||
                    strcasecmp(keyword, "program_neg_regex") == 0) {
             char *regex;
             RegexWithSign *new_regexeswithsign;
 
-            if ((regex = wstrdup(value)) == NULL)
+            if ((regex = wstrdup(value)) == NULL) {
                 return -3;
+            }
             if ((new_regexeswithsign =
                  wrealloc((*cur_block)->program_regexeswithsign,
                           ((*cur_block)->program_nb_regexes + 1) *
@@ -158,38 +168,45 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
 
                 if (strcasecmp(keyword, "program_neg_regex") == 0) {
                     this_regex->sign = REGEX_SIGN_NEGATIVE;
-                } else {
+                }
+                else {
                     this_regex->sign = REGEX_SIGN_POSITIVE;
                 }
                 this_regex->regex = new_regex;
             }
             (*cur_block)->program_nb_regexes++;
-        } else if (strcasecmp(keyword, "maxsize") == 0) {
+        }
+        else if (strcasecmp(keyword, "maxsize") == 0) {
             (*cur_block)->maxsize = (off_t) strtoull(value, NULL, 0);
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->maxsize = (*cur_block)->maxsize;
             }
-        } else if (strcasecmp(keyword, "maxfiles") == 0) {
+        }
+        else if (strcasecmp(keyword, "maxfiles") == 0) {
                 (*cur_block)->maxfiles = atoi(value);
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->maxfiles = (*cur_block)->maxfiles;
             }
-        } else if (strcasecmp(keyword, "maxtime") == 0) {
+        }
+        else if (strcasecmp(keyword, "maxtime") == 0) {
             (*cur_block)->maxtime = (time_t) strtoull(value, NULL, 0);
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->maxtime = (*cur_block)->maxtime;
             }
-        } else if (strcasecmp(keyword, "showrepeats") == 0) {
+        }
+        else if (strcasecmp(keyword, "showrepeats") == 0) {
             (*cur_block)->showrepeats = atoi(value);
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->showrepeats = (*cur_block)->showrepeats;
             }
-        } else if (strcasecmp(keyword, "perms") == 0) {
+        }
+        else if (strcasecmp(keyword, "perms") == 0) {
             (*cur_block)->perms = (mode_t) strtoul(value, NULL, 8);
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->perms = (*cur_block)->perms;
             }
-        } else if (strcasecmp(keyword, "logdir") == 0) {
+        }
+        else if (strcasecmp(keyword, "logdir") == 0) {
             char *logdir = NULL;
             Output *outputs_scan = outputs;
             Output *previous_scan = NULL;
@@ -210,8 +227,9 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 free(logdir);
                 return -3;
             }
-            if (strcasecmp(value, "NONE") != 0)
+            if (strcasecmp(value, "NONE") != 0) {
                 new_output->directory = logdir;
+            }
             else {
                 free(logdir);
                 new_output->directory = NULL;
@@ -240,48 +258,68 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             new_output->next_output = NULL;
             if (previous_scan != NULL) {
                 previous_scan->next_output = new_output;
-            } else {
+            }
+            else {
                 outputs = new_output;
             }
             (*cur_block)->output = new_output;
             duplicate_output:
             (void) 0;
-        } else if (strcasecmp(keyword, "command") == 0) {
-            if (((*cur_block)->command = wstrdup(value)) == NULL)
+        }
+        else if (strcasecmp(keyword, "command") == 0) {
+            if (((*cur_block)->command = wstrdup(value)) == NULL) {
                 return -3;
-        } else if (strcasecmp(keyword, "program") == 0) {
-            if (((*cur_block)->program = wstrdup(value)) == NULL)
+            }
+        }
+        else if (strcasecmp(keyword, "program") == 0) {
+            if (((*cur_block)->program = wstrdup(value)) == NULL) {
                 return -3;
-        } else if (strcasecmp(keyword, "postrotate_cmd") == 0) {
-            if (((*cur_block)->postrotate_cmd = wstrdup(value)) == NULL)
-               return -3;
+            }
+        }
+        else if (strcasecmp(keyword, "postrotate_cmd") == 0) {
+            if (((*cur_block)->postrotate_cmd = wstrdup(value)) == NULL) {
+                return -3;
+            }
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->postrotate_cmd = (*cur_block)->postrotate_cmd;
             }
-        } else if (strcasecmp(keyword, "remote_host") == 0) {
-            if ((remote_host.hostname = wstrdup(value)) == NULL)
-               return -3;
-        } else if (strcasecmp(keyword, "remote_port") == 0) {
-            if ((remote_host.port = wstrdup(value)) == NULL)
-               return -3;
-        } else if (strcasecmp(keyword, "remote_log") == 0) {
+        }
+        else if (strcasecmp(keyword, "remote_host") == 0) {
+            if ((remote_host.hostname = wstrdup(value)) == NULL) {
+                return -3;
+            }
+        }
+        else if (strcasecmp(keyword, "remote_port") == 0) {
+            if ((remote_host.port = wstrdup(value)) == NULL) {
+                return -3;
+            }
+        }
+        else if (strcasecmp(keyword, "remote_log") == 0) {
             (*cur_block)->remote_log = atoi(value);
-        } else if (strcasecmp(keyword, "break") == 0) {
+        }
+        else if (strcasecmp(keyword, "break") == 0) {
             (*cur_block)->brk = atoi(value);
-        } else if (strcasecmp(keyword, "stamp_fmt") == 0) {
-            if (((*cur_block)->stamp_fmt = wstrdup(value)) == NULL)
-               return -3;
+        }
+        else if (strcasecmp(keyword, "stamp_fmt") == 0) {
+            if (((*cur_block)->stamp_fmt = wstrdup(value)) == NULL) {
+                return -3;
+            }
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->stamp_fmt = (*cur_block)->stamp_fmt;
             }
-        } else if (strcasecmp(keyword, "flush") == 0) {
-            if (atoi(value))
+        }
+        else if (strcasecmp(keyword, "flush") == 0) {
+            if (atoi(value)) {
                 (*cur_block)->flush = FLUSH_ALWAYS;
-            else
+            }
+            else {
                 (*cur_block)->flush = FLUSH_NEVER;
-            if ((*cur_block)->output != NULL)
+            }
+            if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->flush = (*cur_block)->flush;
-        } else if (strcasecmp(keyword, "ratelimit") == 0) {
+            }
+        }
+        else if (strcasecmp(keyword, "ratelimit") == 0) {
             double base_rate;
             int64_t usec_between_msgs;
             char *end;
@@ -312,15 +350,19 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                     return -6;
                 }
                 usec_between_msgs = usec / base_rate;
-            } else
+            }
+            else {
                 usec_between_msgs = base_rate;
+            }
 
             assert(usec_between_msgs >= 0);
             (*cur_block)->usec_between_msgs = usec_between_msgs;
-            if ((*cur_block)->output != NULL)
+            if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->rate.usec_between_msgs =
                     usec_between_msgs;
-        } else if (strcasecmp(keyword, "ratelimit_burst") == 0) {
+                }
+        }
+        else if (strcasecmp(keyword, "ratelimit_burst") == 0) {
             int burst_length = atoi(value);
             if (burst_length < 1) {
                 warn("Non-positive bust length : [%s]", value);
@@ -331,8 +373,10 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 (*cur_block)->output->rate.bucket_size = burst_length;
                 (*cur_block)->output->rate.token_bucket = burst_length;
             }
-        } else
+        }
+        else {
             err("Unknown keyword '%s'! line: %s", keyword, line);
+        }
         pcre2_substring_free((PCRE2_UCHAR *)keyword);
         pcre2_substring_free((PCRE2_UCHAR *)value);
     }
@@ -424,7 +468,8 @@ static void clearargs(int argc, char **argv)
     argv0 = argv;
     if (i > 0) {
         argv_lth = environ[i-1] + strlen(environ[i-1]) - argv0[0];
-    } else {
+    }
+    else {
         argv_lth = argv0[argc-1] + strlen(argv0[argc-1]) - argv0[0];
     }
     if (environ != NULL) {
@@ -533,7 +578,8 @@ static int getDataSources(int sockets[])
         warnp("Unable to create the klogd child");
         close(sockets[0]);
         return -3;
-    } else if (child == (pid_t) 0) {
+    }
+    else if (child == (pid_t) 0) {
         char line[LINE_MAX];
         int s;
 
@@ -549,8 +595,9 @@ static int getDataSources(int sockets[])
         }
 
         while (loop) {
-            while ((s = klogctl(2, line, sizeof (line))) < 0 && errno == EINTR)
+            while ((s = klogctl(2, line, sizeof (line))) < 0 && errno == EINTR) {
                 continue;
+            }
             if (s == -1) {
                 loop = 0;
                 break;
@@ -592,7 +639,9 @@ static int spawnCommand(const char * const command, const char * const date,
 {
     pid_t pid;
 
-    if (spawn_recursion) return 1;
+    if (spawn_recursion) {
+        return 1;
+    }
     spawn_recursion++;
 
     pid = fork();
@@ -630,7 +679,8 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
         }
         line++;
 #ifndef HAVE_KLOGCTL
-    } else {
+    }
+    else {
         *logcode = 0;
     }
 #endif
@@ -677,7 +727,8 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
             }
             line++;
         }
-    } else {
+    }
+    else {
         *line = 0;
     }
     line++;
@@ -764,10 +815,12 @@ static int rateLimit(RateLimiter * const rl)
     struct timeval tv;
     int64_t current_tick, diff_ticks;
 
-    if (rl->usec_between_msgs == 0)
+    if (rl->usec_between_msgs == 0) {
         return 0; /* output channel is not limited */
-    if (gettimeofday(&tv, NULL))
+    }
+    if (gettimeofday(&tv, NULL)) {
         return 0; /* if in doubt, never limit */
+    }
 
     /* Fill up bucket with one token every usec_between_msgs microseconds */
     current_tick = tv.tv_sec * (int64_t)1000000 + tv.tv_usec;
@@ -775,17 +828,21 @@ static int rateLimit(RateLimiter * const rl)
     diff_ticks = current_tick - rl->last_tick;
     if (diff_ticks > 0) {
         diff_ticks += rl->token_bucket;
-        if (diff_ticks < rl->bucket_size)
+        if (diff_ticks < rl->bucket_size) {
             rl->token_bucket = (int)diff_ticks;
-        else /* bucket overflow */
+        }
+        else { /* bucket overflow */
             rl->token_bucket = rl->bucket_size;
+        }
     }
     rl->last_tick = current_tick;
 
     /* Log message only if token available to pay for it */
-    if (rl->token_bucket <= 0)
+    if (rl->token_bucket <= 0) {
         return 1; /* suppress this message due to rate limit */
+    }
     --rl->token_bucket;
+
     return 0; /* message is within limit */
 }
 
@@ -830,7 +887,8 @@ static int writeLogLine(Output * const output, const char * const date,
             memcpy(output->dt.previous_info, info, sizeof_info);
             output->dt.sizeof_previous_info = sizeof_info;
         }
-    } else {
+    }
+    else {
         memcpy(output->dt.previous_info, info, sizeof_info);
         output->dt.previous_sizeof_info = sizeof_info;
     }
@@ -842,7 +900,8 @@ static int writeLogLine(Output * const output, const char * const date,
             memcpy(output->dt.previous_prg, prg, sizeof_prg);
             output->dt.sizeof_previous_prg = sizeof_prg;
         }
-    } else {
+    }
+    else {
         memcpy(output->dt.previous_prg, prg, sizeof_prg);
         output->dt.previous_sizeof_prg = sizeof_prg;
     }
@@ -860,7 +919,8 @@ static int writeLogLine(Output * const output, const char * const date,
                 warnp("Can't create [%s]", output->directory);
                 return -1;
             }
-        } else if (!S_ISDIR(st.st_mode)) {
+        }
+        else if (!S_ISDIR(st.st_mode)) {
             if (unlink(output->directory) < 0) {
                 warnp("Can't unlink [%s]", output->directory);
                 return -1;
@@ -891,7 +951,8 @@ static int writeLogLine(Output * const output, const char * const date,
                 return -3;
             }
             fprintf(fp_ts, "%llu\n", (unsigned long long) creatime);
-        } else {
+        }
+        else {
             unsigned long long creatime_;
 
             if (fscanf(fp_ts, "%llu", &creatime_) <= 0) {
@@ -905,8 +966,9 @@ static int writeLogLine(Output * const output, const char * const date,
             return -3;
         }
         output->creatime = creatime;
-        if (output->maxtime)
+        if (output->maxtime) {
             output->creatime -= (creatime % output->maxtime);
+        }
         output->size = (off_t) ftell(fp);
         output->fp = fp;
     }
@@ -949,8 +1011,9 @@ static int writeLogLine(Output * const output, const char * const date,
                 warnp("Unable to rename [%s] to [%s]", path, newpath);
                 return -5;
             }
-            if (output->postrotate_cmd != NULL)
+            if (output->postrotate_cmd != NULL) {
                 spawnCommand(output->postrotate_cmd, date, prg, newpath);
+            }
             if (snprintf(path, sizeof path, "%s/" OUTPUT_DIR_TIMESTAMP,
                         output->directory) < 0) {
                 warnp("Path name too long for timestamp in [%s]", output->directory);
@@ -964,20 +1027,23 @@ static int writeLogLine(Output * const output, const char * const date,
         if (output->dt.same_counter == 1) {
             fprintf(output->fp, LAST_OUTPUT_TWICE);
             output->size += (off_t) (sizeof LAST_OUTPUT_TWICE - (size_t) 1U);
-        } else {
+        }
+        else {
             int fps;
 
             fps = fprintf(output->fp, LAST_OUTPUT, output->dt.same_counter);
             if (fps >= (int) (sizeof LAST_OUTPUT - sizeof "%u")) {
                 output->size += (off_t) fps;
-            } else if (fps > 0) {
+            }
+            else if (fps > 0) {
                 output->size += (off_t) (sizeof LAST_OUTPUT + (size_t) 10U);
             }
         }
         output->dt.same_counter = 0U;
     }
-    if (date[0])
+    if (date[0]) {
         fprintf(output->fp, "%s ", date);
+    }
     fprintf(output->fp, "[%s] %s\n", prg, info);
     output->size += (off_t) strlen(date);
     output->size += (off_t) (sizeof_prg + sizeof_info);
@@ -999,8 +1065,9 @@ static int sendRemote(const char * const prg, const char * const info)
     int ret = 0;
 
     /* prepare log entry */
-    if ((line = wmalloc(strlen("  []  ") + strlen(prg) + strlen(info) + 1)) == NULL)
+    if ((line = wmalloc(strlen("  []  ") + strlen(prg) + strlen(info) + 1)) == NULL) {
         return -1;
+    }
     sprintf(line, "[%s] %s\n", prg, info);
 
     /* everything seems to be ready to send to remote host immediatelly */
@@ -1033,15 +1100,18 @@ static int sendRemote(const char * const prg, const char * const info)
     }
 
     /* close an eventually open socket */
-    if (remote_host.sock > 0)
+    if (remote_host.sock > 0) {
         close(remote_host.sock);
+    }
 
     /* establish the socket to the remote host using all its resolved addresses */
     for (rp = remote_host.result; rp != NULL; rp = rp->ai_next) {
-        if (remote_host.sock <= 0)
+        if (remote_host.sock <= 0) {
             remote_host.sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-        if (remote_host.sock < 0)
+        }
+        if (remote_host.sock < 0) {
             continue;
+        }
 
         /* try to send the line */
         if (sendto(remote_host.sock, line, strlen(line), 0, rp->ai_addr, rp->ai_addrlen) == -1) {
@@ -1055,8 +1125,9 @@ static int sendRemote(const char * const prg, const char * const info)
     }
     free(line);
 
-    if(!rp)
+    if(!rp) {
         ret = -1;
+    }
 
     return ret;
 }
@@ -1065,8 +1136,9 @@ static void flushAll(void)
 {
     ConfigBlock *block = config_blocks;
     while (block) {
-        if (block->output && block->output->fp)
+        if (block->output && block->output->fp) {
             fflush_unlocked(block->output->fp);
+        }
         block = block->next_block;
     }
 }
@@ -1112,11 +1184,13 @@ static int get_stamp_fmt_timestamp(const char *stamp_fmt, char *datebuf, int dat
                 errno = 0;
                 precision = strtoul(p, &e, 10);
                 if (!errno && p != e && !*e) {
-                    if (precision == 0 || precision > 9)
+                    if (precision == 0 || precision > 9) {
                         precision = 9;
+                    }
                     m = 9 - precision;
-                    while (--m >= 0)
+                    while (--m >= 0) {
                         scale *= 10;
+                    }
                 }
                 errno = old_errno;
             }
@@ -1189,11 +1263,13 @@ static int processLogLine(const int logcode,
                                     0, 0, match_data, NULL) >= 0) {
                         /* pass, unless a program_neg_regex matches */
                         regex_result = 1;
-                    } else if (regex_result != 1) {
+                    }
+                    else if (regex_result != 1) {
                         /* fail, unless another program_regex matches */
                         regex_result = -1;
                     }
-                } else {
+                }
+                else {
                     if (pcre2_match(this_regex->regex,
                                     (PCRE2_SPTR)prg, (PCRE2_SIZE)prg_len,
                                     0, 0, match_data, NULL) >= 0) {
@@ -1222,11 +1298,13 @@ static int processLogLine(const int logcode,
                                     0, 0, match_data, NULL) >= 0) {
                         /* pass, unless a neg_regex matches */
                         regex_result = 1;
-                    } else if (regex_result != 1) {
+                    }
+                    else if (regex_result != 1) {
                         /* fail, unless another regex matches */
                         regex_result = -1;
                     }
-                } else {
+                }
+                else {
                     if (pcre2_match(this_regex->regex,
                                     (PCRE2_SPTR)info, (PCRE2_SIZE)info_len,
                                     0, 0, match_data, NULL) >= 0) {
@@ -1266,16 +1344,18 @@ static int processLogLine(const int logcode,
                 sendRemote(prg, info);
             }
 
-            if (block->brk)
+            if (block->brk) {
                 do_break = true;
+            }
         }
         if (block->command != NULL) {
             spawnCommand(block->command, datebuf, prg, info);
             if (block->brk)
                 do_break = true;
         }
-        if (do_break)
+        if (do_break) {
             break;
+        }
 
         nextblock:
 
@@ -1317,8 +1397,9 @@ static int log_line(LogLineType loglinetype, char *buf)
     char *info;
 
     sanitize(buf);
-    if (parseLogLine(loglinetype, buf, &logcode, &prg, &info) < 0)
-      return -1;
+    if (parseLogLine(loglinetype, buf, &logcode, &prg, &info) < 0) {
+        return -1;
+    }
     return processLogLine(logcode, prg, info);
 }
 
@@ -1339,8 +1420,9 @@ static int log_kernel(char *buf, int bsize)
 
     /* we couldn't find any \n ???
        => invalidate this buffer */
-    if (start == 0)
-      return 0;
+    if (start == 0) {
+        return 0;
+    }
 
     return bsize - start;
 }
@@ -1380,8 +1462,9 @@ static int process(const int sockets[])
 
     bpos = 0;
     for (;;) {
-        while (poll(fds, nfds, -1) < 0 && errno == EINTR)
+        while (poll(fds, nfds, -1) < 0 && errno == EINTR) {
             ;
+        }
 
         /* Signal queue */
         if (siglog && siglog->revents) {
@@ -1407,10 +1490,12 @@ static int process(const int sockets[])
             }
 
             /* receive a single log line (UDP) and process it. receive one byte for '\0' */
-            while (((rd = read(syslog->fd, buffer[0], sizeof(buffer[0])-1)) < 0) && (errno == EINTR))
+            while (((rd = read(syslog->fd, buffer[0], sizeof(buffer[0])-1)) < 0) && (errno == EINTR)) {
                 ;
-            if (rd == -1)
+            }
+            if (rd == -1) {
                 return -1;
+            }
 
             buffer[0][rd] = '\0';
             log_line(LOGLINETYPE_SYSLOG, buffer[0]);
@@ -1427,10 +1512,12 @@ static int process(const int sockets[])
             }
 
             /* receive a chunk of kernel log message... */
-            while ((rd = read(klog->fd, &buffer[1][bpos], sizeof(buffer[1]) - bpos)) < 0 && errno == EINTR)
+            while ((rd = read(klog->fd, &buffer[1][bpos], sizeof(buffer[1]) - bpos)) < 0 && errno == EINTR) {
                 ;
-            if (rd == -1)
+            }
+            if (rd == -1) {
                 return -1;
+            }
 
             /* ... and process them line by line */
             rd += bpos;
@@ -1438,7 +1525,8 @@ static int process(const int sockets[])
                 /* move remainder of a message to the beginning of the buffer
                    it'll be logged once we can read the whole line into buffer[1] */
                 memmove(buffer[1], &buffer[1][ld], bpos = rd - ld);
-            } else {
+            }
+            else {
                 bpos = 0;
             }
         }
@@ -1456,24 +1544,31 @@ static int update_pid_file(const char * const pid_file)
     int fd;
     FILE *fp;
 
-    if (pid_file == NULL || *pid_file != '/')
+    if (pid_file == NULL || *pid_file != '/') {
         return 0;
+    }
 
     fd = open(pid_file, O_CREAT | O_WRONLY | O_TRUNC | O_NOFOLLOW, 0644);
-    if (fd == -1)
+    if (fd == -1) {
         goto err;
-    if (fchmod(fd, 0644))
+    }
+    if (fchmod(fd, 0644)) {
         goto err;
+    }
 
     fp = fdopen(fd, "w");
-    if (!fp)
+    if (!fp) {
         goto err;
-    if (fprintf(fp, "%lu\n", (unsigned long)getpid()) <= 0)
+    }
+    if (fprintf(fp, "%lu\n", (unsigned long)getpid()) <= 0) {
         goto err;
-    if (ferror(fp))
+    }
+    if (ferror(fp)) {
         goto err;
-    if (fclose(fp))
+    }
+    if (fclose(fp)) {
         goto err;
+    }
 
     return 0;
 
@@ -1557,15 +1652,19 @@ static void sigchld(int sig)
         if (pid == child) {
             signal_doLog_queue("Klog child [%u] died.", (unsigned) pid, 0);
             should_exit = 1;
-        } else {
-            if (WIFEXITED(child_status) && WEXITSTATUS(child_status))
+        }
+        else {
+            if (WIFEXITED(child_status) && WEXITSTATUS(child_status)) {
                 signal_doLog_queue("Child [%u] exited with return code %u.",
                       (unsigned) pid, WEXITSTATUS(child_status));
-            else if (!WIFEXITED(child_status))
+            }
+            else if (!WIFEXITED(child_status)) {
                 signal_doLog_queue("Child [%u] caught signal %u.",
                       (unsigned) pid, WTERMSIG(child_status));
-            else if (verbose)
+            }
+            else if (verbose) {
                 signal_doLog_queue("Child [%u] exited successfully.", (unsigned) pid, 0);
+            }
         }
     }
     if (should_exit != 0) {
@@ -1640,33 +1739,41 @@ static void dodaemonize(void)
         if ((child = fork()) == (pid_t) -1) {
             warnp("Daemonization failed - fork");
             return;
-        } else if (child != (pid_t) 0) {
+        }
+        else if (child != (pid_t) 0) {
             _exit(EXIT_SUCCESS);
-        } else if (setsid() == (pid_t) -1) {
+        }
+        else if (setsid() == (pid_t) -1) {
             errp("Daemonization failed : setsid");
         }
         (void) chdir("/");
         (void) closedesc_all(1);
 #else
-        if (daemon(0, 0))
+        if (daemon(0, 0)) {
             errp("Daemonization failed");
+        }
 #endif
     }
 }
 
 static void setgroup(void)
 {
-        if (group_name == NULL) return;
+        if (group_name == NULL) {
+            return;
+        }
         struct group *g;
         errno = 0;
         if ((g = getgrnam(group_name)) == NULL) {
-            if(errno == 0)
+            if(errno == 0) {
                 err("Failed to set group: group '%s' not found", group_name);
-            else
+            }
+            else {
                 errp("Failed to set group");
+            }
         }
-        if (setgid(g->gr_gid) == -1)
+        if (setgid(g->gr_gid) == -1) {
             errp("Failed to set group");
+        }
 }
 
 __attribute__ ((noreturn))
@@ -1740,8 +1847,9 @@ static void parseOptions(int argc, char *argv[])
 
 static void checkRoot(void)
 {
-    if (geteuid() != (uid_t) 0)
+    if (geteuid() != (uid_t) 0) {
         err("Sorry, you must be root to launch this program");
+    }
 }
 
 int main(int argc, char *argv[])
@@ -1753,18 +1861,21 @@ int main(int argc, char *argv[])
     remote_host.last_dns.tv_sec = 0;
     remote_host.result = NULL;
     parseOptions(argc, argv);
-    if (configParser(config_file) < 0)
+    if (configParser(config_file) < 0) {
         err("Bad configuration file");
+    }
     checkRoot();
     setgroup();
     dodaemonize();
     setsignals();
-    if (update_pid_file(pid_file))
+    if (update_pid_file(pid_file)) {
         return -1;
+    }
     clearargs(argc, argv);
     setprogname(PROGNAME_MASTER);
-    if (getDataSources(sockets) < 0)
+    if (getDataSources(sockets) < 0) {
         err("Unable to bind sockets");
+    }
 
     return process(sockets);
 }

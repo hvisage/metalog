@@ -1,6 +1,7 @@
 * Version (not released, yet)
  - m-kress:
  -- add missing brackets to harmonize code
+ -- check (stat) the program path given as command and ignore the command, if not existing
  - auouymous:
  -- fix behavior of (program_)?regex and (program_)?neg_regex conditions
  - LonEox78:

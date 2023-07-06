@@ -267,6 +267,25 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             (void) 0;
         }
         else if (strcasecmp(keyword, "command") == 0) {
+            char *command = NULL;
+            struct stat st;
+            char *p = NULL;
+
+            if ((command = wstrdup(value)) == NULL) {
+                return -3;
+            }
+
+            p = strchr(command, (int) ' ');
+            if (p != NULL) {
+                *p = '\0';
+            }
+            if (stat(command, &st) < 0) {
+                warnp("Ignoring command \"%s\"", command);
+                free(command);
+                return 0;
+            }
+            free(command);
+
             if (((*cur_block)->command = wstrdup(value)) == NULL) {
                 return -3;
             }

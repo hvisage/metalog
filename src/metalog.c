@@ -280,7 +280,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 *p = '\0';
             }
             if (stat(command, &st) < 0) {
-                doLog("Ignoring command \"%s\", because file doesn't exist", command);
+                warnp("Ignoring command \"%s\"", command);
                 free(command);
                 return 0;
             }

@@ -146,6 +146,9 @@ Set to \fI0\fR to filter out repeat log messages.
 Run the specified program as soon as something is logged in a given section.
 
 The program is passed the date, the matching program name, and the log message.
+
+In case the program doesn't exist at metalog startup, metalog will not exit and
+just ignore that config line.
 .TP
 \fBstamp_fmt\fR = \fI"%b %e %T"\fR
 Format of the human readable timestamp prepended to all log messages.

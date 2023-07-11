@@ -1210,13 +1210,6 @@ static int get_stamp_fmt_timestamp(const char *stamp_fmt, char *datebuf, int dat
     return 0;
 }
 
-static int log_stdout(const char * const date,
-                      const char * const prg, const char * const info)
-{
-    printf("%s [%s] %s\n", date, prg, info);
-    return 0;
-}
-
 static int processLogLine(const int logcode,
                           const char * const prg, char * const info)
 {
@@ -1337,7 +1330,7 @@ static int processLogLine(const int logcode,
             writeLogLine(block->output, datebuf, prg, info);
 
             /* write to stdout */
-            log_stdout(datebuf, prg, info);
+            printf("%s [%s] %s\n", datebuf, prg, info);
 
             /* send the log entry to the remote host */
             if (remote_host.hostname != NULL && block->remote_log) {

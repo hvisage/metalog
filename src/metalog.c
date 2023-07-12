@@ -1376,8 +1376,18 @@ static void sanitize(char * const line_)
     register unsigned char *line = (unsigned char *) line_;
 
     while (*line != 0U) {
+        /* replace a control characters of the line */
         if (ISCTRLCODE(*line)) {
-            *line = NONPRINTABLE_SUSTITUTE_CHAR;
+            /* eliminate a trailing control character (even '\n'), if it is the last one in this line */
+            if (*(line + 1) == 0U) {
+                *line = 0U;
+                printf("vorzeitiges Ende der Zeile\n");
+            }
+            else {
+                /* substitude a control character if it is in the middle of the line */
+                *line = NONPRINTABLE_SUSTITUTE_CHAR;
+                printf("ersetze mit _\n");
+            }
         }
         line++;
     }

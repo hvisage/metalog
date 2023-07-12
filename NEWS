@@ -1,5 +1,9 @@
 * Version (not released, yet)
  - m-kress:
+ -- do not substitute trailing control characters of a log line, but eliminate them completelly
+
+* Version 20230707
+ - m-kress:
  -- add missing brackets to harmonize code
  - auouymous:
  -- fix behavior of (program_)?regex and (program_)?neg_regex conditions

@@ -1,6 +1,7 @@
 * Version (not released, yet)
  - m-kress:
- -- do not substitute trailing control characters of a log line, but eliminate them completelly
+ -- Do not substitute trailing control characters of a log line, but eliminate them completelly.
+    Be aware, that this change will break existing filters that rely on the trailing underscore!
 
 * Version 20230707
  - m-kress:

@@ -183,9 +183,9 @@ typedef enum LogLineType_ {
 #define DEFAULT_UPD_PORT "514"              /* UDP port of the remote syslog server */
 #define DEFAULT_DNS_LOOKUP_INTERVERVAL 120  /* seconds, after that a DNS lookup should be repeated */
 
-/* "DEL" character or all characters < "SPACE" (< 0x20) */
+/* "DEL" (0x7f) character or all characters < "SPACE" (0x20) */
 #ifdef ACCEPT_UNICODE_CONTROL_CHARS
-# define ISCTRLCODE(X) ((X) == 0x7f || ((unsigned char) (X)) < 32U)
+# define ISCTRLCODE(X) ((X) == 0x7f || ((unsigned char) (X)) < 0x20)
 #else
 # define ISCTRLCODE(X) ((X) == 0x7f || !(((unsigned char) (X)) & 0x60))
 #endif

@@ -1376,7 +1376,7 @@ static void sanitize(char * const line_)
     register unsigned char *line = (unsigned char *) line_;
 
     while (*line != 0U) {
-        /* replace a control characters of the line */
+        /* replace control characters of the line */
         if (ISCTRLCODE(*line)) {
             /* eliminate a trailing control character (even '\n'), if it is the last one in this line */
             if (*(line + 1) == 0U) {

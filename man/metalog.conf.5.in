@@ -13,6 +13,8 @@ metalog.conf \- configuration file for metalog
 <section 2 title :>
 <section 2 values>
 
+# Comments are introduced with "#", which is ONLY allowed at the beginning of a line.
+
 <etc.>
 .fi
 .SH "DESCRIPTION"

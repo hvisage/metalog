@@ -1229,13 +1229,6 @@ static int get_stamp_fmt_timestamp(const char *stamp_fmt, char *datebuf, int dat
     return 0;
 }
 
-static int log_stdout(const char * const date,
-                      const char * const prg, const char * const info)
-{
-    printf("%s [%s] %s\n", date, prg, info);
-    return 0;
-}
-
 static int processLogLine(const int logcode,
                           const char * const prg, char * const info)
 {
@@ -1356,7 +1349,7 @@ static int processLogLine(const int logcode,
             writeLogLine(block->output, datebuf, prg, info);
 
             /* write to stdout */
-            log_stdout(datebuf, prg, info);
+            printf("%s [%s] %s\n", datebuf, prg, info);
 
             /* send the log entry to the remote host */
             if (remote_host.hostname != NULL && block->remote_log) {
@@ -1402,8 +1395,16 @@ static void sanitize(char * const line_)
     register unsigned char *line = (unsigned char *) line_;
 
     while (*line != 0U) {
+        /* replace control characters of the line */
         if (ISCTRLCODE(*line)) {
-            *line = NONPRINTABLE_SUSTITUTE_CHAR;
+            /* eliminate a trailing control character (even '\n'), if it is the last one in this line */
+            if (*(line + 1) == 0U) {
+                *line = 0U;
+            }
+            else {
+                /* substitude a control character if it is in the middle of the line */
+                *line = NONPRINTABLE_SUSTITUTE_CHAR;
+            }
         }
         line++;
     }

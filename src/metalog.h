@@ -184,8 +184,10 @@ typedef enum LogLineType_ {
 #define DEFAULT_DNS_LOOKUP_INTERVERVAL 120  /* seconds, after that a DNS lookup should be repeated */
 
 #ifdef ACCEPT_UNICODE_CONTROL_CHARS
-# define ISCTRLCODE(X) ((X) == 0x7f || ((unsigned char) (X)) < 32U)
+/* "DEL" (0x7f) character or all characters < "SPACE" (0x20) */
+# define ISCTRLCODE(X) ((X) == 0x7f || ((unsigned char) (X)) < 0x20)
 #else
+/* "DEL" (0x7f) character or all characters in (extended) ASCII character control groups C0 and C1 */
 # define ISCTRLCODE(X) ((X) == 0x7f || !(((unsigned char) (X)) & 0x60))
 #endif
 

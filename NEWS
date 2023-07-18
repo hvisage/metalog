@@ -1,5 +1,10 @@
 * Version (not released, yet)
  - m-kress:
+ -- Do not substitute trailing control characters of a log line, but eliminate them completelly.
+    Be aware, that this change will break existing filters that rely on the trailing underscore!
+
+* Version 20230707
+ - m-kress:
  -- add missing brackets to harmonize code
  -- check (stat) the program path given as command and ignore the command, if not existing
  - auouymous:

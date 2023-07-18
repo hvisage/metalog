@@ -185,6 +185,11 @@ if the rate of messages has been well below the limit before.
 The specified message rate will not be exceeded.
 The default value of 1 disables special treatment for bursts.
 Values less than 1 are invalid and will be rejected.
+.TP
+\fBconfigdir = \fI"/path/to/directory/with/more/config/files"\fR
+This optional directory can contain more config files that will get interpreted at
+metalog start. Only file names ending with ".conf" are interpreted. This option is
+only allowed once, all repetitions will be ignored.
 .SH "FILES"
 .LP
 Note that the exact paths depend on the build settings.  These are the standard paths.

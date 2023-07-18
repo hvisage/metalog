@@ -417,8 +417,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
 static int configParser(const char * const file)
 {
     char line[LINE_MAX];
-    FILE *fp;
-    char *file_path = NULL;
+    FILE *fp = NULL;
     pcre2_code *re_newblock;
     pcre2_code *re_newstmt;
     pcre2_code *re_comment;
@@ -474,8 +473,6 @@ static int configParser(const char * const file)
 
     /* read all config files of an eventually configured directory */
     if (config_dir != NULL) {
-        FILE *fp2;
-        char *p = NULL;
         DIR *dp;
         struct dirent *ep;
 
@@ -487,6 +484,10 @@ static int configParser(const char * const file)
 
         /* config file names must end with ".conf" */
         while ((ep = readdir(dp)) != NULL) {
+            FILE *fp2 = NULL;
+            char *p = NULL;
+            char *file_path = NULL;
+
             p = strchr(ep->d_name, (int) '.');
             if (p == NULL || !strstr(p, ".conf")) {
                 continue;
@@ -500,6 +501,7 @@ static int configParser(const char * const file)
             if ((fp2 = fopen(file_path, "r")) == NULL) {
                 warnp("Can't open the config file %s", file_path);
                 retcode = -1;
+                free(file_path);
                 goto rtn;
             }
 
@@ -512,7 +514,6 @@ static int configParser(const char * const file)
             }
 
             free(file_path);
-            file_path = NULL;
             fclose(fp2);
         }
         closedir(dp);

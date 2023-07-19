@@ -206,6 +206,17 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 (*cur_block)->output->perms = (*cur_block)->perms;
             }
         }
+        else if (strcasecmp(keyword, "configdir") == 0) {
+            /* allow only once to avoid recursion */
+            if (config_dir != NULL) {
+                warnp("Ignore repeated \"configdir\" statement");
+            }
+            else {
+                if ((config_dir = wstrdup(value)) == NULL) {
+                    return -3;
+                }
+            }
+        }
         else if (strcasecmp(keyword, "logdir") == 0) {
             char *logdir = NULL;
             Output *outputs_scan = outputs;
@@ -406,7 +417,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
 static int configParser(const char * const file)
 {
     char line[LINE_MAX];
-    FILE *fp;
+    FILE *fp = NULL;
     pcre2_code *re_newblock;
     pcre2_code *re_newstmt;
     pcre2_code *re_comment;
@@ -459,6 +470,55 @@ static int configParser(const char * const file)
             break;
         }
     }
+
+    /* read all config files of an eventually configured directory */
+    if (config_dir != NULL) {
+        DIR *dp;
+        struct dirent *ep;
+
+        dp = opendir(config_dir);
+        if (dp == NULL) {
+            retcode = -1;
+            goto rtn;
+        }
+
+        /* config file names must end with ".conf" */
+        while ((ep = readdir(dp)) != NULL) {
+            FILE *fp2 = NULL;
+            char *p = NULL;
+            char *file_path = NULL;
+
+            p = strchr(ep->d_name, (int) '.');
+            if (p == NULL || !strstr(p, ".conf")) {
+                continue;
+            }
+
+            if ((file_path = wmalloc(strlen(ep->d_name) + strlen(config_dir) + 2)) == NULL) {
+                retcode = -1;
+                goto rtn;
+            }
+            sprintf(file_path, "%s/%s", config_dir, ep->d_name);
+            if ((fp2 = fopen(file_path, "r")) == NULL) {
+                warnp("Can't open the config file %s", file_path);
+                retcode = -1;
+                free(file_path);
+                goto rtn;
+            }
+
+            while (fgets(line, sizeof line, fp2) != NULL) {
+                if ((retcode = parseLine(line, &cur_block, &default_block,
+                                         re_newblock, re_newstmt,
+                                         re_comment, re_null)) != 0) {
+                    break;
+                }
+            }
+
+            free(file_path);
+            fclose(fp2);
+        }
+        closedir(dp);
+    }
+
  rtn:
     if (re_newblock != NULL) {
         pcre2_code_free(re_newblock);

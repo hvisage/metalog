@@ -2,6 +2,8 @@
  - m-kress:
  -- Do not substitute trailing control characters of a log line, but eliminate them completelly.
     Be aware, that this change will break existing filters that rely on the trailing underscore!
+ -- note in config file and man page: comments must be started with # only at the beginning of a line
+ -- add "configdir" to config, which allows reading additional config files ending with *.conf
 
 * Version 20230707
  - m-kress:

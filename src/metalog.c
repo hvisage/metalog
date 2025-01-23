@@ -10,6 +10,28 @@
 static int spawn_recursion = 0;
 static int dolog_queue[2];
 static void signal_doLog_dequeue(void);
+static void add_remote_host(RemoteHost **hosts, const char *name, const char *hostname, const char *port, LogFormat format, int severity_level);
+static const char *extract_remote_host_name(const char * const keyword, const char *pattern);
+static int update_remote_host_field(char **field, const char *value);
+static RemoteHost *find_remote_host(RemoteHost **hosts, const char *name);
+static RemoteHost* find_or_add_remote_host(const char *name, const char *hostname, const char *port, int format, int severity_level);
+static int update_remote_host_field(char **field, const char *value);
+static void free_remote_hosts(RemoteHost *remote_hosts_head);
+static const char* get_stamp_fmt_for_rfc_format(LogFormat format);
+static bool isRemoteHostInConfigBlock(RemoteHost **hosts_list, int num_hosts, RemoteHost *host);
+static const char* build_priority_str(const int severity);
+static char* build_log_line(const char * const prg, const char * const pid,
+                            const char * const info, LogFormat format, const char * const datebuf,
+                            const int priority, const int facility, bool print_hostname);
+static void get_hostname(char *hostname, size_t size, bool print_hostname);
+static char* handle_rfc3164_format(int pri, const char *datebuf_safe, char *hostname, const char *prg_safe,
+                                   const char *pid_safe, const char *info, bool print_hostname);
+static char* handle_rfc5424_format(int pri, const char *datebuf_safe, char *hostname, const char *prg_safe,
+                                   const char *pid_safe, const char *info, bool print_hostname);
+static char* format_log_line(const char *format, ...);
+static char* allocate_log_line(size_t size);
+static LogFormat translate_log_format(const char * const format);
+
 
 static int doLog(const char * fmt, ...);
 
@@ -61,6 +83,20 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         else {
             previous_block->next_block = *cur_block;
         }
+
+        // Create an independent copy of the hosts array
+        if (default_block->hosts != NULL) {
+            (*cur_block)->hosts = wmalloc(default_block->num_hosts * sizeof(RemoteHost *));
+            if ((*cur_block)->hosts == NULL) {
+                return -3;
+            }
+            memcpy((*cur_block)->hosts, default_block->hosts, default_block->num_hosts * sizeof(RemoteHost *));
+            (*cur_block)->num_hosts = default_block->num_hosts;
+        } else {
+            (*cur_block)->hosts = NULL;
+            (*cur_block)->num_hosts = 0;
+        }
+
         return 0;
     }
     if ((stcount =
@@ -314,19 +350,86 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 (*cur_block)->output->postrotate_cmd = (*cur_block)->postrotate_cmd;
             }
         }
-        else if (strcasecmp(keyword, "remote_host") == 0) {
-            if ((remote_host.hostname = wstrdup(value)) == NULL) {
-                return -3;
+        else if (strncmp(keyword, "remote_host", strlen("remote_host")) == 0) {
+
+            const char *name = extract_remote_host_name(keyword, "remote_host");
+            RemoteHost *current_remote_host = find_or_add_remote_host(name, value, NULL, RFC5424, LOG_DEBUG);
+
+            if (current_remote_host != NULL) {
+                if (update_remote_host_field(&current_remote_host->hostname, value) != 0) {
+                    return -3;
+                }
             }
         }
-        else if (strcasecmp(keyword, "remote_port") == 0) {
-            if ((remote_host.port = wstrdup(value)) == NULL) {
-                return -3;
+        else if (strncmp(keyword, "remote_port", strlen("remote_port")) == 0) {
+
+            const char *name = extract_remote_host_name(keyword, "remote_port");
+            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, value, RFC5424, LOG_DEBUG);
+
+            if (current_remote_host != NULL) {
+                if (update_remote_host_field(&current_remote_host->port, value) != 0) {
+                    return -3;
+                }
             }
         }
-        else if (strcasecmp(keyword, "remote_log") == 0) {
-            (*cur_block)->remote_log = atoi(value);
+        else if (strncmp(keyword, "remote_format", strlen("remote_format")) == 0) {
+
+            const char *name = extract_remote_host_name(keyword, "remote_format");
+            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, NULL, translate_log_format(value), LOG_DEBUG);
+
+            if (current_remote_host != NULL) {
+                current_remote_host->format = translate_log_format(value);
+            }
         }
+        else if (strncmp(keyword, "remote_severity_level", strlen("remote_severity_level")) == 0) {
+
+            const char *name = extract_remote_host_name(keyword, "remote_severity_level");
+            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, NULL, RFC5424, atoi(value));
+
+            if (current_remote_host != NULL) {
+                current_remote_host->severity_level = atoi(value);
+            }
+        }
+        else if (strncmp(keyword, "remote_log", strlen("remote_log")) == 0) {
+            int value_int = atoi(value);
+            const char *name = extract_remote_host_name(keyword, "remote_log");
+            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, NULL, RFC5424, LOG_DEBUG);
+
+            if (current_remote_host != NULL) {
+                if (value_int == 1) {
+                    RemoteHost **temp = wrealloc((*cur_block)->hosts, ((*cur_block)->num_hosts + 1) * sizeof(RemoteHost *));
+                    if (temp == NULL) {
+                        warn("failed to realloc memory for remote hosts");
+                        return -3;
+                    }
+                    (*cur_block)->hosts = temp;
+                    (*cur_block)->num_hosts++;
+                    (*cur_block)->hosts[(*cur_block)->num_hosts - 1] = current_remote_host;
+                }
+                else if (value_int == 0) {
+                    // Remove the RemoteHost from the ConfigBlock if already added in default values
+                    int found = 0;
+                    for (int i = 0; i < (*cur_block)->num_hosts; i++) {
+                        if ((*cur_block)->hosts[i] == current_remote_host) {
+                            found = 1;
+                            for (int j = i; j < (*cur_block)->num_hosts - 1; j++) {
+                                (*cur_block)->hosts[j] = (*cur_block)->hosts[j + 1];
+                            }
+                            (*cur_block)->num_hosts--;
+                            break;
+                        }
+                    }
+                    if (found) {
+                        RemoteHost **temp = wrealloc((*cur_block)->hosts, (*cur_block)->num_hosts * sizeof(RemoteHost *));
+                        if (temp == NULL && (*cur_block)->num_hosts > 0) {
+                            warn("failed to realloc memory for remote hosts");
+                            return -3;
+                        }
+                        (*cur_block)->hosts = temp;
+                    }
+                }
+            }
+        }        
         else if (strcasecmp(keyword, "break") == 0) {
             (*cur_block)->brk = atoi(value);
         }
@@ -404,6 +507,9 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 (*cur_block)->output->rate.token_bucket = burst_length;
             }
         }
+        else if (strcasecmp(keyword, "log_format") == 0) {
+            (*cur_block)->log_format = translate_log_format(value);
+        }
         else {
             err("Unknown keyword '%s'! line: %s", keyword, line);
         }
@@ -447,7 +553,9 @@ static int configParser(const char * const file)
             FLUSH_DEFAULT,             /* flush */
             0,                         /* usec_between_msgs */
             1,                         /* max_burst_length */
-            false,                     /* send log entry to remote logger */
+            NULL,                      /* list of remote hosts */
+            0,                         /* number of remote hosts */
+            DEFAULT_LOG_FORMAT         /* log format */
     };
     ConfigBlock *cur_block = &default_block;
 
@@ -738,7 +846,8 @@ static int spawnCommand(const char * const command, const char * const date,
 
 static int parseLogLine(const LogLineType loglinetype, char *line,
                         int * const logcode,
-                        const char ** const prg, char ** const info)
+                        const char ** const prg,
+                        const char ** const pid, char ** const info)
 {
 #ifndef HAVE_KLOGCTL
     if (loglinetype != LOGLINETYPE_KLOG) {
@@ -767,6 +876,7 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
     if (loglinetype == LOGLINETYPE_KLOG) {
         *logcode |= LOG_KERN;
         *prg = CF_PROGNAME_KERNEL;
+        *pid = "0";
         *info = line;
         return 0;
     }
@@ -793,13 +903,14 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
     }
     if (*line == '[') {
         *line++ = 0;
+        *pid = line;
         while (*line != ']') {
             if (*line == 0) {
                 return -1;
             }
             line++;
         }
-        line++;
+        *line++ = 0;
         while (*line != ':') {
             if (*line == 0) {
                 return -1;
@@ -926,7 +1037,8 @@ static int rateLimit(RateLimiter * const rl)
 }
 
 static int writeLogLine(Output * const output, const char * const date,
-                        const char * const prg, const char * const info)
+                        const char * const prg, const char * const pid, const char * const info, const int priority,
+                        const int facility, LogFormat log_format)
 {
     size_t sizeof_prg;
     size_t sizeof_info;
@@ -1120,12 +1232,9 @@ static int writeLogLine(Output * const output, const char * const date,
         }
         output->dt.same_counter = 0U;
     }
-    if (date[0]) {
-        fprintf(output->fp, "%s ", date);
-    }
-    fprintf(output->fp, "[%s] %s\n", prg, info);
-    output->size += (off_t) strlen(date);
-    output->size += (off_t) (sizeof_prg + sizeof_info);
+    const char *line = build_log_line(prg, pid, info, log_format, date, priority, facility, false);
+    fprintf(output->fp, "%s", line);
+    output->size += (off_t) strlen(line);
     output->size += (off_t) 5;
     if (output->flush == FLUSH_ALWAYS ||
         (output->flush == FLUSH_DEFAULT && synchronous != (sig_atomic_t) 0)) {
@@ -1135,7 +1244,9 @@ static int writeLogLine(Output * const output, const char * const date,
 }
 
 /* send a line to a remote syslog server */
-static int sendRemote(const char * const prg, const char * const info)
+static int sendRemote(const char * const prg, const char * const pid,
+                      const char * const info, RemoteHost *host, const char * const datebuf,
+                      const int priority, const int facility)
 {
     struct timespec now;
     struct addrinfo hints;
@@ -1144,18 +1255,20 @@ static int sendRemote(const char * const prg, const char * const info)
     int ret = 0;
 
     /* prepare log entry */
-    if ((line = wmalloc(strlen("  []  ") + strlen(prg) + strlen(info) + 1)) == NULL) {
+    line = build_log_line(prg, pid, info, host->format, datebuf, priority, facility, true);
+
+    if (line == NULL) {
         return -1;
     }
-    sprintf(line, "[%s] %s\n", prg, info);
+    
 
     /* everything seems to be ready to send to remote host immediatelly */
     clock_gettime(CLOCK_MONOTONIC, &now);
-    if ((remote_host.sock > 0) &&
-        ((remote_host.last_dns.tv_sec + DEFAULT_DNS_LOOKUP_INTERVERVAL) > now.tv_sec)) {
-        if (sendto(remote_host.sock, line, strlen(line), 0, remote_host.result->ai_addr, remote_host.result->ai_addrlen) == -1) {
-            close(remote_host.sock);
-            remote_host.sock = -1;
+    if ((host->sock > 0) &&
+        ((host->last_dns.tv_sec + DEFAULT_DNS_LOOKUP_INTERVERVAL) > now.tv_sec)) {
+        if (sendto(host->sock, line, strlen(line), 0, host->result->ai_addr, host->result->ai_addrlen) == -1) {
+            close(host->sock);
+            host->sock = -1;
         }
         else {
             free(line);
@@ -1164,38 +1277,37 @@ static int sendRemote(const char * const prg, const char * const info)
     }
 
     /* sending failed or DNS info is too old, try again after updated DNS */
-    clock_gettime(CLOCK_MONOTONIC, &remote_host.last_dns);
+    clock_gettime(CLOCK_MONOTONIC, &host->last_dns);
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;
     hints.ai_flags = AI_ADDRCONFIG | AI_CANONNAME;
     hints.ai_socktype = SOCK_DGRAM;
-    if (remote_host.result != NULL) {
-        freeaddrinfo(remote_host.result);
-        remote_host.result = NULL;
+    if (host->result != NULL) {
+        freeaddrinfo(host->result);
+        host->result = NULL;
     }
-    if (getaddrinfo(remote_host.hostname, remote_host.port, &hints, &remote_host.result) != 0) {
+    if (getaddrinfo(host->hostname, host->port, &hints, &host->result) != 0) {
         free(line);
         return -1;
     }
 
     /* close an eventually open socket */
-    if (remote_host.sock > 0) {
-        close(remote_host.sock);
-    }
+    if (host->sock > 0)
+        close(host->sock);
 
     /* establish the socket to the remote host using all its resolved addresses */
-    for (rp = remote_host.result; rp != NULL; rp = rp->ai_next) {
-        if (remote_host.sock <= 0) {
-            remote_host.sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+    for (rp = host->result; rp != NULL; rp = rp->ai_next) {
+        if (host->sock <= 0) {
+            host->sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         }
-        if (remote_host.sock < 0) {
+        if (host->sock < 0) {
             continue;
         }
 
         /* try to send the line */
-        if (sendto(remote_host.sock, line, strlen(line), 0, rp->ai_addr, rp->ai_addrlen) == -1) {
-            close(remote_host.sock);
-            remote_host.sock = -1;
+        if (sendto(host->sock, line, strlen(line), 0, rp->ai_addr, rp->ai_addrlen) == -1) {
+            close(host->sock);
+            host->sock = -1;
             continue;
         }
         else {
@@ -1290,7 +1402,8 @@ static int get_stamp_fmt_timestamp(const char *stamp_fmt, char *datebuf, int dat
 }
 
 static int processLogLine(const int logcode,
-                          const char * const prg, char * const info)
+                          const char * const prg,
+                          const char * const pid, char * const info)
 {
     pcre2_match_data *match_data = pcre2_match_data_create(16, NULL);
     ConfigBlock *block = config_blocks;
@@ -1301,6 +1414,7 @@ static int processLogLine(const int logcode,
     int info_len;
     int prg_len;
     int regex_result;
+    RemoteHost *cur_host = remote_hosts;
 
     while (block != NULL) {
         if (block->facilities != NULL) {
@@ -1398,22 +1512,36 @@ static int processLogLine(const int logcode,
 
         char datebuf[100] = { '\0' };
         if (block->output && block->output->stamp_fmt[0]) {
-            get_stamp_fmt_timestamp(block->output->stamp_fmt,
-                                    datebuf,
-                                    sizeof(datebuf));
+            const char *timestamp_fmt = get_stamp_fmt_for_rfc_format(block->log_format);
+            if (timestamp_fmt != NULL) {
+                get_stamp_fmt_timestamp(timestamp_fmt, datebuf, sizeof(datebuf));
+            }
+            else {
+                get_stamp_fmt_timestamp(block->output->stamp_fmt, datebuf, sizeof(datebuf));
+            }
         }
 
         bool do_break = false;
         if (block->output != NULL) {
             /* write a real log entry */
-            writeLogLine(block->output, datebuf, prg, info);
+            writeLogLine(block->output, datebuf, prg, pid, info, priority, facility, block->log_format);
 
             /* write to stdout */
-            printf("%s [%s] %s\n", datebuf, prg, info);
+            const char *line = build_log_line(prg, pid, info, block->log_format, datebuf, priority, facility, false);
+            printf("%s", line);
 
-            /* send the log entry to the remote host */
-            if (remote_host.hostname != NULL && block->remote_log) {
-                sendRemote(prg, info);
+            while (cur_host != NULL) {
+                if (cur_host->hostname != NULL && cur_host->severity_level >= priority && 
+                    isRemoteHostInConfigBlock(block->hosts, block->num_hosts, cur_host) ) {
+
+                    /* if log format is not rfc3164 or rfc5424, use stamp_fmt */
+                    const char *remote_timestamp_fmt = get_stamp_fmt_for_rfc_format(cur_host->format);
+                    if (remote_timestamp_fmt != NULL) {
+                        get_stamp_fmt_timestamp(remote_timestamp_fmt, datebuf, sizeof(datebuf));
+                    }
+                    sendRemote(prg, pid, info, cur_host, datebuf, priority, facility);
+                }
+                cur_host = cur_host->next_host;
             }
 
             if (block->brk) {
@@ -1441,13 +1569,17 @@ static int processLogLine(const int logcode,
 static int doLog(const char * fmt, ...)
 {
     char infobuf[512];
+    char pidbuf[16];
     va_list ap;
+    pid_t pid = getpid();
+
+    snprintf(pidbuf, sizeof(pidbuf), "%d", pid);
 
     va_start(ap, fmt);
     vsnprintf (infobuf, sizeof infobuf, fmt, ap);
     va_end(ap);
 
-    return processLogLine(LOG_SYSLOG, "metalog", infobuf);
+    return processLogLine(LOG_SYSLOG, "metalog", pidbuf, infobuf);
 }
 
 static void sanitize(char * const line_)
@@ -1475,12 +1607,13 @@ static int log_line(LogLineType loglinetype, char *buf)
     int logcode;
     const char *prg;
     char *info;
+    const char *pid = NULL;
 
     sanitize(buf);
-    if (parseLogLine(loglinetype, buf, &logcode, &prg, &info) < 0) {
+    if (parseLogLine(loglinetype, buf, &logcode, &prg, &pid, &info) < 0) {
         return -1;
     }
-    return processLogLine(logcode, prg, info);
+    return processLogLine(logcode, prg, pid, info);
 }
 
 static int log_kernel(char *buf, int bsize)
@@ -1705,6 +1838,313 @@ static void signal_doLog_dequeue(void)
     ++spawn_recursion;
     doLog(buf, pid, status);
     --spawn_recursion;
+}
+
+static void add_remote_host(RemoteHost **remote_hosts_head, const char *name, const char *hostname, const char *port, LogFormat format, int severity_level)
+{
+    RemoteHost *new_host = wmalloc(sizeof(RemoteHost));
+    if (new_host == NULL) {
+        err("Failed to allocate memory for remote host");
+    }
+
+    if (name == NULL) {
+        new_host->name = NULL;
+    }
+    else {
+        new_host->name = wstrdup(name);
+    }
+
+    if (hostname == NULL) {
+        new_host->hostname = wstrdup("dummy");
+    }
+    else {
+        new_host->hostname = wstrdup(hostname);
+    }
+    if (port == NULL) {
+        new_host->port = wstrdup(DEFAULT_UPD_PORT);
+    }
+    else {
+        new_host->port = wstrdup(port);
+    }
+    new_host->sock = -1;
+    new_host->last_dns.tv_sec = 0;
+    new_host->result = NULL;
+    new_host->format = format;
+    new_host->severity_level = severity_level;
+    new_host->next_host = NULL;
+
+    if (*remote_hosts_head == NULL) {
+        *remote_hosts_head = new_host;
+    }
+    else {
+        RemoteHost *current = *remote_hosts_head;
+        while (current->next_host != NULL) {
+            current = current->next_host;
+        }
+        current->next_host = new_host;
+    }
+}
+
+static const char *extract_remote_host_name(const char *const keyword, const char *const pattern)
+{
+    /* That must be the default remote host */
+    if (strlen(keyword) == strlen(pattern)) {
+        return DEFAULT_REMOTE_HOST_NAME;
+    }
+
+    const char *start = strchr(keyword, '[');
+    const char *end = strchr(keyword, ']');
+
+    if (start != NULL && end != NULL && end > start) {
+        size_t length = end - start - 1;
+        char *result = malloc(length + 1);
+        if (result == NULL) {
+            return NULL;
+        }
+        strncpy(result, start + 1, length);
+        result[length] = '\0';
+        return result;
+    }
+
+    return DEFAULT_REMOTE_HOST_NAME;
+}
+
+
+static RemoteHost *find_remote_host(RemoteHost **hosts, const char *name)
+{
+    RemoteHost *current = *hosts;
+    while (current != NULL) {
+        if (strcmp(current->name, name) == 0) {
+            return current;
+        }
+        current = current->next_host;
+    }
+    return NULL;
+}
+
+static RemoteHost* find_or_add_remote_host(const char *name, const char *hostname, const char *port, int format, int severity_level) {
+    RemoteHost *current_remote_host = find_remote_host(&remote_hosts, name);
+
+    if (current_remote_host == NULL) {
+        add_remote_host(&remote_hosts, name, hostname, port, format, severity_level);
+        current_remote_host = find_remote_host(&remote_hosts, name);
+    }
+
+    return current_remote_host;
+}
+
+static int update_remote_host_field(char **field, const char *value) {
+    free(*field);
+    if ((*field = wstrdup(value)) == NULL) {
+        return -3;
+    }
+    return 0;
+}
+
+static void free_remote_hosts(RemoteHost *remote_hosts_head)
+{
+    RemoteHost *current = remote_hosts_head;
+    RemoteHost *next;
+
+    while (current != NULL) {
+        next = current->next_host;
+        free(current->name);
+        free(current->hostname);
+        free(current->port);
+        freeaddrinfo(current->result);
+        free(current);
+        current = next;
+    }
+}
+
+static const char* get_stamp_fmt_for_rfc_format(LogFormat format)
+{
+    switch (format) {
+        case RFC3164:
+            return "%b %d %H:%M:%S";
+        case RFC5424:
+            return "%Y-%m-%dT%H:%M:%S.%3NZ";
+        default:
+            return NULL;
+    }
+}
+
+static bool isRemoteHostInConfigBlock(RemoteHost **hosts_list, int num_hosts, RemoteHost *host) {
+    if (hosts_list == NULL || num_hosts == 0) {
+        return false;
+    }
+
+    for (int i = 0; i < num_hosts; i++) {
+        if (hosts_list[i] == host) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static const char* build_priority_str(const int severity)
+{
+
+    switch (severity) {
+        case LOG_EMERG:   return "EMERG";
+        case LOG_ALERT:   return "ALERT";
+        case LOG_CRIT:    return "CRIT";
+        case LOG_ERR:     return "ERR";
+        case LOG_WARNING: return "WARNING";
+        case LOG_NOTICE:  return "NOTICE";
+        case LOG_INFO:    return "INFO";
+        case LOG_DEBUG:   return "DEBUG";
+        default:          return "UNKNOWN";
+    }
+}
+
+static char* build_log_line(const char * const prg, const char * const pid,
+                            const char * const info, LogFormat format, const char * const datebuf,
+                            const int priority, const int facility, bool print_hostname)
+{
+    char *line = NULL;
+    char hostname[HOST_NAME_MAX + 1] = {0};
+    const char *priority_str = build_priority_str(priority);
+    int pri = facility * 8 + priority;
+
+    const char *prg_safe = (prg != NULL) ? prg : NILVALUE;
+    const char *pid_safe = (pid != NULL) ? pid : NILVALUE;
+    const char *datebuf_safe = (datebuf != NULL) ? datebuf : NILVALUE;
+
+    get_hostname(hostname, sizeof(hostname), print_hostname);
+
+    switch (format) {
+        case LEGACY:
+        case LEGACY_TIMESTAMP:
+            if (datebuf == NULL || format == LEGACY) {
+                line = format_log_line("[%s][%s] %s\n", prg_safe, priority_str, info);
+            } else {
+                line = format_log_line("%s [%s][%s] %s\n", datebuf_safe, prg_safe, priority_str, info);
+            }
+            break;
+
+        case RFC3164:
+            line = handle_rfc3164_format(pri, datebuf_safe, hostname, prg_safe, pid_safe, info, print_hostname);
+            break;
+
+        case RFC5424:
+            line = handle_rfc5424_format(pri, datebuf_safe, hostname, prg_safe, pid_safe, info, print_hostname);
+            break;
+
+        default:
+            err("Failed to set log format");
+            return NULL;
+    }
+
+    return line;
+}
+
+static void get_hostname(char *hostname, size_t size, bool print_hostname) {
+    if (print_hostname) {
+        if (gethostname(hostname, size) != 0) {
+            snprintf(hostname, size, "%s", NILVALUE);
+        }
+    }
+}
+
+static char* handle_rfc3164_format(int pri, const char *datebuf_safe, char *hostname, const char *prg_safe, const char *pid_safe, const char *info, bool print_hostname) {
+    char *line;
+    if (strcmp(prg_safe, "kernel") == 0) {
+        if (print_hostname) {
+            line = format_log_line("<%d>%s %s %s: %s\n", pri, datebuf_safe, hostname, prg_safe, info);
+        } else {
+            line = format_log_line("<%d>%s %s: %s\n", pri, datebuf_safe, prg_safe, info);
+        }
+    } else {
+        if (print_hostname) {
+            line = format_log_line("<%d>%s %s %s[%s]: %s\n", pri, datebuf_safe, hostname, prg_safe, pid_safe, info);
+        } else {
+            line = format_log_line("<%d>%s %s[%s]: %s\n", pri, datebuf_safe, prg_safe, pid_safe, info);
+        }
+    }
+    return line;
+}
+
+static char* handle_rfc5424_format(int pri, const char *datebuf_safe, char *hostname, const char *prg_safe, const char *pid_safe, const char *info, bool print_hostname) {
+    struct addrinfo hints = {0}, *res = NULL;
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_CANONNAME;
+
+    if (print_hostname) {
+        if (getaddrinfo(hostname, NULL, &hints, &res) != 0) {
+            snprintf(hostname, HOST_NAME_MAX + 1, "%s", NILVALUE);
+        } else {
+            snprintf(hostname, HOST_NAME_MAX + 1, "%s", res->ai_canonname);
+        }
+    }
+
+    char *line;
+    if (strcmp(prg_safe, "kernel") == 0) {
+        if (print_hostname) {
+            line = format_log_line("<%d>1 %s %s %s - - - %s%s\n", pri, datebuf_safe, hostname, prg_safe, BOM_UTF8, info);
+        } else {
+            line = format_log_line("<%d>1 %s %s - - - %s%s\n", pri, datebuf_safe, prg_safe, BOM_UTF8, info);
+        }
+    } else {
+        if (print_hostname) {
+            line = format_log_line("<%d>1 %s %s %s %s - - %s%s\n", pri, datebuf_safe, hostname, prg_safe, pid_safe, BOM_UTF8, info);
+        } else {
+            line = format_log_line("<%d>1 %s %s %s - - %s%s\n", pri, datebuf_safe, prg_safe, pid_safe, BOM_UTF8, info);
+        }
+    }
+
+    if (res != NULL) {
+        freeaddrinfo(res);
+    }
+
+    return line;
+}
+
+static char* format_log_line(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    size_t size = vsnprintf(NULL, 0, format, args) + 1;
+    va_end(args);
+
+    char *line = allocate_log_line(size);
+    if (line == NULL) {
+        return NULL;
+    }
+
+    va_start(args, format);
+    vsnprintf(line, size, format, args);
+    va_end(args);
+
+    return line;
+}
+
+static char* allocate_log_line(size_t size) {
+    char *line = (char *)malloc(size);
+    if (line == NULL) {
+        err("Failed to allocate memory for log line");
+    }
+    return line;
+}
+
+static LogFormat translate_log_format(const char * const format)
+{
+    static const LogFormatMapping log_format_mappings[] = {
+        {"legacy", LEGACY},
+        {"legacy_timestamp", LEGACY_TIMESTAMP},
+        {"rfc3164", RFC3164},
+        {"rfc5424", RFC5424}
+    };
+    static const size_t log_format_mappings_count = sizeof(log_format_mappings) / sizeof(log_format_mappings[0]);
+
+    for (size_t i = 0; i < log_format_mappings_count; ++i) {
+        if (strcmp(format, log_format_mappings[i].name) == 0) {
+            return log_format_mappings[i].format;
+        }
+    }
+
+    warn("Invalid log_format: %s - set default format\n", format);
+    return RFC5424;
 }
 
 __attribute__ ((noreturn))
@@ -1935,13 +2375,13 @@ static void checkRoot(void)
 int main(int argc, char *argv[])
 {
     int sockets[2];
+    int ret;
 
-    remote_host.port = DEFAULT_UPD_PORT;
-    remote_host.sock = -1;
-    remote_host.last_dns.tv_sec = 0;
-    remote_host.result = NULL;
+    add_remote_host(&remote_hosts, DEFAULT_REMOTE_HOST_NAME, NULL, DEFAULT_UPD_PORT, DEFAULT_REMOTE_LOG_FORMAT, DEFAULT_SEVERITY_LEVEL);
+
     parseOptions(argc, argv);
     if (configParser(config_file) < 0) {
+        free_remote_hosts(remote_hosts);
         err("Bad configuration file");
     }
     checkRoot();
@@ -1949,13 +2389,17 @@ int main(int argc, char *argv[])
     dodaemonize();
     setsignals();
     if (update_pid_file(pid_file)) {
+        free_remote_hosts(remote_hosts);
         return -1;
     }
     clearargs(argc, argv);
     setprogname(PROGNAME_MASTER);
     if (getDataSources(sockets) < 0) {
+        free_remote_hosts(remote_hosts);
         err("Unable to bind sockets");
     }
 
-    return process(sockets);
+    ret = process(sockets);
+    free_remote_hosts(remote_hosts);
+    return ret;
 }

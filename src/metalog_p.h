@@ -32,7 +32,7 @@ static int argv_lth;
 #endif
 static ConfigBlock *config_blocks = NULL;
 static Output *outputs = NULL;
-static RemoteHost remote_host;
+static RemoteHost *remote_hosts = NULL;
 #ifdef HAVE_KLOGCTL
 static int console_level = DEFAULT_CONSOLE_LEVEL;
 #endif

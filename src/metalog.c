@@ -2207,11 +2207,6 @@ static void sigusr2(int sig)
     signal_doLog_queue("Got SIGUSR2 - disabling synchronous mode.", 0, 0);
 }
 
-static void sync_log_to_file_system(int sig)
-{
-    flushAll();
-}
-
 static void setsignals(void)
 {
     atexit(exit_hook);
@@ -2221,7 +2216,7 @@ static void setsignals(void)
     signal(SIGTERM, sigkchld);
     signal(SIGQUIT, sigkchld);
     signal(SIGINT, sigkchld);
-    signal(SIGUSR1, sync_log_to_file_system);
+    signal(SIGUSR1, sigusr1);
     signal(SIGUSR2, sigusr2);
 }
 

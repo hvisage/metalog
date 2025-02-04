@@ -52,12 +52,13 @@ facility. If <facility> is "*", it'll match all the facilities.
 .TP
 \fBremote_host\fR = \fI"<IP address or domain name>"\fR
 Log entries are sent to the remote log server defined by this IP address or
-domain name. Only one remote log server can be defined. This can only be defined
-in the default values section. All log messages are sent there, limitations via
-"ratelimit", "ratelimit_burst" or "showrepeats" are ignored for log message sent
-to the remote log server. In case a domain or host name is configured, the
-necessary DNS request will be repeated after every failed attempt or after
-120 seconds when the name has been successfully resolved.
+domain name. This can only be defined in the default values section. Before
+configuring other remote host options (port, format, ...) remote_host must be set.
+All log messages are sent there, limitations via "ratelimit", "ratelimit_burst" or
+"showrepeats" are ignored for log message sent to the remote log server. 
+In case a domain or host name is configured, the necessary DNS request will be
+repeated after every failed attempt or after 120 seconds when the name has been
+successfully resolved.
 .TP
 \fBremote_host[name]\fR = \fI"<IP address or domain name>"\fR
 Equal to \fBremote_host\fR, but can be used multiple times to add more remote log

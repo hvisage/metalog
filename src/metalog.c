@@ -353,7 +353,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         else if (strncmp(keyword, "remote_host", strlen("remote_host")) == 0) {
 
             const char *name = extract_remote_host_name(keyword, "remote_host");
-            RemoteHost *current_remote_host = find_or_add_remote_host(name, value, NULL, RFC5424, LOG_DEBUG);
+            RemoteHost *current_remote_host = find_or_add_remote_host(name, value, DEFAULT_UPD_PORT, LEGACY, LOG_DEBUG);
 
             if (current_remote_host != NULL) {
                 if (update_remote_host_field(&current_remote_host->hostname, value) != 0) {
@@ -364,7 +364,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         else if (strncmp(keyword, "remote_port", strlen("remote_port")) == 0) {
 
             const char *name = extract_remote_host_name(keyword, "remote_port");
-            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, value, RFC5424, LOG_DEBUG);
+            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, value, LEGACY, LOG_DEBUG);
 
             if (current_remote_host != NULL) {
                 if (update_remote_host_field(&current_remote_host->port, value) != 0) {
@@ -375,7 +375,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         else if (strncmp(keyword, "remote_format", strlen("remote_format")) == 0) {
 
             const char *name = extract_remote_host_name(keyword, "remote_format");
-            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, NULL, translate_log_format(value), LOG_DEBUG);
+            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, DEFAULT_UPD_PORT, translate_log_format(value), LOG_DEBUG);
 
             if (current_remote_host != NULL) {
                 current_remote_host->format = translate_log_format(value);
@@ -384,7 +384,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         else if (strncmp(keyword, "remote_severity_level", strlen("remote_severity_level")) == 0) {
 
             const char *name = extract_remote_host_name(keyword, "remote_severity_level");
-            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, NULL, RFC5424, atoi(value));
+            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, DEFAULT_UPD_PORT, LEGACY, atoi(value));
 
             if (current_remote_host != NULL) {
                 current_remote_host->severity_level = atoi(value);
@@ -393,7 +393,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         else if (strncmp(keyword, "remote_log", strlen("remote_log")) == 0) {
             int value_int = atoi(value);
             const char *name = extract_remote_host_name(keyword, "remote_log");
-            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, NULL, RFC5424, LOG_DEBUG);
+            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, DEFAULT_UPD_PORT, LEGACY, LOG_DEBUG);
 
             if (current_remote_host != NULL) {
                 if (value_int == 1) {
@@ -1842,30 +1842,27 @@ static void signal_doLog_dequeue(void)
 
 static void add_remote_host(RemoteHost **remote_hosts_head, const char *name, const char *hostname, const char *port, LogFormat format, int severity_level)
 {
+    if (hostname == NULL) {
+        warn("Hostname for remote_host[%s] has to be set first", name);
+        return;
+    }
+
     RemoteHost *new_host = wmalloc(sizeof(RemoteHost));
     if (new_host == NULL) {
         err("Failed to allocate memory for remote host");
     }
 
-    if (name == NULL) {
-        new_host->name = NULL;
-    }
-    else {
+    if (name != NULL) {
         new_host->name = wstrdup(name);
     }
 
-    if (hostname == NULL) {
-        new_host->hostname = wstrdup("dummy");
-    }
-    else {
-        new_host->hostname = wstrdup(hostname);
-    }
     if (port == NULL) {
         new_host->port = wstrdup(DEFAULT_UPD_PORT);
     }
     else {
         new_host->port = wstrdup(port);
     }
+    new_host->hostname = wstrdup(hostname);
     new_host->sock = -1;
     new_host->last_dns.tv_sec = 0;
     new_host->result = NULL;
@@ -2376,8 +2373,6 @@ int main(int argc, char *argv[])
 {
     int sockets[2];
     int ret;
-
-    add_remote_host(&remote_hosts, DEFAULT_REMOTE_HOST_NAME, NULL, DEFAULT_UPD_PORT, DEFAULT_REMOTE_LOG_FORMAT, DEFAULT_SEVERITY_LEVEL);
 
     parseOptions(argc, argv);
     if (configParser(config_file) < 0) {

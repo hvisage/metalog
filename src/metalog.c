@@ -364,7 +364,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         else if (strncmp(keyword, "remote_port", strlen("remote_port")) == 0) {
 
             const char *name = extract_remote_host_name(keyword, "remote_port");
-            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, value, LEGACY, LOG_DEBUG);
+            RemoteHost *current_remote_host = find_remote_host(&remote_hosts, name);
 
             if (current_remote_host != NULL) {
                 if (update_remote_host_field(&current_remote_host->port, value) != 0) {
@@ -375,7 +375,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         else if (strncmp(keyword, "remote_format", strlen("remote_format")) == 0) {
 
             const char *name = extract_remote_host_name(keyword, "remote_format");
-            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, DEFAULT_UPD_PORT, translate_log_format(value), LOG_DEBUG);
+            RemoteHost *current_remote_host = find_remote_host(&remote_hosts, name);
 
             if (current_remote_host != NULL) {
                 current_remote_host->format = translate_log_format(value);
@@ -384,7 +384,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         else if (strncmp(keyword, "remote_severity_level", strlen("remote_severity_level")) == 0) {
 
             const char *name = extract_remote_host_name(keyword, "remote_severity_level");
-            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, DEFAULT_UPD_PORT, LEGACY, atoi(value));
+            RemoteHost *current_remote_host = find_remote_host(&remote_hosts, name);
 
             if (current_remote_host != NULL) {
                 current_remote_host->severity_level = atoi(value);
@@ -393,7 +393,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         else if (strncmp(keyword, "remote_log", strlen("remote_log")) == 0) {
             int value_int = atoi(value);
             const char *name = extract_remote_host_name(keyword, "remote_log");
-            RemoteHost *current_remote_host = find_or_add_remote_host(name, NULL, DEFAULT_UPD_PORT, LEGACY, LOG_DEBUG);
+            RemoteHost *current_remote_host = find_remote_host(&remote_hosts, name);
 
             if (current_remote_host != NULL) {
                 if (value_int == 1) {
@@ -2207,6 +2207,11 @@ static void sigusr2(int sig)
     signal_doLog_queue("Got SIGUSR2 - disabling synchronous mode.", 0, 0);
 }
 
+static void sync_log_to_file_system(int sig)
+{
+    flushAll();
+}
+
 static void setsignals(void)
 {
     atexit(exit_hook);
@@ -2216,7 +2221,7 @@ static void setsignals(void)
     signal(SIGTERM, sigkchld);
     signal(SIGQUIT, sigkchld);
     signal(SIGINT, sigkchld);
-    signal(SIGUSR1, sigusr1);
+    signal(SIGUSR1, sync_log_to_file_system);
     signal(SIGUSR2, sigusr2);
 }
 

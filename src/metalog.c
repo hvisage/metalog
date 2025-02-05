@@ -1539,6 +1539,9 @@ static int processLogLine(const int logcode,
                     if (remote_timestamp_fmt != NULL) {
                         get_stamp_fmt_timestamp(remote_timestamp_fmt, datebuf, sizeof(datebuf));
                     }
+                    else {
+                        get_stamp_fmt_timestamp(block->output->stamp_fmt, datebuf, sizeof(datebuf));
+                    }
                     sendRemote(prg, pid, info, cur_host, datebuf, priority, facility);
                 }
                 cur_host = cur_host->next_host;

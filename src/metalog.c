@@ -11,7 +11,7 @@ static int spawn_recursion = 0;
 static int dolog_queue[2];
 static void signal_doLog_dequeue(void);
 static void add_remote_host(RemoteHost **hosts, const char *name, const char *hostname, const char *port, LogFormat format, int severity_level);
-static const char *extract_remote_host_name(const char * const keyword, const char *pattern);
+static char *extract_remote_host_name(const char * const keyword, const char *pattern);
 static int update_remote_host_field(char **field, const char *value);
 static RemoteHost *find_remote_host(RemoteHost **hosts, const char *name);
 static RemoteHost* find_or_add_remote_host(const char *name, const char *hostname, const char *port, int format, int severity_level);
@@ -352,8 +352,11 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         }
         else if (strncmp(keyword, "remote_host", strlen("remote_host")) == 0) {
 
-            const char *name = extract_remote_host_name(keyword, "remote_host");
+            char *name = extract_remote_host_name(keyword, "remote_host");
             RemoteHost *current_remote_host = find_or_add_remote_host(name, value, DEFAULT_UPD_PORT, LEGACY, LOG_DEBUG);
+            if (name != NULL) {
+                free(name);
+            }
 
             if (current_remote_host != NULL) {
                 if (update_remote_host_field(&current_remote_host->hostname, value) != 0) {
@@ -363,8 +366,11 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         }
         else if (strncmp(keyword, "remote_port", strlen("remote_port")) == 0) {
 
-            const char *name = extract_remote_host_name(keyword, "remote_port");
+            char *name = extract_remote_host_name(keyword, "remote_port");
             RemoteHost *current_remote_host = find_remote_host(&remote_hosts, name);
+            if (name != NULL) {
+                free(name);
+            }
 
             if (current_remote_host != NULL) {
                 if (update_remote_host_field(&current_remote_host->port, value) != 0) {
@@ -374,8 +380,11 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         }
         else if (strncmp(keyword, "remote_format", strlen("remote_format")) == 0) {
 
-            const char *name = extract_remote_host_name(keyword, "remote_format");
+            char *name = extract_remote_host_name(keyword, "remote_format");
             RemoteHost *current_remote_host = find_remote_host(&remote_hosts, name);
+            if (name != NULL) {
+                free(name);
+            }
 
             if (current_remote_host != NULL) {
                 current_remote_host->format = translate_log_format(value);
@@ -383,8 +392,11 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         }
         else if (strncmp(keyword, "remote_severity_level", strlen("remote_severity_level")) == 0) {
 
-            const char *name = extract_remote_host_name(keyword, "remote_severity_level");
+            char *name = extract_remote_host_name(keyword, "remote_severity_level");
             RemoteHost *current_remote_host = find_remote_host(&remote_hosts, name);
+            if (name != NULL) {
+                free(name);
+            }
 
             if (current_remote_host != NULL) {
                 current_remote_host->severity_level = atoi(value);
@@ -392,8 +404,11 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         }
         else if (strncmp(keyword, "remote_log", strlen("remote_log")) == 0) {
             int value_int = atoi(value);
-            const char *name = extract_remote_host_name(keyword, "remote_log");
+            char *name = extract_remote_host_name(keyword, "remote_log");
             RemoteHost *current_remote_host = find_remote_host(&remote_hosts, name);
+            if (name != NULL) {
+                free(name);
+            }
 
             if (current_remote_host != NULL) {
                 if (value_int == 1) {
@@ -1232,7 +1247,7 @@ static int writeLogLine(Output * const output, const char * const date,
         }
         output->dt.same_counter = 0U;
     }
-    const char *line = build_log_line(prg, pid, info, log_format, date, priority, facility, false);
+    char *line = build_log_line(prg, pid, info, log_format, date, priority, facility, false);
     fprintf(output->fp, "%s", line);
     output->size += (off_t) strlen(line);
     output->size += (off_t) 5;
@@ -1240,6 +1255,7 @@ static int writeLogLine(Output * const output, const char * const date,
         (output->flush == FLUSH_DEFAULT && synchronous != (sig_atomic_t) 0)) {
         fflush(output->fp);
     }
+    free(line);
     return 0;
 }
 
@@ -1527,8 +1543,9 @@ static int processLogLine(const int logcode,
             writeLogLine(block->output, datebuf, prg, pid, info, priority, facility, block->log_format);
 
             /* write to stdout */
-            const char *line = build_log_line(prg, pid, info, block->log_format, datebuf, priority, facility, false);
+            char *line = build_log_line(prg, pid, info, block->log_format, datebuf, priority, facility, false);
             printf("%s", line);
+            free(line);
 
             while (cur_host != NULL) {
                 if (cur_host->hostname != NULL && cur_host->severity_level >= priority && 
@@ -1885,11 +1902,11 @@ static void add_remote_host(RemoteHost **remote_hosts_head, const char *name, co
     }
 }
 
-static const char *extract_remote_host_name(const char *const keyword, const char *const pattern)
+static char *extract_remote_host_name(const char *const keyword, const char *const pattern)
 {
     /* That must be the default remote host */
     if (strlen(keyword) == strlen(pattern)) {
-        return DEFAULT_REMOTE_HOST_NAME;
+        return strdup(DEFAULT_REMOTE_HOST_NAME);
     }
 
     const char *start = strchr(keyword, '[');
@@ -1906,7 +1923,7 @@ static const char *extract_remote_host_name(const char *const keyword, const cha
         return result;
     }
 
-    return DEFAULT_REMOTE_HOST_NAME;
+    return strdup(DEFAULT_REMOTE_HOST_NAME);
 }
 
 

@@ -15,7 +15,6 @@ static char *extract_remote_host_name(const char * const keyword, const char *pa
 static int update_remote_host_field(char **field, const char *value);
 static RemoteHost *find_remote_host(RemoteHost **hosts, const char *name);
 static RemoteHost* find_or_add_remote_host(const char *name, const char *hostname, const char *port, int format, int severity_level);
-static int update_remote_host_field(char **field, const char *value);
 static void free_remote_hosts(RemoteHost *remote_hosts_head);
 static const char* get_stamp_fmt_for_rfc_format(LogFormat format);
 static bool isRemoteHostInConfigBlock(RemoteHost **hosts_list, int num_hosts, RemoteHost *host);

@@ -54,10 +54,12 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
     int stcount;
 
     if ((line_size = (int) strlen(line)) <= 0) {
+        pcre2_match_data_free(match_data);
         return 0;
     }
     if (line[line_size - 1] == '\n') {
         if (line_size < 2) {
+            pcre2_match_data_free(match_data);
             return 0;
         }
         line[--line_size] = 0;
@@ -66,6 +68,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                   0, 0, match_data, NULL) >= 0 ||
         pcre2_match(re_comment, (PCRE2_SPTR)line, (PCRE2_SIZE)line_size,
                   0, 0, match_data, NULL) >= 0) {
+        pcre2_match_data_free(match_data);
         return 0;
     }
     if (pcre2_match(re_newblock, (PCRE2_SPTR)line, (PCRE2_SIZE)line_size,
@@ -95,7 +98,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             (*cur_block)->hosts = NULL;
             (*cur_block)->num_hosts = 0;
         }
-
+        pcre2_match_data_free(match_data);
         return 0;
     }
     if ((stcount =
@@ -119,6 +122,9 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 }
                 (*cur_block)->facilities = NULL;
                 (*cur_block)->nb_facilities = 0;
+                pcre2_match_data_free(match_data);
+                pcre2_substring_free((PCRE2_UCHAR *)keyword);
+                pcre2_substring_free((PCRE2_UCHAR *)value);
                 return 0;
             }
             while (facilitynames[n].c_name != NULL &&
@@ -328,6 +334,9 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             if (stat(command, &st) < 0) {
                 warnp("Ignoring command \"%s\"", command);
                 free(command);
+                pcre2_match_data_free(match_data);
+                pcre2_substring_free((PCRE2_UCHAR *)keyword);
+                pcre2_substring_free((PCRE2_UCHAR *)value);
                 return 0;
             }
             free(command);
@@ -353,9 +362,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
 
             char *name = extract_remote_host_name(keyword, "remote_host");
             RemoteHost *current_remote_host = find_or_add_remote_host(name, value, DEFAULT_UPD_PORT, LEGACY, LOG_DEBUG);
-            if (name != NULL) {
-                free(name);
-            }
+            free(name);
 
             if (current_remote_host != NULL) {
                 if (update_remote_host_field(&current_remote_host->hostname, value) != 0) {
@@ -367,9 +374,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
 
             char *name = extract_remote_host_name(keyword, "remote_port");
             RemoteHost *current_remote_host = find_remote_host(&remote_hosts, name);
-            if (name != NULL) {
-                free(name);
-            }
+            free(name);
 
             if (current_remote_host != NULL) {
                 if (update_remote_host_field(&current_remote_host->port, value) != 0) {
@@ -381,9 +386,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
 
             char *name = extract_remote_host_name(keyword, "remote_format");
             RemoteHost *current_remote_host = find_remote_host(&remote_hosts, name);
-            if (name != NULL) {
-                free(name);
-            }
+            free(name);
 
             if (current_remote_host != NULL) {
                 current_remote_host->format = translate_log_format(value);
@@ -393,9 +396,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
 
             char *name = extract_remote_host_name(keyword, "remote_severity_level");
             RemoteHost *current_remote_host = find_remote_host(&remote_hosts, name);
-            if (name != NULL) {
-                free(name);
-            }
+            free(name);
 
             if (current_remote_host != NULL) {
                 current_remote_host->severity_level = atoi(value);
@@ -405,15 +406,15 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             int value_int = atoi(value);
             char *name = extract_remote_host_name(keyword, "remote_log");
             RemoteHost *current_remote_host = find_remote_host(&remote_hosts, name);
-            if (name != NULL) {
-                free(name);
-            }
+            free(name);
 
             if (current_remote_host != NULL) {
                 if (value_int == 1) {
                     RemoteHost **temp = wrealloc((*cur_block)->hosts, ((*cur_block)->num_hosts + 1) * sizeof(RemoteHost *));
                     if (temp == NULL) {
                         warn("failed to realloc memory for remote hosts");
+                        free((*cur_block)->hosts);
+                        (*cur_block)->hosts = NULL;
                         return -3;
                     }
                     (*cur_block)->hosts = temp;
@@ -437,6 +438,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                         RemoteHost **temp = wrealloc((*cur_block)->hosts, (*cur_block)->num_hosts * sizeof(RemoteHost *));
                         if (temp == NULL && (*cur_block)->num_hosts > 0) {
                             warn("failed to realloc memory for remote hosts");
+                            free((*cur_block)->hosts);
+                            (*cur_block)->hosts = NULL;
                             return -3;
                         }
                         (*cur_block)->hosts = temp;

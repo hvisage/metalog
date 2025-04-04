@@ -52,15 +52,16 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
     char *value;
     int line_size;
     int stcount;
+    int ret = 0;
 
     if ((line_size = (int) strlen(line)) <= 0) {
-        pcre2_match_data_free(match_data);
-        return 0;
+        ret = 0;
+        goto free_match_data;
     }
     if (line[line_size - 1] == '\n') {
         if (line_size < 2) {
-            pcre2_match_data_free(match_data);
-            return 0;
+            ret = 0;
+            goto free_match_data;
         }
         line[--line_size] = 0;
     }
@@ -68,15 +69,16 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                   0, 0, match_data, NULL) >= 0 ||
         pcre2_match(re_comment, (PCRE2_SPTR)line, (PCRE2_SIZE)line_size,
                   0, 0, match_data, NULL) >= 0) {
-        pcre2_match_data_free(match_data);
-        return 0;
+        ret = 0;
+        goto free_match_data;
     }
     if (pcre2_match(re_newblock, (PCRE2_SPTR)line, (PCRE2_SIZE)line_size,
                   0, 0, match_data, NULL) >= 0) {
         ConfigBlock *previous_block = *cur_block;
 
         if ((*cur_block = wmalloc(sizeof **cur_block)) == NULL) {
-            return -3;
+            ret = -3;
+            goto free_match_data;
         }
         **cur_block = *default_block;
         if (config_blocks == NULL) {
@@ -90,7 +92,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         if (default_block->hosts != NULL) {
             (*cur_block)->hosts = wmalloc(default_block->num_hosts * sizeof(RemoteHost *));
             if ((*cur_block)->hosts == NULL) {
-                return -3;
+                ret = -3;
+                goto free_match_data;
             }
             memcpy((*cur_block)->hosts, default_block->hosts, default_block->num_hosts * sizeof(RemoteHost *));
             (*cur_block)->num_hosts = default_block->num_hosts;
@@ -98,8 +101,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             (*cur_block)->hosts = NULL;
             (*cur_block)->num_hosts = 0;
         }
-        pcre2_match_data_free(match_data);
-        return 0;
+        ret = 0;
+        goto free_match_data;
     }
     if ((stcount =
          pcre2_match(re_newstmt, (PCRE2_SPTR)line, (PCRE2_SIZE)line_size,
@@ -122,10 +125,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 }
                 (*cur_block)->facilities = NULL;
                 (*cur_block)->nb_facilities = 0;
-                pcre2_match_data_free(match_data);
-                pcre2_substring_free((PCRE2_UCHAR *)keyword);
-                pcre2_substring_free((PCRE2_UCHAR *)value);
-                return 0;
+                ret = 0;
+                goto free_substring;
             }
             while (facilitynames[n].c_name != NULL &&
                    strcasecmp(facilitynames[n].c_name, value) != 0) {
@@ -133,13 +134,15 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             }
             if (facilitynames[n].c_name == NULL) {
                 warn("Unknown facility : [%s]", value);
-                return -4;
+                ret = -4;
+                goto free_substring;
             }
             (*cur_block)->facilities = wrealloc((*cur_block)->facilities,
                                                 ((*cur_block)->nb_facilities + 1) *
                                                 sizeof(*(*cur_block)->facilities));
             if ((*cur_block)->facilities == NULL) {
-                return -3;
+                ret = -3;
+                goto free_substring;
             }
             (*cur_block)->facilities[(*cur_block)->nb_facilities] =
                 LOG_FAC(facilitynames[n].c_val);
@@ -151,19 +154,22 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             RegexWithSign *new_regexeswithsign;
 
             if ((regex = wstrdup(value)) == NULL) {
-                return -3;
+                ret = -3;
+                goto free_substring;
             }
             if ((new_regexeswithsign =
                  wrealloc((*cur_block)->regexeswithsign,
                           ((*cur_block)->nb_regexes + 1) *
                           sizeof *((*cur_block)->regexeswithsign))) == NULL) {
                 free(regex);
-                return -3;
+                ret = -3;
+                goto free_substring;
             }
             (*cur_block)->regexeswithsign = new_regexeswithsign;
             if ((new_regex = wpcre2_compile(regex, PCRE2_CASELESS)) == NULL) {
                 free(regex);
-                return -5;
+                ret = -5;
+                goto free_substring;
             }
             else {
                 RegexWithSign * const this_regex =
@@ -186,7 +192,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             RegexWithSign *new_regexeswithsign;
 
             if ((regex = wstrdup(value)) == NULL) {
-                return -3;
+                ret = -3;
+                goto free_substring;
             }
             if ((new_regexeswithsign =
                  wrealloc((*cur_block)->program_regexeswithsign,
@@ -194,12 +201,14 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                           sizeof *((*cur_block)->program_regexeswithsign)))
                 == NULL) {
                 free(regex);
-                return -3;
+                ret = -3;
+                goto free_substring;
             }
             (*cur_block)->program_regexeswithsign = new_regexeswithsign;
             if ((new_regex = wpcre2_compile(regex, PCRE2_CASELESS)) == NULL) {
                 free(regex);
-                return -5;
+                ret = -5;
+                goto free_substring;
             }
             else {
                 free(regex);
@@ -254,7 +263,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             }
             else {
                 if ((config_dir = wstrdup(value)) == NULL) {
-                    return -3;
+                    ret = -3;
+                    goto free_substring;
                 }
             }
         }
@@ -277,7 +287,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 (logdir = wstrdup(value)) == NULL) {
                 free(new_output);
                 free(logdir);
-                return -3;
+                ret = -3;
+                goto free_substring;
             }
             if (strcasecmp(value, "NONE") != 0) {
                 new_output->directory = logdir;
@@ -324,7 +335,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             char *p = NULL;
 
             if ((command = wstrdup(value)) == NULL) {
-                return -3;
+                ret = -3;
+                goto free_substring;
             }
 
             p = strchr(command, (int) ' ');
@@ -334,25 +346,26 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             if (stat(command, &st) < 0) {
                 warnp("Ignoring command \"%s\"", command);
                 free(command);
-                pcre2_match_data_free(match_data);
-                pcre2_substring_free((PCRE2_UCHAR *)keyword);
-                pcre2_substring_free((PCRE2_UCHAR *)value);
-                return 0;
+                ret = 0;
+                goto free_substring;
             }
             free(command);
 
             if (((*cur_block)->command = wstrdup(value)) == NULL) {
-                return -3;
+                ret = -3;
+                goto free_substring;
             }
         }
         else if (strcasecmp(keyword, "program") == 0) {
             if (((*cur_block)->program = wstrdup(value)) == NULL) {
-                return -3;
+                ret = -3;
+                goto free_substring;
             }
         }
         else if (strcasecmp(keyword, "postrotate_cmd") == 0) {
             if (((*cur_block)->postrotate_cmd = wstrdup(value)) == NULL) {
-                return -3;
+                ret = -3;
+                goto free_substring;
             }
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->postrotate_cmd = (*cur_block)->postrotate_cmd;
@@ -366,7 +379,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
 
             if (current_remote_host != NULL) {
                 if (update_remote_host_field(&current_remote_host->hostname, value) != 0) {
-                    return -3;
+                    ret = -3;
+                    goto free_substring;
                 }
             }
         }
@@ -378,7 +392,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
 
             if (current_remote_host != NULL) {
                 if (update_remote_host_field(&current_remote_host->port, value) != 0) {
-                    return -3;
+                    ret = -3;
+                    goto free_substring;
                 }
             }
         }
@@ -415,7 +430,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                         warn("failed to realloc memory for remote hosts");
                         free((*cur_block)->hosts);
                         (*cur_block)->hosts = NULL;
-                        return -3;
+                        ret = -3;
+                        goto free_substring;
                     }
                     (*cur_block)->hosts = temp;
                     (*cur_block)->num_hosts++;
@@ -440,19 +456,21 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                             warn("failed to realloc memory for remote hosts");
                             free((*cur_block)->hosts);
                             (*cur_block)->hosts = NULL;
-                            return -3;
+                            ret = -3;
+                            goto free_substring;
                         }
                         (*cur_block)->hosts = temp;
                     }
                 }
             }
-        }        
+        }
         else if (strcasecmp(keyword, "break") == 0) {
             (*cur_block)->brk = atoi(value);
         }
         else if (strcasecmp(keyword, "stamp_fmt") == 0) {
             if (((*cur_block)->stamp_fmt = wstrdup(value)) == NULL) {
-                return -3;
+                ret = -3;
+                goto free_substring;
             }
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->stamp_fmt = (*cur_block)->stamp_fmt;
@@ -477,18 +495,21 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             base_rate = strtod(value, &end);
             if (end == value) {
                 warnp("Missing number : [%s]", value);
-                return -6;
+                ret = -6;
+                goto free_substring;
             }
             if (base_rate < 0.) {
                 warn("Negative number : [%s]", value);
-                return -6;
+                ret = -6;
+                goto free_substring;
             }
 
             if (base_rate) {
                 double usec;
                 if (end[0] != '/') {
                     warn("Missing unit of time : [%s]", value);
-                    return -6;
+                    ret = -6;
+                    goto free_substring;
                 }
                 switch (end[1]) {
                 case 's': usec = 1000000.; break;
@@ -497,7 +518,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 case 'd': usec = 1000000. * 60 * 60 * 24; break;
                 default:
                     warn("Invalid unit of time : [%s]", end + 1);
-                    return -6;
+                    ret = -6;
+                    goto free_substring;
                 }
                 usec_between_msgs = usec / base_rate;
             }
@@ -516,7 +538,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             int burst_length = atoi(value);
             if (burst_length < 1) {
                 warn("Non-positive bust length : [%s]", value);
-                return -6;
+                ret = -6;
+                goto free_substring;
             }
             (*cur_block)->burst_length = burst_length;
             if ((*cur_block)->output != NULL) {
@@ -530,11 +553,13 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         else {
             err("Unknown keyword '%s'! line: %s", keyword, line);
         }
+free_substring:
         pcre2_substring_free((PCRE2_UCHAR *)keyword);
         pcre2_substring_free((PCRE2_UCHAR *)value);
     }
+free_match_data:
     pcre2_match_data_free(match_data);
-    return 0;
+    return ret;
 }
 
 static int configParser(const char * const file)
@@ -1555,7 +1580,6 @@ static int processLogLine(const int logcode,
             }
 
             cur_host = remote_hosts;
-
             while (cur_host != NULL) {
                 if (cur_host->hostname != NULL && cur_host->severity_level >= priority && 
                     isRemoteHostInConfigBlock(block->hosts, block->num_hosts, cur_host) ) {

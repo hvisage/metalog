@@ -1432,7 +1432,7 @@ static int processLogLine(const int logcode,
     int info_len;
     int prg_len;
     int regex_result;
-    RemoteHost *cur_host = remote_hosts;
+    RemoteHost *cur_host = NULL;
 
     while (block != NULL) {
         if (block->facilities != NULL) {
@@ -1548,6 +1548,13 @@ static int processLogLine(const int logcode,
             char *line = build_log_line(prg, pid, info, block->log_format, datebuf, priority, facility, false);
             printf("%s", line);
             free(line);
+
+            // no need to iterate over all remote hosts when this block has no hosts configured
+            if(block->num_hosts == 0) {
+                goto nextblock;
+            }
+
+            cur_host = remote_hosts;
 
             while (cur_host != NULL) {
                 if (cur_host->hostname != NULL && cur_host->severity_level >= priority && 

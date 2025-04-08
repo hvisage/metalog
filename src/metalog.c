@@ -9,6 +9,7 @@
 
 static int spawn_recursion = 0;
 static int dolog_queue[2];
+static bool keep_running = true;
 static void signal_doLog_dequeue(void);
 static void add_remote_host(RemoteHost **hosts, const char *name, const char *hostname, const char *port, LogFormat format, int severity_level);
 static char *extract_remote_host_name(const char * const keyword, const char *pattern);
@@ -1727,8 +1728,8 @@ static int process(const int sockets[])
     }
 
     bpos = 0;
-    for (;;) {
-        while (poll(fds, nfds, -1) < 0 && errno == EINTR) {
+    while (keep_running) {
+        while (poll(fds, nfds, -1) < 0 && errno == EINTR && keep_running) {
             ;
         }
 
@@ -1852,6 +1853,7 @@ static void exit_hook(void)
         kill(child, SIGTERM);
     }
     delete_pid_file(pid_file);
+    keep_running = false;
 }
 
 static void signal_doLog_queue(const char *fmt, const unsigned int pid, const int status)
@@ -1891,6 +1893,7 @@ static void signal_doLog_dequeue(void)
     ++spawn_recursion;
     doLog(buf, pid, status);
     --spawn_recursion;
+    free(buf);
 }
 
 static void add_remote_host(RemoteHost **remote_hosts_head, const char *name, const char *hostname, const char *port, LogFormat format, int severity_level)
@@ -2197,11 +2200,15 @@ static LogFormat translate_log_format(const char * const format)
     return RFC5424;
 }
 
+#ifndef __SANITIZE_ADDRESS__
 __attribute__ ((noreturn))
+#endif
 static void metalog_signal_exit(int exit_status)
 {
     exit_hook();
+#ifndef __SANITIZE_ADDRESS__
     _exit(exit_status);
+#endif
 }
 
 __attribute__ ((noreturn))
@@ -2209,6 +2216,7 @@ static void sigkchld(int sig)
 {
     signal_doLog_queue("Process [%u] died with signal [%d]\n", (unsigned int) getpid(), sig);
     metalog_signal_exit(EXIT_FAILURE);
+    keep_running = false;
 }
 
 static void sigchld(int sig)
@@ -2239,6 +2247,7 @@ static void sigchld(int sig)
     }
     if (should_exit != 0) {
         child = (pid_t) 0;
+        keep_running = false;
         metalog_signal_exit(EXIT_FAILURE);
     }
 }

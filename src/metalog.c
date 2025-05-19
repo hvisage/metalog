@@ -1348,6 +1348,12 @@ static int sendRemote(const char * const prg, const char * const pid,
             continue;
         }
 
+        if (connect(host->sock, rp->ai_addr, rp->ai_addrlen) == -1) {
+            close(host->sock);
+            host->sock = -1;
+            continue;
+        }
+
         /* try to send the line */
         if (sendto(host->sock, line, strlen(line), 0, rp->ai_addr, rp->ai_addrlen) == -1) {
             close(host->sock);

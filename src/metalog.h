@@ -75,6 +75,20 @@ typedef enum FlushMode_ {
     FLUSH_DEFAULT, FLUSH_ALWAYS, FLUSH_NEVER
 } FlushMode;
 
+typedef enum LogFormat_ {
+    LEGACY, LEGACY_TIMESTAMP, RFC3164, RFC5424
+} LogFormat;
+
+typedef struct {
+    const char *name;
+    LogFormat format;
+} LogFormatMapping;
+
+typedef struct {
+    const char *name;
+    int severity;
+} SeverityMapping;
+
 typedef struct RateLimiter_ {
     int64_t usec_between_msgs;
     int bucket_size;
@@ -84,11 +98,15 @@ typedef struct RateLimiter_ {
 
 /* describing a remote syslog server */
 typedef struct RemoteHost_ {
-    const char *hostname;       /* host name of remote host */
-    const char *port;           /* UDP port */
+    char *name;                 /* internal name */
+    char *hostname;             /* host name of remote host */
+    char *port;                 /* UDP port */
     int sock;                   /* UDP socket to remote server */
     struct timespec last_dns;   /* time stamp of last successful DNS lookup */
     struct addrinfo *result;    /* IP address of resolved remote server */
+    LogFormat format;           /* format of logging */
+    int severity_level;         /* defines from which severity logs are transmitted */
+    struct RemoteHost_ *next_host;    
 } RemoteHost;
 
 typedef struct Output_ {
@@ -148,7 +166,9 @@ typedef struct ConfigBlock_ {
     FlushMode flush;
     int64_t usec_between_msgs;
     int burst_length;
-    int remote_log;
+    RemoteHost **hosts;     /* remote_hosts which should receive logs of this block */
+    int num_hosts;          /* number of remote_hosts */
+    LogFormat log_format;   /* format of logging */
 } ConfigBlock;
 
 typedef enum LogLineType_ {
@@ -182,6 +202,12 @@ typedef enum LogLineType_ {
 #define DEFAULT_STAMP_FMT "%b %d %T"
 #define DEFAULT_UPD_PORT "514"              /* UDP port of the remote syslog server */
 #define DEFAULT_DNS_LOOKUP_INTERVERVAL 120  /* seconds, after that a DNS lookup should be repeated */
+#define DEFAULT_REMOTE_HOST_NAME "default"
+#define DEFAULT_LOG_FORMAT 1            /* LEGACY_TIMESTAMP */
+#define DEFAULT_REMOTE_LOG_FORMAT 0       /* LEGACY */
+#define DEFAULT_SEVERITY_LEVEL 7        /* LOG_DEBUG */
+#define NILVALUE "-"
+#define BOM_UTF8 "\xEF\xBB\xBF"
 
 #ifdef ACCEPT_UNICODE_CONTROL_CHARS
 /* "DEL" (0x7f) character or all characters < "SPACE" (0x20) */

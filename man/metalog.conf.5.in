@@ -52,20 +52,58 @@ facility. If <facility> is "*", it'll match all the facilities.
 .TP
 \fBremote_host\fR = \fI"<IP address or domain name>"\fR
 Log entries are sent to the remote log server defined by this IP address or
-domain name. Only one remote log server can be defined. This can only be defined
-in the default values section. All log messages are sent there, limitations via
-"ratelimit", "ratelimit_burst" or "showrepeats" are ignored for log message sent
-to the remote log server. In case a domain or host name is configured, the
-necessary DNS request will be repeated after every failed attempt or after
-120 seconds when the name has been successfully resolved.
+domain name. This can only be defined in the default values section. Before
+configuring other remote host options (port, format, ...) remote_host must be set.
+All log messages are sent there, limitations via "ratelimit", "ratelimit_burst" or
+"showrepeats" are ignored for log message sent to the remote log server. 
+In case a domain or host name is configured, the necessary DNS request will be
+repeated after every failed attempt or after 120 seconds when the name has been
+successfully resolved.
+.TP
+\fBremote_host[name]\fR = \fI"<IP address or domain name>"\fR
+Equal to \fBremote_host\fR, but can be used multiple times to add more remote log
+servers. The \fIname\fR part can be any string, but must be the same for \fBremote_port[name]\fR etc.
 .TP
 \fBremote_port\fR = \fI"<value>"\fR
 The UDP port of the remote log server. Default is "514". This can only be
 defined in the default values section.
 .TP
+\fBremote_port[name]\fR = \fI"<value>"\fR
+Equal to \fBremote_port\fR, but can be used multiple times to add more remote log
+servers.The \fIname\fR part can be any string, but must be the same for
+\fBremote_host[name]\fR etc.
+.TP
 \fBremote_log\fR = \fI"<number>"\fR
 Default is \fI0\fR. Log messages are sent to the remote log server when set
 to \fI1\fR. Can be defined for default values or in sections.
+.TP
+\fBremote_log[name]\fR = \fI"<number>"\fR
+Equal to \fBremote_log\fR, but can be used multiple times to add more remote log
+servers. The \fIname\fR part can be any string, but must be the same for
+\fBremote_host[name]\fR etc.
+.TP
+\fBremote_format\fR = \fI"<format>"\fR
+Default is \fIrfc5424\fR. Log messages are sent to the remote log server with the
+defined format. Format options are : "legacy", "legacy_timestamp", "rfc3164" and "rfc5424"
+.TP
+\fBremote_format[name]\fR = \fI"<format>"\fR
+Equal to \fBremote_format\fR, but can be used multiple times to add more remote
+log servers. The \fIname\fR part can be any string, but must be the same for
+\fBremote_host[name]\fR etc.
+.TP
+\fBremote_severity_level\fR = \fI<severity level>\fR
+Default is \fI7\fR. Log messages are sent to the remote log server only when
+its urgency is inferior or equal to \fI<severity level>\fR. Level '0' is the most critical one,
+while level '7' is for debugging messages.
+.TP
+\fBremote_severity_level[name]\fR = \fI<severity level>\fR
+Equal to \fBremote_severity_level\fR, but can be used multiple times to add more
+remote log servers. The \fIname\fR part can be any string, but must be the same for
+\fBremote_host[name]\fR etc.
+.TP
+\fBlog_format\fR = \fI"<format>"\fR
+Default is \fIrfc5424\fR. Log messages are written to filesystem or stdout with the
+defined format. Format options are : "legacy", "legacy_timestamp", "rfc3164" and "rfc5424"
 .TP
 \fBbreak\fR = \fI<number>\fR
 Default is \fI0\fR.
@@ -161,6 +199,8 @@ The format string with %[nnn]N replaced is then passed to the
 function.
 An empty string is used to disable timestamps (for cases where the log messages
 already include its own).
+Will be ignored for logging if \fBlog_format\fR and for remote logging if \fBremote_format\fR is
+set to \fIrfc3164\fR or \fIrfc5424\fR.
 .TP
 \fBflush\fR = \fI<number>\fR
 If set to \fI0\fR, matching log messages will always be buffered.

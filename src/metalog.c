@@ -1304,7 +1304,7 @@ static int sendRemote(const char * const prg, const char * const pid,
     if (line == NULL) {
         return -1;
     }
-    
+
 
     /* everything seems to be ready to send to remote host immediatelly */
     clock_gettime(CLOCK_MONOTONIC, &now);
@@ -1581,27 +1581,25 @@ static int processLogLine(const int logcode,
             printf("%s", line);
             free(line);
 
-            // no need to iterate over all remote hosts when this block has no hosts configured
-            if(block->num_hosts == 0) {
-                goto nextblock;
-            }
+            /* iterate over all remote hosts */
+            if(block->num_hosts) {
+                cur_host = remote_hosts;
+                while (cur_host != NULL) {
+                    if (cur_host->hostname != NULL && cur_host->severity_level >= priority &&
+                        isRemoteHostInConfigBlock(block->hosts, block->num_hosts, cur_host) ) {
 
-            cur_host = remote_hosts;
-            while (cur_host != NULL) {
-                if (cur_host->hostname != NULL && cur_host->severity_level >= priority && 
-                    isRemoteHostInConfigBlock(block->hosts, block->num_hosts, cur_host) ) {
-
-                    /* if log format is not rfc3164 or rfc5424, use stamp_fmt */
-                    const char *remote_timestamp_fmt = get_stamp_fmt_for_rfc_format(cur_host->format);
-                    if (remote_timestamp_fmt != NULL) {
-                        get_stamp_fmt_timestamp(remote_timestamp_fmt, datebuf, sizeof(datebuf));
+                        /* if log format is not rfc3164 or rfc5424, use stamp_fmt */
+                        const char *remote_timestamp_fmt = get_stamp_fmt_for_rfc_format(cur_host->format);
+                        if (remote_timestamp_fmt != NULL) {
+                            get_stamp_fmt_timestamp(remote_timestamp_fmt, datebuf, sizeof(datebuf));
+                        }
+                        else {
+                            get_stamp_fmt_timestamp(block->output->stamp_fmt, datebuf, sizeof(datebuf));
+                        }
+                        sendRemote(prg, pid, info, cur_host, datebuf, priority, facility);
                     }
-                    else {
-                        get_stamp_fmt_timestamp(block->output->stamp_fmt, datebuf, sizeof(datebuf));
-                    }
-                    sendRemote(prg, pid, info, cur_host, datebuf, priority, facility);
+                    cur_host = cur_host->next_host;
                 }
-                cur_host = cur_host->next_host;
             }
 
             if (block->brk) {

@@ -106,7 +106,7 @@ typedef struct RemoteHost_ {
     struct addrinfo *result;    /* IP address of resolved remote server */
     LogFormat format;           /* format of logging */
     int severity_level;         /* defines from which severity logs are transmitted */
-    struct RemoteHost_ *next_host;    
+    struct RemoteHost_ *next_host;
 } RemoteHost;
 
 typedef struct Output_ {
@@ -169,6 +169,7 @@ typedef struct ConfigBlock_ {
     RemoteHost **hosts;     /* remote_hosts which should receive logs of this block */
     int num_hosts;          /* number of remote_hosts */
     LogFormat log_format;   /* format of logging */
+    bool log_severity;      /* log severity level in format legacy or legacy_timestamp */
 } ConfigBlock;
 
 typedef enum LogLineType_ {

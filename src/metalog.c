@@ -22,7 +22,7 @@ static bool isRemoteHostInConfigBlock(RemoteHost **hosts_list, int num_hosts, Re
 static const char* build_priority_str(const int severity);
 static char* build_log_line(const char * const prg, const char * const pid,
                             const char * const info, LogFormat format, const char * const datebuf,
-                            const int priority, const int facility, bool print_hostname);
+                            const int priority, const int facility, bool print_hostname, bool log_severity);
 static void get_hostname(char *hostname, size_t size, bool print_hostname);
 static char* handle_rfc3164_format(int pri, const char *datebuf_safe, char *hostname, const char *prg_safe,
                                    const char *pid_safe, const char *info, bool print_hostname);
@@ -89,7 +89,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             previous_block->next_block = *cur_block;
         }
 
-        // Create an independent copy of the hosts array
+        /* create an independent copy of the hosts array */
         if (default_block->hosts != NULL) {
             (*cur_block)->hosts = wmalloc(default_block->num_hosts * sizeof(RemoteHost *));
             if ((*cur_block)->hosts == NULL) {
@@ -439,7 +439,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                     (*cur_block)->hosts[(*cur_block)->num_hosts - 1] = current_remote_host;
                 }
                 else if (value_int == 0) {
-                    // Remove the RemoteHost from the ConfigBlock if already added in default values
+                    /* remove the RemoteHost from the ConfigBlock if already added in default values */
                     int found = 0;
                     for (int i = 0; i < (*cur_block)->num_hosts; i++) {
                         if ((*cur_block)->hosts[i] == current_remote_host) {
@@ -551,6 +551,14 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         else if (strcasecmp(keyword, "log_format") == 0) {
             (*cur_block)->log_format = translate_log_format(value);
         }
+        else if (strcasecmp(keyword, "log_severity") == 0) {
+            if (atoi(value)) {
+                (*cur_block)->log_severity = true;
+            }
+            else {
+                (*cur_block)->log_severity = false;
+            }
+        }
         else {
             err("Unknown keyword '%s'! line: %s", keyword, line);
         }
@@ -598,7 +606,8 @@ static int configParser(const char * const file)
             1,                         /* max_burst_length */
             NULL,                      /* list of remote hosts */
             0,                         /* number of remote hosts */
-            DEFAULT_LOG_FORMAT         /* log format */
+            DEFAULT_LOG_FORMAT,        /* log format */
+            false                      /* severity level in legacy formats */
     };
     ConfigBlock *cur_block = &default_block;
 
@@ -1081,7 +1090,7 @@ static int rateLimit(RateLimiter * const rl)
 
 static int writeLogLine(Output * const output, const char * const date,
                         const char * const prg, const char * const pid, const char * const info, const int priority,
-                        const int facility, LogFormat log_format)
+                        const int facility, LogFormat log_format, const bool log_severity)
 {
     size_t sizeof_prg;
     size_t sizeof_info;
@@ -1275,7 +1284,7 @@ static int writeLogLine(Output * const output, const char * const date,
         }
         output->dt.same_counter = 0U;
     }
-    char *line = build_log_line(prg, pid, info, log_format, date, priority, facility, false);
+    char *line = build_log_line(prg, pid, info, log_format, date, priority, facility, false, log_severity);
     fprintf(output->fp, "%s", line);
     output->size += (off_t) strlen(line);
     output->size += (off_t) 5;
@@ -1290,7 +1299,7 @@ static int writeLogLine(Output * const output, const char * const date,
 /* send a line to a remote syslog server */
 static int sendRemote(const char * const prg, const char * const pid,
                       const char * const info, RemoteHost *host, const char * const datebuf,
-                      const int priority, const int facility)
+                      const int priority, const int facility, bool log_severity)
 {
     struct timespec now;
     struct addrinfo hints;
@@ -1299,7 +1308,7 @@ static int sendRemote(const char * const prg, const char * const pid,
     int ret = 0;
 
     /* prepare log entry */
-    line = build_log_line(prg, pid, info, host->format, datebuf, priority, facility, true);
+    line = build_log_line(prg, pid, info, host->format, datebuf, priority, facility, true, log_severity);
 
     if (line == NULL) {
         return -1;
@@ -1574,10 +1583,10 @@ static int processLogLine(const int logcode,
         bool do_break = false;
         if (block->output != NULL) {
             /* write a real log entry */
-            writeLogLine(block->output, datebuf, prg, pid, info, priority, facility, block->log_format);
+            writeLogLine(block->output, datebuf, prg, pid, info, priority, facility, block->log_format, block->log_severity);
 
             /* write to stdout */
-            char *line = build_log_line(prg, pid, info, block->log_format, datebuf, priority, facility, false);
+            char *line = build_log_line(prg, pid, info, block->log_format, datebuf, priority, facility, false, block->log_severity);
             printf("%s", line);
             free(line);
 
@@ -1596,7 +1605,7 @@ static int processLogLine(const int logcode,
                         else {
                             get_stamp_fmt_timestamp(block->output->stamp_fmt, datebuf, sizeof(datebuf));
                         }
-                        sendRemote(prg, pid, info, cur_host, datebuf, priority, facility);
+                        sendRemote(prg, pid, info, cur_host, datebuf, priority, facility, block->log_severity);
                     }
                     cur_host = cur_host->next_host;
                 }
@@ -2041,7 +2050,6 @@ static bool isRemoteHostInConfigBlock(RemoteHost **hosts_list, int num_hosts, Re
 
 static const char* build_priority_str(const int severity)
 {
-
     switch (severity) {
         case LOG_EMERG:   return "EMERG";
         case LOG_ALERT:   return "ALERT";
@@ -2057,13 +2065,11 @@ static const char* build_priority_str(const int severity)
 
 static char* build_log_line(const char * const prg, const char * const pid,
                             const char * const info, LogFormat format, const char * const datebuf,
-                            const int priority, const int facility, bool print_hostname)
+                            const int priority, const int facility, bool print_hostname, bool log_severity)
 {
     char *line = NULL;
     char hostname[HOST_NAME_MAX + 1] = {0};
-    const char *priority_str = build_priority_str(priority);
     int pri = facility * 8 + priority;
-
     const char *prg_safe = (prg != NULL) ? prg : NILVALUE;
     const char *pid_safe = (pid != NULL) ? pid : NILVALUE;
     const char *datebuf_safe = (datebuf != NULL) ? datebuf : NILVALUE;
@@ -2073,12 +2079,22 @@ static char* build_log_line(const char * const prg, const char * const pid,
     switch (format) {
         case LEGACY:
         case LEGACY_TIMESTAMP:
-            if (datebuf == NULL || format == LEGACY) {
-                line = format_log_line("[%s][%s] %s\n", prg_safe, priority_str, info);
-            } else {
-                line = format_log_line("%s [%s][%s] %s\n", datebuf_safe, prg_safe, priority_str, info);
+            if (log_severity) {
+                if (datebuf == NULL || format == LEGACY) {
+                    line = format_log_line("[%s][%s] %s\n", prg_safe, build_priority_str(priority), info);
+                } else {
+                    line = format_log_line("%s [%s][%s] %s\n", datebuf_safe, prg_safe, build_priority_str(priority), info);
+                }
+                break;
             }
-            break;
+            else {
+                if (datebuf == NULL || format == LEGACY) {
+                    line = format_log_line("[%s] %s\n", prg_safe, info);
+                } else {
+                    line = format_log_line("%s [%s] %s\n", datebuf_safe, prg_safe, info);
+                }
+                break;
+            }
 
         case RFC3164:
             line = handle_rfc3164_format(pri, datebuf_safe, hostname, prg_safe, pid_safe, info, print_hostname);

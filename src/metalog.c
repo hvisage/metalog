@@ -632,7 +632,7 @@ static int configParser(const char * const file)
     }
 
     /* read all config files of an eventually configured directory */
-    if (config_dir != NULL) {
+    if (retcode == 0 && config_dir != NULL) {
         DIR *dp;
         struct dirent *ep;
 
@@ -1975,7 +1975,6 @@ static char *extract_remote_host_name(const char *const keyword, const char *con
     return strdup(DEFAULT_REMOTE_HOST_NAME);
 }
 
-
 static RemoteHost *find_remote_host(RemoteHost **hosts, const char *name)
 {
     RemoteHost *current = *hosts;
@@ -2434,6 +2433,9 @@ static void parseOptions(int argc, char *argv[])
             break;
         case 's' :
             break;
+        case 't' :
+            test_config = 1;
+            break;
         case ':' :
             err("Option '%c' is missing parameter", optopt);
         case '?':
@@ -2457,7 +2459,11 @@ int main(int argc, char *argv[])
     int ret;
 
     parseOptions(argc, argv);
-    if (configParser(config_file) < 0) {
+    ret = configParser(config_file);
+    if (test_config) {
+        return ret;
+    }
+    if (ret < 0) {
         free_remote_hosts(remote_hosts);
         err("Bad configuration file");
     }

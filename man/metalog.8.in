@@ -49,6 +49,10 @@ Use an alternate file to store the process number.
 Start in synchronous mode, with no bufferization.
 Can be overridden for individual logs.
 .TP
+.BR \-t ", " \-\-test-config
+Exit after parsing the config file(s).
+Returns 0 if config is ok.
+.TP
 .BR \-v ", " \-\-verbose
 Run in verbose mode (useful for debugging behavior).
 .TP

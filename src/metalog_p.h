@@ -47,5 +47,6 @@ static const char *pid_file = DEFAULT_PID_FILE;
 static const char *config_file = DEFAULT_CONFIG_FILE;
 static const char *config_dir = NULL;
 static const char *group_name = NULL;
+static DataSource *data_sources = NULL;
 
 #endif

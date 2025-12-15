@@ -571,6 +571,13 @@ free_match_data:
     return ret;
 }
 
+/* config file names must end with ".conf" */
+static int conffile_filter(const struct dirent *ep)
+{
+    char *p = strchr(ep->d_name, (int) '.');
+    return (p != NULL && strstr(p, ".conf") != NULL);
+}
+
 static int configParser(const char * const file)
 {
     char line[LINE_MAX];
@@ -633,25 +640,21 @@ static int configParser(const char * const file)
 
     /* read all config files of an eventually configured directory */
     if (retcode == 0 && config_dir != NULL) {
-        DIR *dp;
-        struct dirent *ep;
+        struct dirent **dp;
+        int count;
+        int i;
 
-        dp = opendir(config_dir);
-        if (dp == NULL) {
+        count = scandir(config_dir, &dp, conffile_filter, alphasort);
+        if (count == -1) {
+            warnp("Can't scan the config dir %s", config_dir);
             retcode = -1;
             goto rtn;
         }
 
-        /* config file names must end with ".conf" */
-        while ((ep = readdir(dp)) != NULL) {
+        for (i = 0; i < count; i++) {
+            struct dirent *ep = dp[i];
             FILE *fp2 = NULL;
-            char *p = NULL;
             char *file_path = NULL;
-
-            p = strchr(ep->d_name, (int) '.');
-            if (p == NULL || !strstr(p, ".conf")) {
-                continue;
-            }
 
             if ((file_path = wmalloc(strlen(ep->d_name) + strlen(config_dir) + 2)) == NULL) {
                 retcode = -1;
@@ -676,7 +679,7 @@ static int configParser(const char * const file)
             free(file_path);
             fclose(fp2);
         }
-        closedir(dp);
+        free(dp);
     }
 
  rtn:

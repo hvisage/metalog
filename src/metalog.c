@@ -35,7 +35,7 @@ static LogFormat translate_log_format(const char * const format);
 
 static int doLog(const char * fmt, ...);
 
-static DataSource *add_data_source(LogLineType type, const char *path)
+static DataSource *add_data_source(LogLineType type, const char *path, bool required)
 {
     DataSource *s;
 
@@ -54,6 +54,7 @@ static DataSource *add_data_source(LogLineType type, const char *path)
         return NULL;
     }
     s->type = type;
+    s->required = required;
     s->fd = -1;
 
     /* Link new source into list */
@@ -596,7 +597,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             }
         }
         else if (strcasecmp(keyword, "socket") == 0) {
-            (*cur_block)->source = add_data_source(LOGLINETYPE_SYSLOG, value);
+            (*cur_block)->source = add_data_source(LOGLINETYPE_SYSLOG, value, false);
         }
         else {
             err("Unknown keyword '%s'! line: %s", keyword, line);
@@ -870,7 +871,7 @@ static int getKernelDataSource(DataSource *source)
         int klogfd;
 
         if ((klogfd = open(KLOG_FILE, O_RDONLY)) < 0) {
-            return 0;                  /* non-fatal */
+            return source->required ? -1 : 0; /* non-fatal? */
         }
         source->fd = klogfd;
     }
@@ -883,24 +884,28 @@ static int getKernelDataSource(DataSource *source)
 static int getSyslogDataSource(DataSource *source)
 {
     struct sockaddr_un sa;
+    int fd;
 
-    if ((source->fd = socket(PF_UNIX, source->semantics = SOCK_DGRAM, 0)) < 0) {
+    if ((fd = socket(PF_UNIX, source->semantics = SOCK_DGRAM, 0)) < 0) {
         warnp("Unable to create a local socket");
         return -1;
     }
     sa.sun_family = AF_UNIX;
     if (snprintf(sa.sun_path, sizeof sa.sun_path, "%s", source->path) < 0) {
         warnp("Socket name too long");
-        close(source->fd);
+        close(fd);
         return -2;
     }
     unlink(sa.sun_path);
-    if (bind(source->fd, (struct sockaddr *) &sa, (socklen_t) sizeof sa) < 0) {
+    if (bind(fd, (struct sockaddr *) &sa, (socklen_t) sizeof sa) < 0) {
         warnp("Unable to bind local socket: %s", source->path);
-        close(source->fd);
-        return -1;
+        close(fd);
+        /* The earlier failures are fatal; binding failure could mean that
+         * the parent directory is missing and this source is not applicable. */
+        return source->required ? -1 : 0;
     }
     chmod(sa.sun_path, 0666);
+    source->fd = fd;
     return 0;
 }
 
@@ -2533,9 +2538,9 @@ int main(int argc, char *argv[])
 
     parseOptions(argc, argv);
     if (do_kernel_log) {
-        add_data_source(LOGLINETYPE_KLOG, NULL);
+        add_data_source(LOGLINETYPE_KLOG, NULL, false);
     }
-    add_data_source(LOGLINETYPE_SYSLOG, SOCKNAME);
+    add_data_source(LOGLINETYPE_SYSLOG, SOCKNAME, true);
     ret = configParser(config_file);
     if (test_config) {
         return ret;

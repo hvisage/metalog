@@ -136,6 +136,7 @@ typedef struct DataSource_ {
     LogLineType type;
     char *path;
     struct DataSource_ *next_source;
+    bool required;
     int fd;
     int semantics;              /* SOCK_DGRAM or SOCK_STREAM */
     int bpos;                   /* write pointer for stream sources */

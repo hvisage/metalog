@@ -1047,71 +1047,55 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
     return 0;
 }
 
+/* Identify details of rotated log. Returns true on success,
+ * false if the filename is not in a conformant pattern */
+static bool oldlog_identify(struct tm *stamp, const struct dirent *dirent)
+{
+    char *s = strptime(dirent->d_name,
+                       OUTPUT_DIR_LOGFILES_PREFIX OUTPUT_DIR_LOGFILES_SUFFIX,
+                       stamp);
+    return s && *s == '\0';
+}
+
+int oldlog_filter(const struct dirent *a)
+{
+    struct tm ta;
+
+    return oldlog_identify(&ta, a);
+}
+
+int oldlog_sorter(const struct dirent **a, const struct dirent **b)
+{
+    struct tm ta, tb;
+
+    oldlog_identify(&ta, *a);
+    oldlog_identify(&tb, *b);
+
+    return timegm(&ta) - timegm(&tb);
+}
+
 static int rotateLogFiles(const char * const directory, const int maxfiles)
 {
-    char path[PATH_MAX];
-    char old_name[PATH_MAX];
-    const char *name;
-    DIR *dir;
-    struct dirent *dirent;
+    struct dirent **dirent;
     int foundlogs;
-    int year, mon, mday, hour, min, sec;
-    int older_year, older_mon = INT_MAX, older_mday = INT_MAX,
-        older_hour = INT_MAX, older_min = INT_MAX, older_sec = INT_MAX;
+    int ret = 0;
+    int dirfd;
+    int i;
 
-    rescan:
-    foundlogs = 0;
-    *old_name = 0;
-    older_year = INT_MAX;
-    if ((dir = opendir(directory)) == NULL) {
+    if ((dirfd = open(directory, O_DIRECTORY | O_RDONLY)) == -1) {
         warnp("Unable to rotate [%s]", directory);
         return -1;
     }
-    while ((dirent = readdir(dir)) != NULL) {
-        name = dirent->d_name;
-        if (strncmp(name, OUTPUT_DIR_LOGFILES_PREFIX,
-                    sizeof OUTPUT_DIR_LOGFILES_PREFIX - 1U) == 0) {
-            if (sscanf(name, OUTPUT_DIR_LOGFILES_PREFIX "%d-%d-%d-%d:%d:%d",
-                       &year, &mon, &mday, &hour, &min, &sec) != 6) {
-                continue;
-            }
-            foundlogs++;
-            if (year < older_year || (year == older_year &&
-               (mon  < older_mon  || (mon  == older_mon  &&
-               (mday < older_mday || (mday == older_mday &&
-               (hour < older_hour || (hour == older_hour &&
-               (min  < older_min  || (min  == older_min  &&
-               (sec  < older_sec))))))))))) {   /* yeah! */
-                older_year = year;
-                older_mon = mon;
-                older_mday = mday;
-                older_hour = hour;
-                older_min = min;
-                older_sec = sec;
-                strncpy(old_name, name, sizeof old_name);
-                old_name[sizeof old_name - 1U] = 0;
-            }
+    foundlogs = scandirat(dirfd, ".", &dirent, oldlog_filter, oldlog_sorter);
+    for (i = 0; i <= foundlogs - maxfiles; i++) {
+        if (unlinkat(dirfd, dirent[i]->d_name, 0) < 0) {
+            ret = -2;
         }
     }
-    closedir(dir);
-    if (foundlogs >= maxfiles) {
-        if (*old_name == 0) {
-            return -3;
-        }
-        if (snprintf(path, sizeof path, "%s/%s", directory, old_name) < 0) {
-            warnp("Path too long to unlink [%s/%s]", directory, old_name);
-            return -4;
-        }
-        if (unlink(path) < 0) {
-            return -2;
-        }
-        foundlogs--;
-        if (foundlogs >= maxfiles) {
-            goto rescan;
-        }
-    }
+    free(dirent);
+    close(dirfd);
 
-    return 0;
+    return ret;
 }
 
 static int rateLimit(RateLimiter * const rl)

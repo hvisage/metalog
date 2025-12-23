@@ -1,4 +1,6 @@
 #include <config.h>
+#include <zlib.h>
+#include <sys/mman.h>
 
 #define SYSLOG_NAMES 1
 #include "metalog.h"
@@ -10,6 +12,9 @@
 static int spawn_recursion = 0;
 static int dolog_queue[2];
 static bool keep_running = true;
+static pcre2_code *re_compressed;
+static pcre2_match_data *pcre_matches;
+
 static void signal_doLog_dequeue(void);
 static void add_remote_host(RemoteHost **hosts, const char *name, const char *hostname, const char *port, LogFormat format, int severity_level);
 static char *extract_remote_host_name(const char * const keyword, const char *pattern);
@@ -345,6 +350,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             new_output->showrepeats = (*cur_block)->showrepeats;
             new_output->stamp_fmt = (*cur_block)->stamp_fmt;
             new_output->flush = (*cur_block)->flush;
+            new_output->compress = (*cur_block)->compress;
             new_output->dt.previous_prg = NULL;
             new_output->dt.previous_info = NULL;
             new_output->dt.sizeof_previous_prg = (size_t) 0U;
@@ -598,6 +604,11 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         }
         else if (strcasecmp(keyword, "socket") == 0) {
             (*cur_block)->source = add_data_source(LOGLINETYPE_SYSLOG, value, false);
+        else if (strcasecmp(keyword, "compress") == 0) {
+            (*cur_block)->compress = atoi(value) == 1 ? true : false;
+            if ((*cur_block)->output != NULL) {
+                (*cur_block)->output->compress = (*cur_block)->compress;
+            }
         }
         else {
             err("Unknown keyword '%s'! line: %s", keyword, line);
@@ -656,6 +667,7 @@ static int configParser(const char * const file)
             DEFAULT_LOG_FORMAT,        /* log format */
             false,                     /* severity level in legacy formats */
             NULL,                      /* data source */
+            false,                     /* compress */
     };
     ConfigBlock *cur_block = &default_block;
 
@@ -1047,6 +1059,12 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
     return 0;
 }
 
+static bool is_compressed(const char *name)
+{
+    return pcre2_match(re_compressed, (PCRE2_SPTR)name, PCRE2_ZERO_TERMINATED,
+                       0, 0, pcre_matches, NULL) >= 0;
+}
+
 /* Identify details of rotated log. Returns true on success,
  * false if the filename is not in a conformant pattern */
 static bool oldlog_identify(struct tm *stamp, const struct dirent *dirent)
@@ -1054,7 +1072,7 @@ static bool oldlog_identify(struct tm *stamp, const struct dirent *dirent)
     char *s = strptime(dirent->d_name,
                        OUTPUT_DIR_LOGFILES_PREFIX OUTPUT_DIR_LOGFILES_SUFFIX,
                        stamp);
-    return s && *s == '\0';
+    return s && (*s == '\0' || is_compressed(s));
 }
 
 int oldlog_filter(const struct dirent *a)
@@ -1074,7 +1092,56 @@ int oldlog_sorter(const struct dirent **a, const struct dirent **b)
     return timegm(&ta) - timegm(&tb);
 }
 
-static int rotateLogFiles(const char * const directory, const int maxfiles)
+static void compressLogFile(int dir_fd, const char *in_name)
+{
+    int in_fd, out_fd;
+    struct stat statbuf;
+    char *in_buf;
+    char *out_name;
+    int sz = 0;
+    gzFile gz;
+
+    if ((in_fd = openat(dir_fd, in_name, O_RDONLY)) == -1) {
+        return;
+    }
+    if (fstat(in_fd, &statbuf) == -1 ||
+        (in_buf = mmap(NULL, statbuf.st_size, PROT_READ, MAP_SHARED, in_fd, 0)) == MAP_FAILED) {
+        goto fail1;
+    }
+
+    sz = asprintf(&out_name, "%s.gz", in_name);
+    if (sz == -1) {
+        goto fail2;
+    }
+
+    out_fd = openat(dir_fd, out_name, O_CREAT | O_RDWR | O_TRUNC, statbuf.st_mode);
+    free(out_name);
+    if (out_fd == -1) {
+        goto fail2;
+    }
+
+    if ((gz = gzdopen(out_fd, "w")) == NULL) {
+        close(out_fd);
+        goto fail2;
+    }
+
+    sz = gzwrite(gz, in_buf, statbuf.st_size);
+    if (gzclose(gz) == Z_OK && sz > 0) {
+        unlinkat(dir_fd, in_name, 0);
+    } else {
+        sz = 0;
+    }
+
+fail2:
+    munmap(in_buf, statbuf.st_size);
+fail1:
+    close(in_fd);
+    if (sz <= 0) {
+        warn("Unable to compress [%s]", in_name);
+    }
+}
+
+static int rotateLogFiles(const char * const directory, const int maxfiles, bool compress)
 {
     struct dirent **dirent;
     int foundlogs;
@@ -1087,9 +1154,17 @@ static int rotateLogFiles(const char * const directory, const int maxfiles)
         return -1;
     }
     foundlogs = scandirat(dirfd, ".", &dirent, oldlog_filter, oldlog_sorter);
-    for (i = 0; i <= foundlogs - maxfiles; i++) {
-        if (unlinkat(dirfd, dirent[i]->d_name, 0) < 0) {
-            ret = -2;
+    for (i = 0; i <= foundlogs; i++) {
+        if (i < foundlogs - maxfiles) {
+            /* Delete excess logs */
+            if (unlinkat(dirfd, dirent[i]->d_name, 0) < 0) {
+                ret = -2;
+            }
+        } else if (compress &&
+                   i < foundlogs - EXTRA_COMPRESSION_DELAY &&
+                   !is_compressed(dirent[i]->d_name)) {
+            /* Compress old logs; ignore failures */
+            compressLogFile(dirfd, dirent[i]->d_name);
         }
     }
     free(dirent);
@@ -1293,7 +1368,7 @@ static int writeLogLine(Output * const output, const char * const date,
                 warnp("Path name too long for current in [%s]", output->directory);
                 return -2;
             }
-            rotateLogFiles(output->directory, output->maxfiles);
+            rotateLogFiles(output->directory, output->maxfiles, output->compress);
             fclose(output->fp);
             output->fp = NULL;
             if (rename(path, newpath) < 0 && unlink(path) < 0) {
@@ -2515,11 +2590,31 @@ static void free_resources(void)
         free_data_sources(&data_sources);
 }
 
+static void compile_regexes(void)
+{
+    pcre_matches = pcre2_match_data_create(1, NULL);
+    re_compressed = wpcre2_compile(COMPRESSED_REGEX, 0);
+    if (!pcre_matches || !re_compressed) {
+        err("Compiling regexes");
+    }
+}
+
+static void free_regexes(void)
+{
+    if (pcre_matches) {
+        pcre2_match_data_free(pcre_matches);
+    }
+    if (re_compressed) {
+        pcre2_code_free(re_compressed);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     int ret;
     int num_sockets;
 
+    compile_regexes();
     parseOptions(argc, argv);
     if (do_kernel_log) {
         add_data_source(LOGLINETYPE_KLOG, NULL, false);
@@ -2550,5 +2645,6 @@ int main(int argc, char *argv[])
 
     ret = process(num_sockets);
     free_resources();
+    free_regexes();
     return ret;
 }

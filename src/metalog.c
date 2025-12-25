@@ -35,6 +35,43 @@ static LogFormat translate_log_format(const char * const format);
 
 static int doLog(const char * fmt, ...);
 
+static DataSource *add_data_source(LogLineType type, const char *path, bool required)
+{
+    DataSource *s;
+
+    /* Find and return duplicate source */
+    for (s = data_sources; s; s = s->next_source) {
+        if (type == s->type &&
+            ((path == NULL && s->path == NULL) ||
+             (path != NULL && s->path != NULL && strcmp(path, s->path) == 0))) {
+            return s;
+        }
+    }
+
+    /* Create new source */
+    if ((s = wmalloc(sizeof *s)) == NULL ||
+        (path && (s->path = wstrdup(path)) == NULL)) {
+        return NULL;
+    }
+    s->type = type;
+    s->required = required;
+    s->fd = -1;
+
+    /* Link new source into list */
+    s->next_source = data_sources;
+    return data_sources = s;
+}
+
+static void free_data_sources(DataSource **data_sources_head)
+{
+    while (*data_sources_head) {
+        DataSource *node = *data_sources_head;
+        *data_sources_head = node->next_source;
+        free(node->path);
+        free(node);
+    }
+}
+
 /* Return values:
  *   0 - success
  *  -3 - memory failure
@@ -559,6 +596,9 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 (*cur_block)->log_severity = false;
             }
         }
+        else if (strcasecmp(keyword, "socket") == 0) {
+            (*cur_block)->source = add_data_source(LOGLINETYPE_SYSLOG, value, false);
+        }
         else {
             err("Unknown keyword '%s'! line: %s", keyword, line);
         }
@@ -614,7 +654,8 @@ static int configParser(const char * const file)
             NULL,                      /* list of remote hosts */
             0,                         /* number of remote hosts */
             DEFAULT_LOG_FORMAT,        /* log format */
-            false                      /* severity level in legacy formats */
+            false,                     /* severity level in legacy formats */
+            NULL,                      /* data source */
     };
     ConfigBlock *cur_block = &default_block;
 
@@ -763,62 +804,25 @@ static void setprogname(const char * const title)
 }
 #endif
 
-static int getDataSources(int sockets[])
+static int getKernelDataSource(DataSource *source)
 {
-    struct sockaddr_un sa;
 #ifdef HAVE_KLOGCTL
     int fdpipe[2];
     pid_t pgid;
     int loop = 1;
 #endif
 
-    if ((sockets[0] = socket(PF_UNIX, SOCK_DGRAM, 0)) < 0) {
-        warnp("Unable to create a local socket");
-        return -1;
-    }
-    sa.sun_family = AF_UNIX;
-    if (snprintf(sa.sun_path, sizeof sa.sun_path, "%s", SOCKNAME) < 0) {
-        warnp("Socket name too long");
-        close(sockets[0]);
-        return -2;
-    }
-    unlink(sa.sun_path);
-    if (bind(sockets[0], (struct sockaddr *) &sa, (socklen_t) sizeof sa) < 0) {
-        warnp("Unable to bind a local socket");
-        close(sockets[0]);
-        return -1;
-    }
-    chmod(sa.sun_path, 0666);
-    sockets[1] = -1;
-
-    /* setup the signal handler pipe */
-    if (socketpair(AF_LOCAL, SOCK_STREAM, 0, dolog_queue) < 0) {
-        if (pipe(dolog_queue) < 0) {
-            warnp("Unable to create a pipe");
-            return -4;
-        }
-    }
-
-    if (!do_kernel_log) {
-        /*
-         * This will avoid reading from the kernel socket in the process()
-         * function, which only takes into account valid descriptors.
-         */
-        sockets[1] = -1;
-        return 0;
-    }
-
 #ifdef HAVE_KLOGCTL
     /* larger buffers compared to a pipe() */
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, fdpipe) < 0) {
         warnp("Unable to create a pipe");
-        close(sockets[0]);
+        close(source->fd);
         return -3;
     }
     pgid = getpgrp();
     if ((child = fork()) < (pid_t) 0) {
         warnp("Unable to create the klogd child");
-        close(sockets[0]);
+        close(source->fd);
         return -3;
     }
     else if (child == (pid_t) 0) {
@@ -861,19 +865,74 @@ static int getDataSources(int sockets[])
 
         return 0;
     }
-    sockets[1] = fdpipe[0];
+    source->fd = fdpipe[0];
 #else                                  /* !HAVE_KLOGCTL */
     {
         int klogfd;
 
         if ((klogfd = open(KLOG_FILE, O_RDONLY)) < 0) {
-            return 0;                  /* non-fatal */
+            return source->required ? -1 : 0; /* non-fatal? */
         }
-        sockets[1] = klogfd;
+        source->fd = klogfd;
     }
 #endif
+    source->semantics = SOCK_STREAM;
 
     return 0;
+}
+
+static int getSyslogDataSource(DataSource *source)
+{
+    struct sockaddr_un sa;
+    int fd;
+
+    if ((fd = socket(PF_UNIX, source->semantics = SOCK_DGRAM, 0)) < 0) {
+        warnp("Unable to create a local socket");
+        return -1;
+    }
+    sa.sun_family = AF_UNIX;
+    if (snprintf(sa.sun_path, sizeof sa.sun_path, "%s", source->path) < 0) {
+        warnp("Socket name too long");
+        close(fd);
+        return -2;
+    }
+    unlink(sa.sun_path);
+    if (bind(fd, (struct sockaddr *) &sa, (socklen_t) sizeof sa) < 0) {
+        warnp("Unable to bind local socket: %s", source->path);
+        close(fd);
+        /* The earlier failures are fatal; binding failure could mean that
+         * the parent directory is missing and this source is not applicable. */
+        return source->required ? -1 : 0;
+    }
+    chmod(sa.sun_path, 0666);
+    source->fd = fd;
+    return 0;
+}
+
+static int getDataSources(void)
+{
+    DataSource *source;
+    int ret = 0;
+    int count = 0;
+
+    /* setup the signal handler pipe */
+    if (socketpair(AF_LOCAL, SOCK_STREAM, 0, dolog_queue) < 0) {
+        if (pipe(dolog_queue) < 0) {
+            warnp("Unable to create a pipe");
+            return -4;
+        }
+    }
+
+    for (source = data_sources; ret == 0 && source; source = source->next_source) {
+        if (source->type == LOGLINETYPE_KLOG) {
+            ret = getKernelDataSource(source);
+        } else {
+            ret = getSyslogDataSource(source);
+        }
+        count += (source->fd == -1) ? 0 : 1;
+    }
+    assert(ret <= 0);
+    return ret == 0 ? count : ret;
 }
 
 static int spawnCommand(const char * const command, const char * const date,
@@ -1463,7 +1522,7 @@ static int get_stamp_fmt_timestamp(const char *stamp_fmt, char *datebuf, int dat
     return 0;
 }
 
-static int processLogLine(const int logcode,
+static int processLogLine(DataSource *source, const int logcode,
                           const char * const prg,
                           const char * const pid, char * const info)
 {
@@ -1493,6 +1552,9 @@ static int processLogLine(const int logcode,
         }
         facility_ok:
         if (priority > block->minimum && priority < block->maximum) {
+            goto nextblock;
+        }
+        if (block->source != NULL && source != block->source) {
             goto nextblock;
         }
         if (block->program != NULL && strcasecmp(block->program, prg) != 0) {
@@ -1649,7 +1711,7 @@ static int doLog(const char * fmt, ...)
     vsnprintf (infobuf, sizeof infobuf, fmt, ap);
     va_end(ap);
 
-    return processLogLine(LOG_SYSLOG, "metalog", pidbuf, infobuf);
+    return processLogLine(NULL, LOG_SYSLOG, "metalog", pidbuf, infobuf);
 }
 
 static void sanitize(char * const line_)
@@ -1672,7 +1734,7 @@ static void sanitize(char * const line_)
     }
 }
 
-static int log_line(LogLineType loglinetype, char *buf)
+static int log_line(DataSource *source, char *buf)
 {
     int logcode;
     const char *prg;
@@ -1680,13 +1742,13 @@ static int log_line(LogLineType loglinetype, char *buf)
     const char *pid = NULL;
 
     sanitize(buf);
-    if (parseLogLine(loglinetype, buf, &logcode, &prg, &pid, &info) < 0) {
+    if (parseLogLine(source->type, buf, &logcode, &prg, &pid, &info) < 0) {
         return -1;
     }
-    return processLogLine(logcode, prg, pid, info);
+    return processLogLine(source, logcode, prg, pid, info);
 }
 
-static int log_kernel(char *buf, int bsize)
+static int log_kernel(DataSource *source, char *buf, int bsize)
 {
     char *s = buf;
     int n = 0, start = 0;
@@ -1695,7 +1757,7 @@ static int log_kernel(char *buf, int bsize)
     while (n < bsize) {
         if (s[n] == '\n') {
             s[n] = '\0';
-            log_line(LOGLINETYPE_KLOG, &s[start]);
+            log_line(source, &s[start]);
             start = n + 1;
         }
         n++;
@@ -1710,17 +1772,24 @@ static int log_kernel(char *buf, int bsize)
     return bsize - start;
 }
 
-static int process(const int sockets[])
+static int process(int num_sockets)
 {
-    struct pollfd fds[3], *siglog, *syslog, *klog;
+    struct pollfd *fds, *first_source, *siglog;
     int nfds;
     int event;
     ssize_t rd;
     int ld;
-    char buffer[2][4096];
-    int bpos;
+    char (*buffer)[4096];
+    DataSource **source_map;
+    DataSource *s;
 
-    siglog = syslog = klog = NULL;
+    if ((fds = wmalloc((num_sockets + 1) * sizeof *fds)) == NULL ||
+        (buffer = wmalloc(num_sockets * sizeof *buffer)) == NULL ||
+        (source_map = wmalloc(num_sockets * sizeof *source_map)) == NULL) {
+        return -3;
+    }
+
+    siglog = first_source = NULL;
     nfds = 0;
 
     siglog = &fds[nfds];
@@ -1728,23 +1797,24 @@ static int process(const int sockets[])
     fds[nfds].events = POLLIN | POLLERR | POLLHUP | POLLNVAL;
     fds[nfds].revents = 0;
     ++nfds;
-    if (sockets[0] >= 0) {
-        syslog = &fds[nfds];
-        fds[nfds].fd = sockets[0];
-        fds[nfds].events = POLLIN | POLLERR | POLLHUP | POLLNVAL;
-        fds[nfds].revents = 0;
-        ++nfds;
-    }
-    if (sockets[1] >= 0) {
-        klog = &fds[nfds];
-        fds[nfds].fd = sockets[1];
-        fds[nfds].events = POLLIN | POLLERR | POLLHUP | POLLNVAL;
-        fds[nfds].revents = 0;
-        ++nfds;
+
+    first_source = &fds[nfds];
+    for (s = data_sources; s; s = s->next_source) {
+        if (s->fd != -1) {
+            struct pollfd *fd = &fds[nfds];
+            assert(nfds <= num_sockets);
+            source_map[fd - first_source] = s;
+            s->bpos = 0;
+            fd->fd = s->fd;
+            fd->events = POLLIN | POLLERR | POLLHUP | POLLNVAL;
+            fd->revents = 0;
+            ++nfds;
+        }
     }
 
-    bpos = 0;
     while (keep_running) {
+        int si; /* source index */
+
         while (poll(fds, nfds, -1) < 0 && errno == EINTR && keep_running) {
             ;
         }
@@ -1762,55 +1832,54 @@ static int process(const int sockets[])
             signal_doLog_dequeue();
         }
 
-        /* UDP socket (syslog) */
-        if (syslog && syslog->revents) {
-            event = syslog->revents;
-            syslog->revents = 0;
+        for (si = 0; si < num_sockets; si++) {
+            struct pollfd *fd = &first_source[si];
+            int event;
+            if (!(event = fd->revents)) {
+                continue;
+            }
+            s = source_map[si];
+            fd->revents = 0;
             if (event != POLLIN) {
-                warn("Syslog socket error - aborting");
-                close(syslog->fd);
+                warn("%s socket error - aborting", s->type == LOGLINETYPE_KLOG ? "Klog" : "Syslog");
+                close(fd->fd);
                 return -1;
             }
 
-            /* receive a single log line (UDP) and process it. receive one byte for '\0' */
-            while (((rd = read(syslog->fd, buffer[0], sizeof(buffer[0])-1)) < 0) && (errno == EINTR)) {
-                ;
-            }
-            if (rd == -1) {
-                return -1;
-            }
-
-            buffer[0][rd] = '\0';
-            log_line(LOGLINETYPE_SYSLOG, buffer[0]);
-        }
-
-        /* STREAM_SOCKET (klog) */
-        if (klog && klog->revents) {
-            event = klog->revents;
-            klog->revents = 0;
-            if (event != POLLIN) {
-                warn("Klog socket error - aborting");
-                close(klog->fd);
-                return -1;
-            }
-
-            /* receive a chunk of kernel log message... */
-            while ((rd = read(klog->fd, &buffer[1][bpos], sizeof(buffer[1]) - bpos)) < 0 && errno == EINTR) {
-                ;
-            }
-            if (rd == -1) {
-                return -1;
-            }
-
-            /* ... and process them line by line */
-            rd += bpos;
-            if ((ld = log_kernel(buffer[1], rd)) > 0) {
-                /* move remainder of a message to the beginning of the buffer
-                   it'll be logged once we can read the whole line into buffer[1] */
-                memmove(buffer[1], &buffer[1][ld], bpos = rd - ld);
-            }
-            else {
-                bpos = 0;
+            if (s->semantics == SOCK_DGRAM) {
+                /* Datagram socket (syslog): */
+                /*   receive a single log line (datagram) and process it. receive one byte for '\0' */
+                while (((rd = read(fd->fd, buffer[si],
+                                   sizeof(buffer[si]) - 1)) < 0)
+                       && (errno == EINTR)) {
+                    ;
+                }
+                if (rd == -1) {
+                    return -1;
+                }
+                buffer[si][rd] = '\0';
+                log_line(s, buffer[si]);
+            } else {
+                /* STREAM_SOCKET (klog): */
+                /*   receive a chunk of kernel log message... */
+                while (((rd = read(fd->fd, &buffer[si][s->bpos],
+                                   sizeof(buffer[si]) - s->bpos)) < 0)
+                       && (errno == EINTR)) {
+                    ;
+                }
+                if (rd == -1) {
+                    return -1;
+                }
+                /* ... and process them line by line */
+                rd += s->bpos;
+                if ((ld = log_kernel(s, buffer[si], rd)) > 0) {
+                    /* move remainder of a message to the beginning of the buffer
+                       it'll be logged once we can read the whole line into buffer[1] */
+                    memmove(buffer[si], &buffer[si][ld], s->bpos = rd - ld);
+                }
+                else {
+                    s->bpos = 0;
+                }
             }
         }
     }
@@ -2456,18 +2525,28 @@ static void checkRoot(void)
     }
 }
 
+static void free_resources(void)
+{
+        free_remote_hosts(remote_hosts);
+        free_data_sources(&data_sources);
+}
+
 int main(int argc, char *argv[])
 {
-    int sockets[2];
     int ret;
+    int num_sockets;
 
     parseOptions(argc, argv);
+    if (do_kernel_log) {
+        add_data_source(LOGLINETYPE_KLOG, NULL, false);
+    }
+    add_data_source(LOGLINETYPE_SYSLOG, SOCKNAME, true);
     ret = configParser(config_file);
     if (test_config) {
         return ret;
     }
     if (ret < 0) {
-        free_remote_hosts(remote_hosts);
+        free_resources();
         err("Bad configuration file");
     }
     checkRoot();
@@ -2475,17 +2554,17 @@ int main(int argc, char *argv[])
     dodaemonize();
     setsignals();
     if (update_pid_file(pid_file)) {
-        free_remote_hosts(remote_hosts);
+        free_resources();
         return -1;
     }
     clearargs(argc, argv);
     setprogname(PROGNAME_MASTER);
-    if (getDataSources(sockets) < 0) {
-        free_remote_hosts(remote_hosts);
+    if ((num_sockets = getDataSources()) < 0) {
+        free_resources();
         err("Unable to bind sockets");
     }
 
-    ret = process(sockets);
-    free_remote_hosts(remote_hosts);
+    ret = process(num_sockets);
+    free_resources();
     return ret;
 }

@@ -127,6 +127,21 @@ typedef struct Output_ {
     RateLimiter rate;
 } Output;
 
+typedef enum LogLineType_ {
+    LOGLINETYPE_SYSLOG,
+    LOGLINETYPE_KLOG
+} LogLineType;
+
+typedef struct DataSource_ {
+    LogLineType type;
+    char *path;
+    struct DataSource_ *next_source;
+    bool required;
+    int fd;
+    int semantics;              /* SOCK_DGRAM or SOCK_STREAM */
+    int bpos;                   /* write pointer for stream sources */
+} DataSource;
+
 typedef enum RegexSign_ {
     REGEX_SIGN_POSITIVE, REGEX_SIGN_NEGATIVE
 } RegexSign;
@@ -170,12 +185,8 @@ typedef struct ConfigBlock_ {
     int num_hosts;          /* number of remote_hosts */
     LogFormat log_format;   /* format of logging */
     bool log_severity;      /* log severity level in format legacy or legacy_timestamp */
+    DataSource *source;
 } ConfigBlock;
-
-typedef enum LogLineType_ {
-        LOGLINETYPE_SYSLOG,
-        LOGLINETYPE_KLOG
-} LogLineType;
 
 #define DEFAULT_MINIMUM LOG_DEBUG
 #define DEFAULT_MAXIMUM INT_MAX

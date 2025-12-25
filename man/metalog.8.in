@@ -13,6 +13,13 @@ Perl\-compatible regular expressions. Log files can be automatically rotated
 when they exceed a certain size or age. External shell scripts (ex: mail)
 can be launched when specific patterns are found.
 
+Logs are written according to RFC3164, RFC5423 or a minimal format with
+optional severity levels.
+
+It can send its logs to remote syslog servers via UDP. It can gather info from
+the kernel or /dev/log as well as from several Unix Domain Sockets. This allows
+logging from chrooted or containerized applications.
+
 Metalog is easier to configure than syslogd and syslog\-ng, accepts unlimited
 number of rules and has (switchable) memory bufferisation for maximal
 performance.

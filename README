@@ -12,258 +12,254 @@ Perl-compatible regular expressions. Log files can be automatically rotated
 when they exceed a certain size or age. External shell scripts (e.g., mail)
 can be launched when specific patterns are found.
 
+Logs are written according to RFC3164, RFC5423 or a minimal format with
+optional severity levels.
+
+It can send its logs to remote syslog servers via UDP. It can gather info from
+the kernel or /dev/log as well as from several Unix Domain Sockets. This allows
+logging from chrooted or containerized applications.
+
 Metalog is simple to configure, accepts unlimited number of rules and has
 (switchable) memory bufferization for maximal performance.
 
 http://metalog.sourceforge.net/
 
         ------------------------ COMPILATION ------------------------
-        
-        
+
+
 In order to compile Metalog, you should have the PCRE2 library on your
 system. That library is used to process Perl-compatible regular expressions.
 
-libpcre2 comes with many distributions, but you can also download it from :
+libpcre2 comes with many distributions, but you can also download it from:
 
-                             http://www.pcre.org/
-                             
-Once installed, don't forget to run "ldconfig".
+                             https://www.pcre.org/
 
-Then, compiling and installing Metalab isn't rocket science :
+Then, compiling and installing Metalab isn't rocket science:
 
 ./configure
-make install-strip
+make
+make install
 
 
        ------------------------ CONFIGURATION ------------------------
-       
-       
+
+
 A configuration file should be installed. Its default location is
-/etc/metalog.conf (unless you tweaked --with-sysconfdir) . You can find a
+/etc/metalog.conf (unless you tweaked --with-sysconfdir). You can find a
 sample file in this directory, but it's certainly not perfect for your system
 and your needs. So read on.
 
-A configuration file has the following syntax :
+A configuration file has the following syntax:
 
 [default values]
 
-<section title> :
+<section title>:
 <section values>
 ...
 
-<section title 2> :
+<section title 2>:
 <section 2 values>
 ...
 
 [...]
 
-To make it clear, here's an example :
+To make it clear, here's an example:
 
 maxsize  = 100000
 maxtime  = 86400
 maxfiles = 5
 
-Kernel messages :
-
+Kernel messages:
   facility = "kern"
   logdir   = "/var/log/kernel"
 
-Crond :
-
+Crond:
   program  = "crond"
   logdir   = "/var/log/crond"
 
-A section defines several things :
+A section defines several things:
 
  - A title (useless for the software, it's just to make your configuration
-file look better) .
+file look better).
 
- - Filters : you can define facilities, program names, urgency levels and
+ - Filters: you can define facilities, program names, urgency levels and
 regular expressions. An incoming message will pass through all filters. If
 all conditions are matching, actions defined for the section are performed.
 
- - Actions : they are taken only when all previous conditions are met. Only
-two actions are currently possible : write the message to a log file, and/or
+ - Actions: they are taken only when all previous conditions are met. Only
+two actions are currently possible: write the message to a log file, and/or
 launch an external script.
 
-Here's a list of values that can be independently assigned for each section :
+Here's a list of values that can be independently assigned for each section:
 
-* minimum = <level> : only record a message if its urgency is inferior or
-equal to <level> . Level '0' is the most critical one, while level '7' is for
+* minimum = <level>: only record a message if its urgency is inferior or
+equal to <level>. Level '0' is the most critical one, while level '7' is for
 debugging messages. 'minimum = 5' will strip all non-important messages. The
-default minimum level is 7 (ie. keep all messages) .
+default minimum level is 7 (ie. keep all messages).
 
-Example : record only critical messages to /var/log/important :
+Example: record only critical messages to /var/log/important:
 
-Critical messages :
-
+Critical messages:
   facility = "*"
   minimum  = 1
   logdir   = "/var/log/important"
 
-* maximum = <level> : don't log if the message level exceeds that value. By
+* maximum = <level>: don't log if the message level exceeds that value. By
 default, maximum is the largest possible level.
 
-* facility = <facility> : only record a message if the application that issued
-it uses syslog facility <facility> .
+* facility = <facility>: only record a message if the application that issued
+it uses syslog facility <facility>.
 
-* break = 0|1 (default=0) : if set to 1 and a section is matched,             
-perform action, but don't consider any more possible section matches          
-below this one in the config file.  This is useful for creating a config      
-where specific types of log messages are matched and dispatched, while a      
-"catch-all" section at the bottom of the config file handles the default      
-case.  Using break=0 would cause messages to be potentially handled by 
+* break = 0|1 (default=0): if set to 1 and a section is matched,
+perform action, but don't consider any more possible section matches
+below this one in the config file.  This is useful for creating a config
+where specific types of log messages are matched and dispatched, while a
+"catch-all" section at the bottom of the config file handles the default
+case.  Using break=0 would cause messages to be potentially handled by
 multiple sections, causing message duplication, while using break=1
-(default) on the sections above the "catch-all" would avoid duplication.        
+(default) on the sections above the "catch-all" would avoid duplication.
 
-Facility names are : "auth", "authpriv", "cron", "daemon", "ftp", "kern",
+Facility names are: "auth", "authpriv", "cron", "daemon", "ftp", "kern",
 "lpr", "mail", "news", "security", "syslog", "user", "uucp", "local0",
-"local1" ... "local7" . All kernel messages are logged with facility "kern".
+"local1" ... "local7". All kernel messages are logged with facility "kern".
 
 A section can have several "facility = ..." lines to match more than one
 facility. If <facility> is "*", it'll match all the facilities.
 
-Example : record all authentication messages to /var/log/auth :
+Example: record all authentication messages to /var/log/auth:
 
-Authentication messages :
-
+Authentication messages:
   facility = "auth"
   facility = "authpriv"
   logdir   = "/var/log/auth"
-  
-* program = <program> : only record messages signed by a specific daemon or
+
+* program = <program>: only record messages signed by a specific daemon or
 program.
 
-You can use this as a modern alternative to syslog facilities : use "*" as a
+You can use this as a modern alternative to syslog facilities: use "*" as a
 facility, and set a program name with that directive.
 
-Kernel messages can be caught with 'program = "kernel"' .
+Kernel messages can be caught with 'program = "kernel"'.
 
-Example : record Pure-FTPd messages in a directory, and in.ftpd messages in
-another directory (although the facility is the same : FTP) :
+Example: record Pure-FTPd messages in a directory, and in.ftpd messages in
+another directory (although the facility is the same: FTP):
 
-In.FTPd messages :
-
+In.FTPd messages:
   facility = "*"
   program  = "in.ftpd"
   logdir   = "/var/log/in.ftpd"
 
-Pure-FTPd messages :
-
+Pure-FTPd messages:
   facility = "*"
   program  = "pure-ftpd"
   logdir   = "/var/log/pure-ftpd"
 
-* program_regex = <regex> : similar to program, but not just a string equal
+* program_regex = <regex>: similar to program, but not just a string equal
 match, but a regular expression.
 
-Example : this would match program fields with [postfix/smtp], [postfix/smtpd]
+Example: this would match program fields with [postfix/smtp], [postfix/smtpd]
 and [postfix/cleanup] etc.
 
-All Postfix messages :
+All Postfix messages:
  facility      = "*"
  program_regex = "postfix"
  logdir        = /var/log/postfix
 
-* program_neg_regex = <regex> : log programs that do _not_ match the regex.
+* program_neg_regex = <regex>: log programs that do _not_ match the regex.
 
-* regex = <regex> : a message must match the regular expression to pass that
+* regex = <regex>: a message must match the regular expression to pass that
 filter. Multiple regexes are allowed for a single section. All Perl
 extensions are allowed, and matching is case insensitive.
 
-Example : record all authentication failures to /var/log/pwdfail :
+Example: record all authentication failures to /var/log/pwdfail:
 
-Password failures :
-
+Password failures:
   regex    = "(password|login|authentication)\s+(fail|invalid)"
   regex    = "(failed|invalid)\s+(password|login|authentication)"
   regex    = "ILLEGAL ROOT LOGIN"
   logdir   = "/var/log/pwdfail"
 
-* neg_regex = <regex> : this is the opposite of the previous directive.
+* neg_regex = <regex>: this is the opposite of the previous directive.
 Logging will occur if the regex doesn't match. It can be useful to remove the
 crap, and it can be freely mixed with "regex" directives. "regex" and
 "neg_regex" directives are scanned in order.
 
-Example :
-
+Example:
   facility = "mail"
   neg_regex= "starting daemon"
   logdir   = "/var/log/mail"
 
-* maxsize = <size in bytes> : automatically rotate log files when their size
+* maxsize = <size in bytes>: automatically rotate log files when their size
 have exceeded that size. Messages are never truncated and no message can be
 lost during a rotation. Every section can have a different maxsize value.
 
-Example : rotate logs files when they are more than 1,000,000 bytes long :
+Example: rotate logs files when they are more than 1,000,000 bytes long:
 
   maxsize = 1000000
 
-* maxfiles = <number of files> : how many files to keep after rotation. This
+* maxfiles = <number of files>: how many files to keep after rotation. This
 parameter can be set independently for each section. It defaults to 5.
 
-* maxtime = <age in seconds> : automatically rotate log files when they are
+* maxtime = <age in seconds>: automatically rotate log files when they are
 older than this number of seconds. Every section can have a different
 maxtime value. maxsize and maxtime can be combined together, so that rotation
 occurs when any of these conditions occurs.
 
-Example : rotate log files when they are more than 1,000,000 bytes long, and
-every day, and keep only 3 history files :
+Example: rotate log files when they are more than 1,000,000 bytes long, and
+every day, and keep only 3 history files:
 
   maxsize  = 1000000
   maxtime  = 86400
   maxfiles = 3
 
-* showrepeats = 0|1 : disable printing the "last message repeated N times"
+* showrepeats = 0|1: disable printing the "last message repeated N times"
 summary messages.  When showrepeats is set to 1, messages will be printed
 directly to the log, without summarizing them based on number received (which
 can cause problems for some log monitoring programs, as well as delaying
-repeated messages if another unique message isn't received promptyly).  
+repeated messages if another unique message isn't received promptyly).
 Defaults to 0 (i.e. repeated messages will be summarized)
 
-* logdir = <directory> : record messages in the specified directory. If the
+* logdir = <directory>: record messages in the specified directory. If the
 directory doesn't exist, it will be automatically created when the first
-matching message will be logged (the parent directory has to exist, though) .
+matching message will be logged (the parent directory has to exist, though).
 
-* perms = <mode> : permissions for the log directory. Defaults to 0700
+* perms = <mode>  permissions for the log directory. Defaults to 0700
 
-Example : Let those in the group with the GID of the process read the log.
+Example: Let those in the group with the GID of the process read the log.
 Don't forget to run metalog as the group.
 
   perms    = 0770
 
-* command = <path/to/command> : run a program or a shell-script when all
-conditions are met. This directive is not incompatible with logdir : a
+* command = <path/to/command>: run a program or a shell-script when all
+conditions are met. This directive is not incompatible with logdir: a
 message can be both logged and passed to an external command. When the
 command is launched, the first argument is filled with the date the message
 was received, the second argument is the program name, and the last one is
 the text of the message itself. Environment variables aren't cleared.
 
-Example : send a mail to root when authentication failures occur :
+Example: send a mail to root when authentication failures occur:
 
-Mail password failures :
-
+Mail password failures:
   regex    = "(password|login|authentication)\s+(fail|invalid)"
   regex    = "(failed|invalid)\s+(password|login|authentication)"
   regex    = "ILLEGAL ROOT LOGIN"
   command  = "/usr/local/sbin/pwdfail.sh"
-  
-"pwdfail.sh" can be a simple shell script like this one :
+
+"pwdfail.sh" can be a simple shell script like this one:
 
 #! /bin/sh
-
-echo "$3" | mail -s "Password failure (program : $2)" root
+echo "$3" | mail -s "Password failure (program: $2)" root
 
   Don't forget to properly quote arguments to avoid security problems.
-  
-* postrotate_cmd = <path/to/script> : run a script after rotating
+
+* postrotate_cmd = <path/to/script>: run a script after rotating
 If specified, the postrotate_cmd is run after log-files are rotated.
 The following parameters are provided, environments are not cleared:
-  date : date of the last message received
-  prog : program name of the last message received
-  file : file name with path of the rotated log-file
+  date: date of the last message received
+  prog: program name of the last message received
+  file: file name with path of the rotated log-file
 
-Example : compress rotated log files
+Example: compress rotated log files
 
   postrotate_cmd = /usr/local/bin/compress.sh
 
@@ -287,39 +283,39 @@ if [ -n "${FILE}" -a -f "${FILE}" -a -s "${FILE}" ]; then
   bzip2 -9 ${FILE}
 fi
 
-  
+
          ------------------------ LOG FILES ------------------------
-         
+
 
 With the "logdir" directive, messages from a specific section are recorded
-in a directory. In that directory, the following files are created :
+in a directory. In that directory, the following files are created:
 
-- "current" : this file contains the latest recorded messages. It can be
-incomplete (ie. data is being written to the file when you are reading it) .
+- "current": this file contains the latest recorded messages. It can be
+incomplete (ie. data is being written to the file when you are reading it).
 
-- ".timestamp" : the creation date of "current". Needed for the "maxtime"
+- ".timestamp": the creation date of "current". Needed for the "maxtime"
 directive.
 
-- "log-<year>-<month>-<day>-<hour>:<minutes>:<seconds>" : old logs,
+- "log-<year>-<month>-<day>-<hour>:<minutes>:<seconds>": old logs,
 chronologically sorted.
 
 If you ever delete these files by hand for some obscure reasons, it's not a
-bad idea to restart the daemon (and even better : to stop it before you mess
-the directories) .
+bad idea to restart the daemon (and even better: to stop it before you mess
+the directories).
 
-  
+
       ------------------------ RUNNING METALOG ------------------------
-      
+
 
 Kill "klogd" and "syslogd" first. Don't run Metalog while they are running.
 Multiple programs listening for the same source of data is a silly idea.
 
 Once these programs are killed (and you are *sure* they are killed), check
-that /etc/metalog.conf is installed, and simply run :
+that /etc/metalog.conf is installed, and simply run:
 
 /usr/local/sbin/metalog &
 
-On GNU/Linux systems, two processes are spawned : one is the "MASTER", doing
+On GNU/Linux systems, two processes are spawned: one is the "MASTER", doing
 much of the work. The other one (named "KERNEL") is needed for Linux and
 replaces the "klogd" daemon. It is responsible for logging kernel messages.
 
@@ -333,7 +329,7 @@ daemons, Metalog works in memory buffers, then flushes the data to disk by
 blocks. It improves a lot overall performances.
 
 If you temporarely want to switch to the asynchronous mode, send an USR2
-signal to the process. Something like :
+signal to the process. Something like:
 
 kill -USR2 $(cat /var/run/metalog.pid)
 
@@ -343,35 +339,36 @@ Later, if you want to watch activity in real-time (like a good old "tail -f"
 on a log file), you can disable buffering. Just send an USR1 signal to the
 "MASTER" process. You can always re-enable buffering afterwards.
 
-  
+
      ------------------------ RUN-TIME OPTIONS ------------------------
-      
-      
-Metalog accepts some run-time options :
 
-- '-a' or '--async' : improve performance by using buffers (but log files
-won't get updated in real time) .
 
-- '-B' or '--daemonize' : have the server start in background
-(daemonization) .
+Metalog accepts some run-time options:
 
-- '-c <xxx>' or '--consolelevel=<xxx>' : set the console log level on
+- '-a' or '--async': improve performance by using buffers (but log files
+won't get updated in real time).
+
+- '-B' or '--daemonize': have the server start in background
+(daemonization).
+
+- '-c <xxx>' or '--consolelevel=<xxx>': set the console log level on
 Linux. Valid values are from 0 to 7. The default is 7.
 
-- '-C <configuration file>' or '--configfile=<configuration file>' : use an
+- '-C <configuration file>' or '--configfile=<configuration file>': use an
 alternative configuration file.
 
-- '-g <group>' or '--group=<group>' : change the GID of the metalog process.
+- '-g <group>' or '--group=<group>': change the GID of the metalog process.
 Created files will be owned by this group.
 
-- '-h' or '--help' : show help and version number.
+- '-h' or '--help': show help and version number.
 
-- '-p <filename>' or '--pidfile=<filename>' : set the name of the file
+- '-p <filename>' or '--pidfile=<filename>': set the name of the file
 that will hold the PID number. It defaults to /var/run/metalog.pid
 
-- '-s' or '--sync' : start in synchronous mode, with no bufferization.
+- '-s' or '--sync': start in synchronous mode, with no bufferization.
 
-
+- '-t' or '--test-config': Exit after parsing the config file(s).
+Returns 0 if config is ok.
 
 
 

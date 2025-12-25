@@ -236,10 +236,11 @@ metalog start. Only file names ending with ".conf" are interpreted. This option 
 only allowed once, all repetitions will be ignored.
 .TP
 \fBsocket = \fI"/path/to/logging/socket"\fR
-Listen and filter on an additional logging socket.
+Listen and filter on an additional logging socket. If creation of the sockets fails
+metalog will continue without that source of logs.
 .SH "FILES"
 .LP
-Note that the exact paths depend on the build settings.  These are the standard paths.
+Note that the exact paths depend on the build settings. These are the standard paths.
 
 .nf
 .I /etc/metalog.conf

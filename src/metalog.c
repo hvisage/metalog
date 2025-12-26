@@ -1,6 +1,4 @@
 #include <config.h>
-#include <zlib.h>
-#include <sys/mman.h>
 
 #define SYSLOG_NAMES 1
 #include "metalog.h"
@@ -604,12 +602,15 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         }
         else if (strcasecmp(keyword, "socket") == 0) {
             (*cur_block)->source = add_data_source(LOGLINETYPE_SYSLOG, value, false);
+        }
+#ifdef WITH_COMPRESS
         else if (strcasecmp(keyword, "compress") == 0) {
             (*cur_block)->compress = atoi(value) == 1 ? true : false;
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->compress = (*cur_block)->compress;
             }
         }
+#endif
         else {
             err("Unknown keyword '%s'! line: %s", keyword, line);
         }
@@ -1092,6 +1093,7 @@ int oldlog_sorter(const struct dirent **a, const struct dirent **b)
     return timegm(&ta) - timegm(&tb);
 }
 
+#ifdef WITH_COMPRESS
 static void compressLogFile(int dir_fd, const char *in_name)
 {
     int in_fd, out_fd;
@@ -1140,6 +1142,7 @@ fail1:
         warn("Unable to compress [%s]", in_name);
     }
 }
+#endif
 
 static int rotateLogFiles(const char * const directory, const int maxfiles, bool compress)
 {
@@ -1163,8 +1166,10 @@ static int rotateLogFiles(const char * const directory, const int maxfiles, bool
         } else if (compress &&
                    i < foundlogs - EXTRA_COMPRESSION_DELAY &&
                    !is_compressed(dirent[i]->d_name)) {
+#ifdef WITH_COMPRESS
             /* Compress old logs; ignore failures */
             compressLogFile(dirfd, dirent[i]->d_name);
+#endif
         }
     }
     free(dirent);

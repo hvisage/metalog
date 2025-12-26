@@ -61,6 +61,11 @@
 # define KLOG_FILE "/dev/klog"
 #endif
 
+#ifdef WITH_COMPRESS
+#include <zlib.h>
+#include <sys/mman.h>
+#endif
+
 typedef struct DuplicateTracker_ {
     char *previous_prg;
     char *previous_info;

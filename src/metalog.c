@@ -349,6 +349,7 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             new_output->stamp_fmt = (*cur_block)->stamp_fmt;
             new_output->flush = (*cur_block)->flush;
             new_output->compress = (*cur_block)->compress;
+            new_output->compress_delay = (*cur_block)->compress_delay;
             new_output->dt.previous_prg = NULL;
             new_output->dt.previous_info = NULL;
             new_output->dt.sizeof_previous_prg = (size_t) 0U;
@@ -610,6 +611,12 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 (*cur_block)->output->compress = (*cur_block)->compress;
             }
         }
+        else if (strcasecmp(keyword, "compress_delay") == 0) {
+            (*cur_block)->compress_delay = atoi(value);
+            if ((*cur_block)->output != NULL) {
+                (*cur_block)->output->compress_delay = (*cur_block)->compress_delay;
+            }
+        }
 #endif
         else {
             err("Unknown keyword '%s'! line: %s", keyword, line);
@@ -669,6 +676,7 @@ static int configParser(const char * const file)
             false,                     /* severity level in legacy formats */
             NULL,                      /* data source */
             false,                     /* compress */
+            DEFAULT_COMPRESS_DELAY,    /* compress delay */
     };
     ConfigBlock *cur_block = &default_block;
 
@@ -1144,7 +1152,8 @@ fail1:
 }
 #endif
 
-static int rotateLogFiles(const char * const directory, const int maxfiles, bool compress)
+static int rotateLogFiles(const char * const directory, const int maxfiles,
+                          bool compress, int compress_delay)
 {
     struct dirent **dirent;
     int foundlogs;
@@ -1164,7 +1173,7 @@ static int rotateLogFiles(const char * const directory, const int maxfiles, bool
                 ret = -2;
             }
         } else if (compress &&
-                   i < foundlogs - EXTRA_COMPRESSION_DELAY &&
+                   i < foundlogs - compress_delay &&
                    !is_compressed(dirent[i]->d_name)) {
 #ifdef WITH_COMPRESS
             /* Compress old logs; ignore failures */
@@ -1373,7 +1382,8 @@ static int writeLogLine(Output * const output, const char * const date,
                 warnp("Path name too long for current in [%s]", output->directory);
                 return -2;
             }
-            rotateLogFiles(output->directory, output->maxfiles, output->compress);
+            rotateLogFiles(output->directory, output->maxfiles,
+                           output->compress, output->compress_delay);
             fclose(output->fp);
             output->fp = NULL;
             if (rename(path, newpath) < 0 && unlink(path) < 0) {

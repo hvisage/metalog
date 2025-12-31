@@ -131,6 +131,7 @@ typedef struct Output_ {
     FlushMode flush;
     RateLimiter rate;
     bool compress;
+    int compress_delay;
 } Output;
 
 typedef enum LogLineType_ {
@@ -192,7 +193,8 @@ typedef struct ConfigBlock_ {
     LogFormat log_format;   /* format of logging */
     bool log_severity;      /* log severity level in format legacy or legacy_timestamp */
     DataSource *source;
-    bool compress;
+    bool compress;          /* whether to compress rotated logs */
+    int compress_delay;     /* how many recently rotated logs to keep uncompressed */
 } ConfigBlock;
 
 #define DEFAULT_MINIMUM LOG_DEBUG
@@ -211,7 +213,7 @@ typedef struct ConfigBlock_ {
 #define OUTPUT_DIR_LOGFILES_SUFFIX "%Y-%m-%d-%H:%M:%S"
 #define COMPRESS_SUFFIX ".gz"
 #define COMPRESSED_REGEX "\\.(?:Z|gz|bz2|xz)$"
-#define EXTRA_COMPRESSION_DELAY 0
+#define DEFAULT_COMPRESS_DELAY 0
 #define DEFAULT_CONFIG_FILE CONFDIR "/metalog.conf"
 #define DEFAULT_PID_FILE "/var/run/metalog.pid"
 #define NONPRINTABLE_SUSTITUTE_CHAR '_'

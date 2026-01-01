@@ -1166,7 +1166,7 @@ static int rotateLogFiles(const char * const directory, const int maxfiles,
         return -1;
     }
     foundlogs = scandirat(dirfd, ".", &dirent, oldlog_filter, oldlog_sorter);
-    for (i = 0; i <= foundlogs; i++) {
+    for (i = 0; i < foundlogs; i++) {
         if (i < foundlogs - maxfiles) {
             /* Delete excess logs */
             if (unlinkat(dirfd, dirent[i]->d_name, 0) < 0) {
@@ -1382,8 +1382,6 @@ static int writeLogLine(Output * const output, const char * const date,
                 warnp("Path name too long for current in [%s]", output->directory);
                 return -2;
             }
-            rotateLogFiles(output->directory, output->maxfiles,
-                           output->compress, output->compress_delay);
             fclose(output->fp);
             output->fp = NULL;
             if (rename(path, newpath) < 0 && unlink(path) < 0) {
@@ -1393,6 +1391,8 @@ static int writeLogLine(Output * const output, const char * const date,
             if (output->postrotate_cmd != NULL) {
                 spawnCommand(output->postrotate_cmd, date, prg, newpath);
             }
+            rotateLogFiles(output->directory, output->maxfiles,
+                           output->compress, output->compress_delay);
             if (snprintf(path, sizeof path, "%s/" OUTPUT_DIR_TIMESTAMP,
                         output->directory) < 0) {
                 warnp("Path name too long for timestamp in [%s]", output->directory);

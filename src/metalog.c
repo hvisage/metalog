@@ -604,9 +604,13 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         else if (strcasecmp(keyword, "socket") == 0) {
             (*cur_block)->source = add_data_source(LOGLINETYPE_SYSLOG, value, false);
         }
-#ifdef WITH_COMPRESS
         else if (strcasecmp(keyword, "compress") == 0) {
             (*cur_block)->compress = atoi(value) == 1 ? true : false;
+#ifndef WITH_COMPRESS
+            if ((*cur_block)->compress) {
+                warn("Log compression configuration ignored as support not compiled in");
+            }
+#endif
             if ((*cur_block)->output != NULL) {
                 (*cur_block)->output->compress = (*cur_block)->compress;
             }
@@ -617,7 +621,6 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
                 (*cur_block)->output->compress_delay = (*cur_block)->compress_delay;
             }
         }
-#endif
         else {
             err("Unknown keyword '%s'! line: %s", keyword, line);
         }
@@ -1101,7 +1104,11 @@ int oldlog_sorter(const struct dirent **a, const struct dirent **b)
     return timegm(&ta) - timegm(&tb);
 }
 
-#ifdef WITH_COMPRESS
+#ifndef WITH_COMPRESS
+static void compressLogFile(int, const char *)
+{
+}
+#else
 static void compressLogFile(int dir_fd, const char *in_name)
 {
     int in_fd, out_fd;
@@ -1175,10 +1182,8 @@ static int rotateLogFiles(const char * const directory, const int maxfiles,
         } else if (compress &&
                    i < foundlogs - compress_delay &&
                    !is_compressed(dirent[i]->d_name)) {
-#ifdef WITH_COMPRESS
             /* Compress old logs; ignore failures */
             compressLogFile(dirfd, dirent[i]->d_name);
-#endif
         }
     }
     free(dirent);

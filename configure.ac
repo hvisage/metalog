@@ -73,10 +73,10 @@ AC_CHECK_FUNCS_ONCE(m4_flatten([
 dnl Conditional functionality
 
 AC_ARG_WITH(compress,
-	[AS_HELP_STRING([--with-compress],[Enable built-in compression of rotated logs (default no)])])
-AS_IF([test "x$with_compress" = "xyes"], [
+	[AS_HELP_STRING([--without-compress],[Disable support for compressing rotated logs])])
+AS_IF([test "x$with_compress" != "xno"], [
 	PKG_CHECK_MODULES([ZLIB], [zlib])
-	AC_DEFINE([WITH_COMPRESS], [1], [Provide built-in compression option])
+	AC_DEFINE([WITH_COMPRESS], [1], [Define to include support for compression with zlib])
 ])
 
 dnl Libraries

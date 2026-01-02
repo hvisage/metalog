@@ -70,11 +70,20 @@ AC_CHECK_FUNCS_ONCE(m4_flatten([
 	setprogname
 ]))
 
-dnl PCRE2
+dnl Conditional functionality
+
+AC_ARG_WITH(compress,
+	[AS_HELP_STRING([--without-compress],[Disable support for compressing rotated logs])])
+AS_IF([test "x$with_compress" != "xno"], [
+	PKG_CHECK_MODULES([ZLIB], [zlib])
+	AC_DEFINE([WITH_COMPRESS], [1], [Define to include support for compression with zlib])
+])
+
+dnl Libraries
 
 PKG_CHECK_MODULES([PCRE2], [libpcre2-8])
-CFLAGS="$CFLAGS $PCRE2_CFLAGS"
-LIBS="$LIBS $PCRE2_LIBS"
+CFLAGS="$CFLAGS $PCRE2_CFLAGS $ZLIB_CFLAGS"
+LIBS="$LIBS $PCRE2_LIBS $ZLIB_LIBS"
 
 dnl Options
 

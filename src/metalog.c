@@ -10,6 +10,9 @@
 static int spawn_recursion = 0;
 static int dolog_queue[2];
 static bool keep_running = true;
+static pcre2_code *re_compressed;
+static pcre2_match_data *pcre_matches;
+
 static void signal_doLog_dequeue(void);
 static void add_remote_host(RemoteHost **hosts, const char *name, const char *hostname, const char *port, LogFormat format, int severity_level);
 static char *extract_remote_host_name(const char * const keyword, const char *pattern);
@@ -345,6 +348,8 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
             new_output->showrepeats = (*cur_block)->showrepeats;
             new_output->stamp_fmt = (*cur_block)->stamp_fmt;
             new_output->flush = (*cur_block)->flush;
+            new_output->compress = (*cur_block)->compress;
+            new_output->compress_delay = (*cur_block)->compress_delay;
             new_output->dt.previous_prg = NULL;
             new_output->dt.previous_info = NULL;
             new_output->dt.sizeof_previous_prg = (size_t) 0U;
@@ -599,6 +604,23 @@ static int parseLine(char * const line, ConfigBlock **cur_block,
         else if (strcasecmp(keyword, "socket") == 0) {
             (*cur_block)->source = add_data_source(LOGLINETYPE_SYSLOG, value, false);
         }
+        else if (strcasecmp(keyword, "compress") == 0) {
+            (*cur_block)->compress = atoi(value) == 1 ? true : false;
+#ifndef WITH_COMPRESS
+            if ((*cur_block)->compress) {
+                warn("Log compression configuration ignored as support not compiled in");
+            }
+#endif
+            if ((*cur_block)->output != NULL) {
+                (*cur_block)->output->compress = (*cur_block)->compress;
+            }
+        }
+        else if (strcasecmp(keyword, "compress_delay") == 0) {
+            (*cur_block)->compress_delay = atoi(value);
+            if ((*cur_block)->output != NULL) {
+                (*cur_block)->output->compress_delay = (*cur_block)->compress_delay;
+            }
+        }
         else {
             err("Unknown keyword '%s'! line: %s", keyword, line);
         }
@@ -656,6 +678,8 @@ static int configParser(const char * const file)
             DEFAULT_LOG_FORMAT,        /* log format */
             false,                     /* severity level in legacy formats */
             NULL,                      /* data source */
+            false,                     /* compress */
+            DEFAULT_COMPRESS_DELAY,    /* compress delay */
     };
     ConfigBlock *cur_block = &default_block;
 
@@ -1047,71 +1071,125 @@ static int parseLogLine(const LogLineType loglinetype, char *line,
     return 0;
 }
 
-static int rotateLogFiles(const char * const directory, const int maxfiles)
+static bool is_compressed(const char *name)
 {
-    char path[PATH_MAX];
-    char old_name[PATH_MAX];
-    const char *name;
-    DIR *dir;
-    struct dirent *dirent;
-    int foundlogs;
-    int year, mon, mday, hour, min, sec;
-    int older_year, older_mon = INT_MAX, older_mday = INT_MAX,
-        older_hour = INT_MAX, older_min = INT_MAX, older_sec = INT_MAX;
+    return pcre2_match(re_compressed, (PCRE2_SPTR)name, PCRE2_ZERO_TERMINATED,
+                       0, 0, pcre_matches, NULL) >= 0;
+}
 
-    rescan:
-    foundlogs = 0;
-    *old_name = 0;
-    older_year = INT_MAX;
-    if ((dir = opendir(directory)) == NULL) {
+/* Identify details of rotated log. Returns true on success,
+ * false if the filename is not in a conformant pattern */
+static bool oldlog_identify(struct tm *stamp, const struct dirent *dirent)
+{
+    char *s = strptime(dirent->d_name,
+                       OUTPUT_DIR_LOGFILES_PREFIX OUTPUT_DIR_LOGFILES_SUFFIX,
+                       stamp);
+    return s && (*s == '\0' || is_compressed(s));
+}
+
+int oldlog_filter(const struct dirent *a)
+{
+    struct tm ta;
+
+    return oldlog_identify(&ta, a);
+}
+
+int oldlog_sorter(const struct dirent **a, const struct dirent **b)
+{
+    struct tm ta, tb;
+
+    oldlog_identify(&ta, *a);
+    oldlog_identify(&tb, *b);
+
+    return timegm(&ta) - timegm(&tb);
+}
+
+#ifndef WITH_COMPRESS
+static void compressLogFile(int, const char *)
+{
+}
+#else
+static void compressLogFile(int dir_fd, const char *in_name)
+{
+    int in_fd, out_fd;
+    struct stat statbuf;
+    char *in_buf;
+    char *out_name;
+    int sz = 0;
+    gzFile gz;
+
+    if ((in_fd = openat(dir_fd, in_name, O_RDONLY)) == -1) {
+        return;
+    }
+    if (fstat(in_fd, &statbuf) == -1 ||
+        (in_buf = mmap(NULL, statbuf.st_size, PROT_READ, MAP_SHARED, in_fd, 0)) == MAP_FAILED) {
+        goto fail1;
+    }
+
+    sz = asprintf(&out_name, "%s.gz", in_name);
+    if (sz == -1) {
+        goto fail2;
+    }
+
+    out_fd = openat(dir_fd, out_name, O_CREAT | O_RDWR | O_TRUNC, statbuf.st_mode);
+    free(out_name);
+    if (out_fd == -1) {
+        goto fail2;
+    }
+
+    if ((gz = gzdopen(out_fd, "w")) == NULL) {
+        close(out_fd);
+        goto fail2;
+    }
+
+    sz = gzwrite(gz, in_buf, statbuf.st_size);
+    if (gzclose(gz) == Z_OK && sz > 0) {
+        unlinkat(dir_fd, in_name, 0);
+    } else {
+        sz = 0;
+    }
+
+fail2:
+    munmap(in_buf, statbuf.st_size);
+fail1:
+    close(in_fd);
+    if (sz <= 0) {
+        warn("Unable to compress [%s]", in_name);
+    }
+}
+#endif
+
+static int rotateLogFiles(const char * const directory, const int maxfiles,
+                          bool compress, int compress_delay)
+{
+    struct dirent **dirent;
+    int foundlogs;
+    int ret = 0;
+    int dirfd;
+    int i;
+
+    if ((dirfd = open(directory, O_DIRECTORY | O_RDONLY)) == -1) {
         warnp("Unable to rotate [%s]", directory);
         return -1;
     }
-    while ((dirent = readdir(dir)) != NULL) {
-        name = dirent->d_name;
-        if (strncmp(name, OUTPUT_DIR_LOGFILES_PREFIX,
-                    sizeof OUTPUT_DIR_LOGFILES_PREFIX - 1U) == 0) {
-            if (sscanf(name, OUTPUT_DIR_LOGFILES_PREFIX "%d-%d-%d-%d:%d:%d",
-                       &year, &mon, &mday, &hour, &min, &sec) != 6) {
-                continue;
+    foundlogs = scandirat(dirfd, ".", &dirent, oldlog_filter, oldlog_sorter);
+    for (i = 0; i < foundlogs; i++) {
+        if (i < foundlogs - maxfiles) {
+            /* Delete excess logs */
+            if (unlinkat(dirfd, dirent[i]->d_name, 0) < 0) {
+                ret = -2;
             }
-            foundlogs++;
-            if (year < older_year || (year == older_year &&
-               (mon  < older_mon  || (mon  == older_mon  &&
-               (mday < older_mday || (mday == older_mday &&
-               (hour < older_hour || (hour == older_hour &&
-               (min  < older_min  || (min  == older_min  &&
-               (sec  < older_sec))))))))))) {   /* yeah! */
-                older_year = year;
-                older_mon = mon;
-                older_mday = mday;
-                older_hour = hour;
-                older_min = min;
-                older_sec = sec;
-                strncpy(old_name, name, sizeof old_name);
-                old_name[sizeof old_name - 1U] = 0;
-            }
+        } else if (compress &&
+                   i < foundlogs - compress_delay &&
+                   !is_compressed(dirent[i]->d_name)) {
+            /* Compress old logs; ignore failures */
+            compressLogFile(dirfd, dirent[i]->d_name);
         }
     }
-    closedir(dir);
-    if (foundlogs >= maxfiles) {
-        if (*old_name == 0) {
-            return -3;
-        }
-        if (snprintf(path, sizeof path, "%s/%s", directory, old_name) < 0) {
-            warnp("Path too long to unlink [%s/%s]", directory, old_name);
-            return -4;
-        }
-        if (unlink(path) < 0) {
-            return -2;
-        }
-        foundlogs--;
-        if (foundlogs >= maxfiles) {
-            goto rescan;
-        }
-    }
+    free(dirent);
+    close(dirfd);
 
-    return 0;
+    return ret;
 }
 
 static int rateLimit(RateLimiter * const rl)
@@ -1309,7 +1387,6 @@ static int writeLogLine(Output * const output, const char * const date,
                 warnp("Path name too long for current in [%s]", output->directory);
                 return -2;
             }
-            rotateLogFiles(output->directory, output->maxfiles);
             fclose(output->fp);
             output->fp = NULL;
             if (rename(path, newpath) < 0 && unlink(path) < 0) {
@@ -1319,6 +1396,8 @@ static int writeLogLine(Output * const output, const char * const date,
             if (output->postrotate_cmd != NULL) {
                 spawnCommand(output->postrotate_cmd, date, prg, newpath);
             }
+            rotateLogFiles(output->directory, output->maxfiles,
+                           output->compress, output->compress_delay);
             if (snprintf(path, sizeof path, "%s/" OUTPUT_DIR_TIMESTAMP,
                         output->directory) < 0) {
                 warnp("Path name too long for timestamp in [%s]", output->directory);
@@ -2531,11 +2610,31 @@ static void free_resources(void)
         free_data_sources(&data_sources);
 }
 
+static void compile_regexes(void)
+{
+    pcre_matches = pcre2_match_data_create(1, NULL);
+    re_compressed = wpcre2_compile(COMPRESSED_REGEX, 0);
+    if (!pcre_matches || !re_compressed) {
+        err("Compiling regexes");
+    }
+}
+
+static void free_regexes(void)
+{
+    if (pcre_matches) {
+        pcre2_match_data_free(pcre_matches);
+    }
+    if (re_compressed) {
+        pcre2_code_free(re_compressed);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     int ret;
     int num_sockets;
 
+    compile_regexes();
     parseOptions(argc, argv);
     if (do_kernel_log) {
         add_data_source(LOGLINETYPE_KLOG, NULL, false);
@@ -2566,5 +2665,6 @@ int main(int argc, char *argv[])
 
     ret = process(num_sockets);
     free_resources();
+    free_regexes();
     return ret;
 }

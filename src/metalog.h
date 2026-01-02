@@ -61,6 +61,11 @@
 # define KLOG_FILE "/dev/klog"
 #endif
 
+#ifdef WITH_COMPRESS
+#include <zlib.h>
+#include <sys/mman.h>
+#endif
+
 typedef struct DuplicateTracker_ {
     char *previous_prg;
     char *previous_info;
@@ -125,6 +130,8 @@ typedef struct Output_ {
     const char *stamp_fmt;
     FlushMode flush;
     RateLimiter rate;
+    bool compress;
+    int compress_delay;
 } Output;
 
 typedef enum LogLineType_ {
@@ -186,6 +193,8 @@ typedef struct ConfigBlock_ {
     LogFormat log_format;   /* format of logging */
     bool log_severity;      /* log severity level in format legacy or legacy_timestamp */
     DataSource *source;
+    bool compress;          /* whether to compress rotated logs */
+    int compress_delay;     /* how many recently rotated logs to keep uncompressed */
 } ConfigBlock;
 
 #define DEFAULT_MINIMUM LOG_DEBUG
@@ -202,6 +211,9 @@ typedef struct ConfigBlock_ {
 #define DEFAULT_PERMS 0700
 #define OUTPUT_DIR_LOGFILES_PREFIX "log-"
 #define OUTPUT_DIR_LOGFILES_SUFFIX "%Y-%m-%d-%H:%M:%S"
+#define COMPRESS_SUFFIX ".gz"
+#define COMPRESSED_REGEX "\\.(?:Z|gz|bz2|xz)$"
+#define DEFAULT_COMPRESS_DELAY 0
 #define DEFAULT_CONFIG_FILE CONFDIR "/metalog.conf"
 #define DEFAULT_PID_FILE "/var/run/metalog.pid"
 #define NONPRINTABLE_SUSTITUTE_CHAR '_'

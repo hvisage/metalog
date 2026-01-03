@@ -1,4 +1,19 @@
-* Version (not released, yet)
+* Version 20260103
+ - SimonGottsch:
+ -- support different logging formats for local and remote logging (log_format, remote_format):
+    legacy_timestamp (the current format, still default), legacy, rfc3164, rfc5424
+ -- support multiple remote syslog servers (remote_host, remote_port, remote_log, remote_format)
+ -- introduce optional severity levels (log_severity); optionally filter logs sent to remote servers (remote_severity_level)
+ - andy-bower:
+ -- fix config directory feature: config files are sorted now alphanumerically to get determined behaviour
+ -- support multiple sockets as logging source, e.g. for chrooted or containerized applications (socket)
+ -- introduce optional native log compression for rotated logs (compress), when linked with zlib (--without-compress)
+ -- introduce delayed log compression (compress_delay), so the latest log(s) stay uncompressed
+ -- some clean ups, e.g. get rid of PATH_MAX
+ - m-kress:
+ -- introduce config test parameter (--test-config or -t)
+
+* Version 20230719
  - m-kress:
  -- Do not substitute trailing control characters of a log line, but eliminate them completelly.
     Be aware, that this change will break existing filters that rely on the trailing underscore!
@@ -43,7 +58,7 @@
 
 * Version 20180326
  - moved to GitHub hvisage/metalog
- - Michael Kress:
+ - m-kress:
  -- add remote logging to a log server via UDP
  -- silences a minor compiler warning (unused return value) and a missing cast
  -- add the special value "NONE" as parameter for the keyword "logdir". A log entry with "NONE will not be written to a log file.

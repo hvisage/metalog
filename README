@@ -27,15 +27,20 @@ http://metalog.sourceforge.net/
         ------------------------ COMPILATION ------------------------
 
 
-In order to compile Metalog, you should have the PCRE2 library on your
-system. That library is used to process Perl-compatible regular expressions.
+In order to compile Metalog, you need to have the PCRE2 library. It's used
+to process Perl-compatible regular expressions.
 
 libpcre2 comes with many distributions, but you can also download it from:
-
                              https://www.pcre.org/
+
+In case you want to use the optional native gzip compression for rotated
+log files you need to have zlib. It's very likely, that this it's already
+installed, but you can also download it from:
+                             https://www.zlib.net/
 
 Then, compiling and installing Metalab isn't rocket science:
 
+./autogen.sh
 ./configure
 make
 make install
@@ -193,10 +198,6 @@ Example:
 have exceeded that size. Messages are never truncated and no message can be
 lost during a rotation. Every section can have a different maxsize value.
 
-Example: rotate logs files when they are more than 1,000,000 bytes long:
-
-  maxsize = 1000000
-
 * maxfiles = <number of files>: how many files to keep after rotation. This
 parameter can be set independently for each section. It defaults to 5.
 
@@ -205,12 +206,30 @@ older than this number of seconds. Every section can have a different
 maxtime value. maxsize and maxtime can be combined together, so that rotation
 occurs when any of these conditions occurs.
 
-Example: rotate log files when they are more than 1,000,000 bytes long, and
-every day, and keep only 3 history files:
+* compress = 0|1: With this active and when compiled with zlib support the
+rotated log files will get compress with gzip.
+
+* compress_delay = <number of files>: This will leave the amount of the
+latest rotated log files uncompressed.
+
+Example: rotate log files daily or when they are more than 1,000,000 bytes
+long, keep only 3 history files with the first and second uncompressed and
+the third one compressed:
 
   maxsize  = 1000000
   maxtime  = 86400
   maxfiles = 3
+  compress = 1
+  compress_delay = 2
+
+* log_format = <format>: The log entries can be written in different formats:
+"legacy", "legacy_timestamp", "rfc3164" and "rfc5424".
+The legacy ones are quite similar to the format defined in obsolete RFC3164.
+legacy_timestamp is the default format.
+
+* log_severity = <number>: In case a legacy format is used, this will
+introduce the severity info to a log entry. In both RFC formats this is
+already included and can't get disabled.
 
 * showrepeats = 0|1: disable printing the "last message repeated N times"
 summary messages.  When showrepeats is set to 1, messages will be printed
@@ -259,7 +278,7 @@ The following parameters are provided, environments are not cleared:
   prog: program name of the last message received
   file: file name with path of the rotated log-file
 
-Example: compress rotated log files
+Example: compress rotated log files with bzip2
 
   postrotate_cmd = /usr/local/bin/compress.sh
 
@@ -282,6 +301,75 @@ FILE="$3"
 if [ -n "${FILE}" -a -f "${FILE}" -a -s "${FILE}" ]; then
   bzip2 -9 ${FILE}
 fi
+
+* configdir = <path to directory>: This  optional  directory can contain
+more config files that will get interpreted at metalog start. Only file
+names ending with ".conf" are interpreted. This option is only allowed once,
+all repetitions  will be ignored. The content of the additional config files
+will be appended to the existing config in alphanumeric order of the file
+names, to get a determined behaviour of metalog. The config files could
+contain sections for specific services.
+
+Example: Content of /etc/metalog.d/:
+
+    00_kernel.conf
+    10_metalog.conf
+    11_crond.conf
+    20_application_xy.conf
+    21_apache.conf
+
+
+         --------- CONFIGURATION: REMOTE SYSLOG SERVERS ------------
+
+
+metalog can send log messages to syslog server(s) via UDP.
+
+* remote_log = 0|1: Log messages will be sent to a remote syslog server.
+If defined in the default settings section, all log files will be sent.
+It can also be defined in the seperate sections, so remote logging can
+get activated/deactivated for every single section.
+
+* remote_host = <IP address or domain name>: This is the remote syslog
+server.
+
+* remote_port = <number>: This is the UDP the syslog server listens for
+new log messages.
+
+* remote_format = <format>: It makes sense to set the format to "rfc3164" or
+"rfc5424", so the host name of the sender will be included in the message.
+
+* remote_severity_level = <severity level>: This defines which log messages
+will be sent to the remote syslog servers. It filters the less important
+messages and so reduces the amount of messages sent.
+
+Example: send all logs to a remote server:
+
+  remote_host = 10.1.0.1
+  remote_port = 514
+  remote_format = rfc5424
+  remote_severity_level = 3
+
+This will send all log messages also to the remote syslog server, that have
+a severity level of 3 [ERROR] or a higher (that have a lower number).
+
+If several syslog servers should receive the logs, the above remote_*
+commands can be replaced with remote_*[<name>], where <name> is a
+alphanumeric value.
+
+Example: This will send the logs to two servers: one called "main" and the
+other one "backup".
+
+remote_log[main] = 1
+remote_host[main] = 10.1.0.1
+remote_port[main] = 514
+remote_format[main] = rfc5424
+remote_severity_level[main] = 3
+
+remote_log[backup] = 1
+remote_host[backup] = 192.168.1.10
+remote_port[backup] = 514
+remote_format[backup] = rfc5424
+remote_severity_level[backup] = 3
 
 
          ------------------------ LOG FILES ------------------------

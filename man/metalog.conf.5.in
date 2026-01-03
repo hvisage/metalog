@@ -60,46 +60,46 @@ In case a domain or host name is configured, the necessary DNS request will be
 repeated after every failed attempt or after 120 seconds when the name has been
 successfully resolved.
 .TP
-\fBremote_host[name]\fR = \fI<IP address or domain name>\fR
+\fBremote_host[<name>]\fR = \fI<IP address or domain name>\fR
 Equal to \fBremote_host\fR, but can be used multiple times to add more remote log
-servers. The \fIname\fR part can be any string, but must be the same for \fBremote_port[name]\fR etc.
+servers. The \fIname\fR part can be any string, but must be the same for \fBremote_port[<name>]\fR etc.
 .TP
 \fBremote_port\fR = \fI<value>\fR
 The UDP port of the remote log server. Default is "514". This can only be
 defined in the default values section.
 .TP
-\fBremote_port[name]\fR = \fI<value>\fR
+\fBremote_port[<name>]\fR = \fI<value>\fR
 Equal to \fBremote_port\fR, but can be used multiple times to add more remote log
 servers.The \fIname\fR part can be any string, but must be the same for
-\fBremote_host[name]\fR etc.
+\fBremote_host[<name>]\fR etc.
 .TP
 \fBremote_log\fR = \fI<number>\fR
 Default is \fI0\fR. Log messages are sent to the remote log server when set
 to \fI1\fR. Can be defined for default values or in sections.
 .TP
-\fBremote_log[name]\fR = \fI<number>\fR
+\fBremote_log[<name>]\fR = \fI<number>\fR
 Equal to \fBremote_log\fR, but can be used multiple times to add more remote log
 servers. The \fIname\fR part can be any string, but must be the same for
-\fBremote_host[name]\fR etc.
+\fBremote_host[<name>]\fR etc.
 .TP
 \fBremote_format\fR = \fI<format>\fR
 Default is \fIlegacy_timestamp\fR. Log messages are sent to the remote log server with the
 defined format. Format options are : "legacy", "legacy_timestamp", "rfc3164" and "rfc5424"
 .TP
-\fBremote_format[name]\fR = \fI<format>\fR
+\fBremote_format[<name>]\fR = \fI<format>\fR
 Equal to \fBremote_format\fR, but can be used multiple times to add more remote
 log servers. The \fIname\fR part can be any string, but must be the same for
-\fBremote_host[name]\fR etc.
+\fBremote_host[<name>]\fR etc.
 .TP
 \fBremote_severity_level\fR = \fI<severity level>\fR
 Default is \fI7\fR. Log messages are sent to the remote log server only when
 its urgency is inferior or equal to \fI<severity level>\fR. Level '0' is the most critical one,
 while level '7' is for debugging messages.
 .TP
-\fBremote_severity_level[name]\fR = \fI<severity level>\fR
+\fBremote_severity_level[<name>]\fR = \fI<severity level>\fR
 Equal to \fBremote_severity_level\fR, but can be used multiple times to add more
 remote log servers. The \fIname\fR part can be any string, but must be the same for
-\fBremote_host[name]\fR etc.
+\fBremote_host[<name>]\fR etc.
 .TP
 \fBlog_format\fR = \fI<format>\fR
 Default is \fIlegacy_timestamp\fR. Log messages are written to filesystem or stdout with the
@@ -233,7 +233,10 @@ Values less than 1 are invalid and will be rejected.
 \fBconfigdir = \fI"/path/to/directory/with/more/config/files"\fR
 This optional directory can contain more config files that will get interpreted at
 metalog start. Only file names ending with ".conf" are interpreted. This option is
-only allowed once, all repetitions will be ignored.
+only allowed once, all repetitions will be ignored. The content of the additional
+config files will be appended to the existing config in alphanumeric order of the
+file names, to get a determined behaviour of metalog.
+
 .TP
 \fBsocket = \fI"/path/to/logging/socket"\fR
 Listen and filter on an additional logging socket. If creation of the sockets fails

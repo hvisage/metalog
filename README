@@ -194,6 +194,16 @@ Example:
   neg_regex= "starting daemon"
   logdir   = "/var/log/mail"
 
+* socket = <path to socketfile>: metalog will create a socket file on the
+given path and listen on this Unix Domain Socket. That way applications
+in a chroot jail can still send log messages that will be received by
+metalog. Such a socket could also get bind mounted in LXC containers and
+overmount /dev/log in there. Within the container then is no longer a own
+logger necessary.
+This option can be set in the default part of the config or within a section.
+When used within a section it can we use as a selector for a specific log
+file instead of flags like "program", "facility", "regex" and so on.
+
 * maxsize = <size in bytes>: automatically rotate log files when their size
 have exceeded that size. Messages are never truncated and no message can be
 lost during a rotation. Every section can have a different maxsize value.

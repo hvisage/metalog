@@ -1,3 +1,7 @@
+* Version 20260105
+ - andy-bower:
+ -- replace scandirat() with scandir() for POSIX compatibility
+
 * Version 20260103
  - SimonGottsch:
  -- support different logging formats for local and remote logging (log_format, remote_format):

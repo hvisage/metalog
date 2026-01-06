@@ -1172,7 +1172,7 @@ static int rotateLogFiles(const char * const directory, const int maxfiles,
         warnp("Unable to rotate [%s]", directory);
         return -1;
     }
-    foundlogs = scandirat(dirfd, ".", &dirent, oldlog_filter, oldlog_sorter);
+    foundlogs = scandir(directory, &dirent, oldlog_filter, oldlog_sorter);
     for (i = 0; i < foundlogs; i++) {
         if (i < foundlogs - maxfiles) {
             /* Delete excess logs */

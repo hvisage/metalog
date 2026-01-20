@@ -213,6 +213,7 @@ typedef struct ConfigBlock_ {
 #define OUTPUT_DIR_LOGFILES_SUFFIX "%Y-%m-%d-%H:%M:%S"
 #define COMPRESS_SUFFIX ".gz"
 #define COMPRESSED_REGEX "\\.(?:Z|gz|bz2|xz)$"
+#define CONFFILE_REGEX "\\.conf$"
 #define DEFAULT_COMPRESS_DELAY 0
 #define DEFAULT_CONFIG_FILE CONFDIR "/metalog.conf"
 #define DEFAULT_PID_FILE "/var/run/metalog.pid"

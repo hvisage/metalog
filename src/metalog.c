@@ -10,7 +10,7 @@
 static int spawn_recursion = 0;
 static int dolog_queue[2];
 static bool keep_running = true;
-static pcre2_code *re_compressed;
+static pcre2_code *re_compressed, *re_conffile;
 static pcre2_match_data *pcre_matches;
 
 static void signal_doLog_dequeue(void);
@@ -636,8 +636,8 @@ free_match_data:
 /* config file names must end with ".conf" */
 static int conffile_filter(const struct dirent *ep)
 {
-    char *p = strchr(ep->d_name, (int) '.');
-    return (p != NULL && strstr(p, ".conf") != NULL);
+    return pcre2_match(re_conffile, (PCRE2_SPTR)ep->d_name, PCRE2_ZERO_TERMINATED,
+                       0, 0, pcre_matches, NULL) >= 0;
 }
 
 static int configParser(const char * const file)
@@ -2614,7 +2614,8 @@ static void compile_regexes(void)
 {
     pcre_matches = pcre2_match_data_create(1, NULL);
     re_compressed = wpcre2_compile(COMPRESSED_REGEX, 0);
-    if (!pcre_matches || !re_compressed) {
+    re_conffile = wpcre2_compile(CONFFILE_REGEX, 0);
+    if (!pcre_matches || !re_compressed || !re_conffile) {
         err("Compiling regexes");
     }
 }
@@ -2626,6 +2627,9 @@ static void free_regexes(void)
     }
     if (re_compressed) {
         pcre2_code_free(re_compressed);
+    }
+    if (re_conffile) {
+        pcre2_code_free(re_conffile);
     }
 }
 

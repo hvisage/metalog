@@ -51,9 +51,9 @@
 #include "helpers.h"
 
 #ifdef _PATH_LOG
-# define SOCKNAME _PATH_LOG
+# define DEFAULT_SOCK_NAME _PATH_LOG
 #else
-# define SOCKNAME "/dev/log"
+# define DEFAULT_SOCK_NAME "/dev/log"
 #endif
 #ifdef _PATH_KLOG
 # define KLOG_FILE _PATH_KLOG

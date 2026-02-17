@@ -2582,6 +2582,9 @@ static void parseOptions(int argc, char *argv[])
         case 'p' :
             pid_file = xstrdup(optarg);
             break;
+        case 'S' :
+            sock_name = xstrdup(optarg);
+            break;
         case 's' :
             break;
         case 't' :
@@ -2643,7 +2646,7 @@ int main(int argc, char *argv[])
     if (do_kernel_log) {
         add_data_source(LOGLINETYPE_KLOG, NULL, false);
     }
-    add_data_source(LOGLINETYPE_SYSLOG, SOCKNAME, true);
+    add_data_source(LOGLINETYPE_SYSLOG, sock_name, true);
     ret = configParser(config_file);
     if (test_config) {
         return ret;

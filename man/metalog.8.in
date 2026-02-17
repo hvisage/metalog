@@ -49,7 +49,7 @@ Output help information and exit.
 .BR \-N ", " \-\-no\-kernel
 Do not attempt to log messages from the kernel.
 .TP
-.BR \-P ", " \-\-pidfile = \fR\fIfile\fR
+.BR \-p ", " \-\-pidfile = \fR\fIfile\fR
 Use an alternate file to store the process number.
 .TP
 .BR \-s ", " \-\-sync ", " \-\-synchronous

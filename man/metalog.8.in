@@ -52,6 +52,9 @@ Do not attempt to log messages from the kernel.
 .BR \-p ", " \-\-pidfile = \fR\fIfile\fR
 Use an alternate file to store the process number.
 .TP
+.BR \-S ", " \-\-socket = \fR\fIpath\fR
+Use an alternate socket path for main syslog listener.
+.TP
 .BR \-s ", " \-\-sync ", " \-\-synchronous
 Start in synchronous mode, with no bufferization.
 Can be overridden for individual logs.

@@ -463,6 +463,9 @@ Created files will be owned by this group.
 - '-p <filename>' or '--pidfile=<filename>': set the name of the file
 that will hold the PID number. It defaults to /var/run/metalog.pid
 
+- '-S <pathname>' or '--socket=<pathname>': set the path that will
+name the main syslog socket. It defaults to /dev/log
+
 - '-s' or '--sync': start in synchronous mode, with no bufferization.
 
 - '-t' or '--test-config': Exit after parsing the config file(s).

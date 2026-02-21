@@ -1,3 +1,9 @@
+* Version 20260221
+ - andy-bower:
+ -- ignore config filenames with characters after .conf
+ -- fix man page: -p option letter for --pidfile instead of -P
+ -- add -S option to change main syslog socket /dev/log
+
 * Version 20260105
  - andy-bower:
  -- replace scandirat() with scandir() for POSIX compatibility

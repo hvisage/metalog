@@ -1547,8 +1547,21 @@ static int get_stamp_fmt_timestamp(const char *stamp_fmt, char *datebuf, int dat
     if (tm) {
         /* make a copy as we may change the string */
         char *fmt_str = strdup(stamp_fmt);
+
+        /* implement missing %:z of strtfmt */
+        char *p = strstr(fmt_str, "%:z");
+        if (p != NULL) {
+            char *tmp = NULL;
+            *p = '\0';
+            if (asprintf(&tmp, "%s%+03d:%02d%s", fmt_str, (int) tm->tm_gmtoff / 3600, (int) (tm->tm_gmtoff % 3600) / 60, p + 3) <= 0) {
+                return -1;
+            }
+            free(fmt_str);
+            fmt_str = tmp;
+        }
+
         /* Search for and process "%N" */
-        char *p = fmt_str;
+        p = fmt_str;
         while ((p = strchr(p, '%')) != NULL) {
             char *tmp = NULL;
             int n, m;
@@ -2179,7 +2192,7 @@ static const char* get_stamp_fmt_for_rfc_format(LogFormat format)
         case RFC3164:
             return "%b %d %H:%M:%S";
         case RFC5424:
-            return "%Y-%m-%dT%H:%M:%S.%3NZ";
+            return "%Y-%m-%dT%H:%M:%S.%3N%:z";
         default:
             return NULL;
     }

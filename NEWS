@@ -1,3 +1,7 @@
+* Version 20260811
+ - m-kress:
+ -- RFC 5424 conform time stamp: print time zone offset instead of "Z"
+
 * Version 20260221
  - andy-bower:
  -- ignore config filenames with characters after .conf

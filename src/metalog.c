@@ -1486,8 +1486,10 @@ static int sendRemote(const char * const prg, const char * const pid,
     }
 
     /* close an eventually open socket */
-    if (host->sock > 0)
+    if (host->sock > 0) {
         close(host->sock);
+        host->sock = -1;
+    }
 
     /* establish the socket to the remote host using all its resolved addresses */
     for (rp = host->result; rp != NULL; rp = rp->ai_next) {

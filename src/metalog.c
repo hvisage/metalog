@@ -1458,7 +1458,7 @@ static int sendRemote(const char * const prg, const char * const pid,
 
     /* everything seems to be ready to send to remote host immediatelly */
     clock_gettime(CLOCK_MONOTONIC, &now);
-    if ((host->sock > 0) &&
+    if ((host->sock >= 0) &&
         ((host->last_dns.tv_sec + DEFAULT_DNS_LOOKUP_INTERVERVAL) > now.tv_sec)) {
         if (sendto(host->sock, line, strlen(line), 0, host->result->ai_addr, host->result->ai_addrlen) == -1) {
             close(host->sock);
@@ -1486,14 +1486,14 @@ static int sendRemote(const char * const prg, const char * const pid,
     }
 
     /* close an eventually open socket */
-    if (host->sock > 0) {
+    if (host->sock >= 0) {
         close(host->sock);
         host->sock = -1;
     }
 
     /* establish the socket to the remote host using all its resolved addresses */
     for (rp = host->result; rp != NULL; rp = rp->ai_next) {
-        if (host->sock <= 0) {
+        if (host->sock < 0) {
             host->sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         }
         if (host->sock < 0) {

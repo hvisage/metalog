@@ -1,3 +1,7 @@
+* Version 20260902
+ - andy-bower:
+ -- fix first send to remote host after re-resolve of address
+
 * Version 20260811
  - m-kress:
  -- RFC 5424 conform time stamp: print time zone offset instead of "Z"

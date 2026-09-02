@@ -1455,7 +1455,6 @@ static int sendRemote(const char * const prg, const char * const pid,
         return -1;
     }
 
-
     /* everything seems to be ready to send to remote host immediatelly */
     clock_gettime(CLOCK_MONOTONIC, &now);
     if ((host->sock >= 0) &&
